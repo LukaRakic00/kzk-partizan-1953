@@ -26,9 +26,6 @@ export async function GET(req: NextRequest) {
     }
 
     const images = await Image.find(query).sort({ order: 1 });
-    
-    console.log(`Found ${images.length} images for folder: ${folder || 'all'}`); // Debug
-    console.log('Images:', images.map(img => ({ id: img._id, folder: img.folder, url: img.url?.substring(0, 50) }))); // Debug
 
     return NextResponse.json(images);
   } catch (error: any) {

@@ -208,7 +208,6 @@ export class ApiClient {
     const url = `/api/images${params.toString() ? `?${params.toString()}` : ''}`;
     try {
       const data = await this.request<any[]>(url);
-      console.log(`API Client: Loaded ${data?.length || 0} images for folder: ${folder || 'all'}`);
       return data || [];
     } catch (error) {
       console.error('API Client getImages error:', error);
@@ -221,7 +220,6 @@ export class ApiClient {
     const url = `/api/images/cloudinary?folder=${folder}`;
     try {
       const data = await this.request<any[]>(url);
-      console.log(`API Client: Loaded ${data?.length || 0} images from Cloudinary folder: ${folder}`);
       return data || [];
     } catch (error) {
       console.error('API Client getImagesFromCloudinary error:', error);

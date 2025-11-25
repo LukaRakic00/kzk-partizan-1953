@@ -37,51 +37,51 @@ function TableContent({ teams, loading, error, leagueName, isWaba = false }: Tab
   }
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-white/10 bg-white/5 shadow-xl">
-      <table className="w-full" style={{ minWidth: isWaba ? '700px' : '800px' }}>
+    <div className="overflow-x-auto rounded-lg border border-white/10 bg-white/5 shadow-xl scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+      <table className="w-full" style={{ minWidth: isWaba ? '600px' : '700px' }}>
         <thead>
           <tr className="bg-white/5 border-b border-white/10">
-            <th className="text-center py-3 px-2 md:py-4 md:px-3 text-xs font-bold font-playfair uppercase tracking-wider sticky left-0 bg-white/5 z-10">
+            <th className="text-center py-2 px-1.5 sm:py-3 sm:px-2 md:py-4 md:px-3 text-[10px] sm:text-xs font-bold font-playfair uppercase tracking-wider sticky left-0 bg-white/5 z-10 min-w-[32px] sm:min-w-[40px]">
               #
             </th>
-            <th className="text-left py-3 px-2 md:py-4 md:px-3 text-xs font-bold font-playfair uppercase tracking-wider sticky left-10 bg-white/5 z-10 min-w-[80px] md:min-w-[120px]">
+            <th className="text-left py-2 px-1.5 sm:py-3 sm:px-2 md:py-4 md:px-3 text-[10px] sm:text-xs font-bold font-playfair uppercase tracking-wider sticky left-[32px] sm:left-[40px] bg-white/5 z-10 min-w-[100px] sm:min-w-[120px] md:min-w-[150px]">
               Tim
             </th>
-            <th className="text-center py-3 px-2 md:py-4 md:px-3 text-xs font-bold font-playfair uppercase tracking-wider">
+            <th className="text-center py-2 px-1 sm:py-3 sm:px-2 md:py-4 md:px-3 text-[10px] sm:text-xs font-bold font-playfair uppercase tracking-wider min-w-[32px] sm:min-w-[40px]">
               MP
             </th>
-            <th className="text-center py-3 px-2 md:py-4 md:px-3 text-xs font-bold font-playfair uppercase tracking-wider">
+            <th className="text-center py-2 px-1 sm:py-3 sm:px-2 md:py-4 md:px-3 text-[10px] sm:text-xs font-bold font-playfair uppercase tracking-wider min-w-[32px] sm:min-w-[40px]">
               <span className="text-green-400">W</span>
             </th>
             {!isWaba && (
-              <th className="text-center py-3 px-2 md:py-4 md:px-3 text-xs font-bold font-playfair uppercase tracking-wider">
+              <th className="text-center py-2 px-1 sm:py-3 sm:px-2 md:py-4 md:px-3 text-[10px] sm:text-xs font-bold font-playfair uppercase tracking-wider min-w-[32px] sm:min-w-[40px]">
                 <span className="text-yellow-400">D</span>
               </th>
             )}
-            <th className="text-center py-3 px-2 md:py-4 md:px-3 text-xs font-bold font-playfair uppercase tracking-wider">
+            <th className="text-center py-2 px-1 sm:py-3 sm:px-2 md:py-4 md:px-3 text-[10px] sm:text-xs font-bold font-playfair uppercase tracking-wider min-w-[32px] sm:min-w-[40px]">
               <span className="text-red-400">L</span>
             </th>
             {isWaba ? (
               <>
-                <th className="text-center py-3 px-2 md:py-4 md:px-3 text-xs font-bold font-playfair uppercase tracking-wider">
+                <th className="text-center py-2 px-1 sm:py-3 sm:px-2 md:py-4 md:px-3 text-[10px] sm:text-xs font-bold font-playfair uppercase tracking-wider min-w-[40px] sm:min-w-[50px]">
                   PTS
                 </th>
-                <th className="text-center py-3 px-2 md:py-4 md:px-3 text-xs font-bold font-playfair uppercase tracking-wider">
+                <th className="text-center py-2 px-1 sm:py-3 sm:px-2 md:py-4 md:px-3 text-[10px] sm:text-xs font-bold font-playfair uppercase tracking-wider min-w-[50px] sm:min-w-[60px]">
                   TP
                 </th>
-                <th className="text-center py-3 px-2 md:py-4 md:px-3 text-xs font-bold font-playfair uppercase tracking-wider">
+                <th className="text-center py-2 px-1 sm:py-3 sm:px-2 md:py-4 md:px-3 text-[10px] sm:text-xs font-bold font-playfair uppercase tracking-wider min-w-[40px] sm:min-w-[50px]">
                   +/-
                 </th>
               </>
             ) : (
               <>
-                <th className="text-center py-3 px-2 md:py-4 md:px-3 text-xs font-bold font-playfair uppercase tracking-wider">
+                <th className="text-center py-2 px-1 sm:py-3 sm:px-2 md:py-4 md:px-3 text-[10px] sm:text-xs font-bold font-playfair uppercase tracking-wider min-w-[50px] sm:min-w-[60px]">
                   TP
                 </th>
-                <th className="text-center py-3 px-2 md:py-4 md:px-3 text-xs font-bold font-playfair uppercase tracking-wider">
+                <th className="text-center py-2 px-1 sm:py-3 sm:px-2 md:py-4 md:px-3 text-[10px] sm:text-xs font-bold font-playfair uppercase tracking-wider min-w-[40px] sm:min-w-[50px]">
                   +/-
                 </th>
-                <th className="text-center py-3 px-2 md:py-4 md:px-3 text-xs font-bold font-playfair uppercase tracking-wider">
+                <th className="text-center py-2 px-1 sm:py-3 sm:px-2 md:py-4 md:px-3 text-[10px] sm:text-xs font-bold font-playfair uppercase tracking-wider min-w-[40px] sm:min-w-[50px]">
                   PTS
                 </th>
               </>
@@ -100,10 +100,10 @@ function TableContent({ teams, loading, error, leagueName, isWaba = false }: Tab
                   ? 'bg-gradient-to-r from-white/15 to-white/5 border-l-4 border-l-white' : ''
               }`}
             >
-              <td className="py-3 px-2 md:py-4 md:px-3 sticky left-0 bg-white/5 z-10">
+              <td className="py-2 px-1.5 sm:py-3 sm:px-2 md:py-4 md:px-3 sticky left-0 bg-white/5 z-10 min-w-[32px] sm:min-w-[40px]">
                 <div className="flex items-center justify-center">
                   <span
-                    className={`inline-flex items-center justify-center w-8 h-8 rounded-lg text-xs font-bold font-playfair transition-all ${
+                    className={`inline-flex items-center justify-center w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 rounded-lg text-[10px] sm:text-xs font-bold font-playfair transition-all ${
                       team.position === 1
                         ? 'bg-gradient-to-br from-yellow-400 to-yellow-600 text-black shadow-lg shadow-yellow-500/50'
                         : team.position === 2
@@ -117,50 +117,48 @@ function TableContent({ teams, loading, error, leagueName, isWaba = false }: Tab
                   </span>
                 </div>
               </td>
-              <td className="py-3 px-2 md:py-4 md:px-3 sticky left-10 bg-white/5 z-10 min-w-[80px] md:min-w-[120px]">
-                <span className={`font-medium font-montserrat text-xs md:text-sm truncate block max-w-[80px] md:max-w-none ${
+              <td className="py-2 px-1.5 sm:py-3 sm:px-2 md:py-4 md:px-3 sticky left-[32px] sm:left-[40px] bg-white/5 z-10 min-w-[100px] sm:min-w-[120px] md:min-w-[150px]">
+                <span className={`font-medium font-montserrat text-[10px] sm:text-xs md:text-sm truncate block ${
                   team.name.toLowerCase().includes('partizan') || team.name.toLowerCase().includes('partizan 1953')
                     ? 'text-white font-bold' : 'text-gray-200'
                 }`} title={team.name}>
                   {team.name.toLowerCase().includes('partizan') || team.name.toLowerCase().includes('partizan 1953')
                     ? 'KŽK Partizan 1953'
-                    : team.name.length > 12
-                    ? team.name.substring(0, 10) + '...'
                     : team.name}
                 </span>
               </td>
-              <td className="py-3 px-2 md:py-4 md:px-3 text-center text-gray-300 font-montserrat text-xs font-medium">
+              <td className="py-2 px-1 sm:py-3 sm:px-2 md:py-4 md:px-3 text-center text-gray-300 font-montserrat text-[10px] sm:text-xs font-medium min-w-[32px] sm:min-w-[40px]">
                 {team.played}
               </td>
-              <td className="py-3 px-2 md:py-4 md:px-3 text-center">
-                <span className="text-green-400 font-bold font-montserrat text-xs">
+              <td className="py-2 px-1 sm:py-3 sm:px-2 md:py-4 md:px-3 text-center min-w-[32px] sm:min-w-[40px]">
+                <span className="text-green-400 font-bold font-montserrat text-[10px] sm:text-xs">
                   {team.won}
                 </span>
               </td>
               {!isWaba && (
-                <td className="py-3 px-2 md:py-4 md:px-3 text-center">
-                  <span className="text-yellow-400 font-bold font-montserrat text-xs">
+                <td className="py-2 px-1 sm:py-3 sm:px-2 md:py-4 md:px-3 text-center min-w-[32px] sm:min-w-[40px]">
+                  <span className="text-yellow-400 font-bold font-montserrat text-[10px] sm:text-xs">
                     {team.drawn}
                   </span>
                 </td>
               )}
-              <td className="py-3 px-2 md:py-4 md:px-3 text-center">
-                <span className="text-red-400 font-bold font-montserrat text-xs">
+              <td className="py-2 px-1 sm:py-3 sm:px-2 md:py-4 md:px-3 text-center min-w-[32px] sm:min-w-[40px]">
+                <span className="text-red-400 font-bold font-montserrat text-[10px] sm:text-xs">
                   {team.lost}
                 </span>
               </td>
               {isWaba ? (
                 <>
-                  <td className="py-3 px-2 md:py-4 md:px-3 text-center">
-                    <span className="font-bold font-playfair text-xs md:text-sm text-white">
+                  <td className="py-2 px-1 sm:py-3 sm:px-2 md:py-4 md:px-3 text-center min-w-[40px] sm:min-w-[50px]">
+                    <span className="font-bold font-playfair text-[10px] sm:text-xs md:text-sm text-white">
                       {team.points}
                     </span>
                   </td>
-                  <td className="py-3 px-2 md:py-4 md:px-3 text-center text-gray-300 font-montserrat text-xs font-medium">
+                  <td className="py-2 px-1 sm:py-3 sm:px-2 md:py-4 md:px-3 text-center text-gray-300 font-montserrat text-[10px] sm:text-xs font-medium min-w-[50px] sm:min-w-[60px]">
                     {team.goalsFor}:{team.goalsAgainst}
                   </td>
-                  <td className="py-3 px-2 md:py-4 md:px-3 text-center">
-                    <span className={`font-bold font-montserrat text-xs ${
+                  <td className="py-2 px-1 sm:py-3 sm:px-2 md:py-4 md:px-3 text-center min-w-[40px] sm:min-w-[50px]">
+                    <span className={`font-bold font-montserrat text-[10px] sm:text-xs ${
                       team.goalDifference > 0 ? 'text-green-400' : team.goalDifference < 0 ? 'text-red-400' : 'text-gray-400'
                     }`}>
                       {team.goalDifference > 0 ? '+' : ''}
@@ -170,19 +168,19 @@ function TableContent({ teams, loading, error, leagueName, isWaba = false }: Tab
                 </>
               ) : (
                 <>
-                  <td className="py-3 px-2 md:py-4 md:px-3 text-center text-gray-300 font-montserrat text-xs font-medium">
+                  <td className="py-2 px-1 sm:py-3 sm:px-2 md:py-4 md:px-3 text-center text-gray-300 font-montserrat text-[10px] sm:text-xs font-medium min-w-[50px] sm:min-w-[60px]">
                     {team.goalsFor}:{team.goalsAgainst}
                   </td>
-                  <td className="py-3 px-2 md:py-4 md:px-3 text-center">
-                    <span className={`font-bold font-montserrat text-xs ${
+                  <td className="py-2 px-1 sm:py-3 sm:px-2 md:py-4 md:px-3 text-center min-w-[40px] sm:min-w-[50px]">
+                    <span className={`font-bold font-montserrat text-[10px] sm:text-xs ${
                     team.goalDifference > 0 ? 'text-green-400' : team.goalDifference < 0 ? 'text-red-400' : 'text-gray-400'
                   }`}>
                     {team.goalDifference > 0 ? '+' : ''}
                     {team.goalDifference}
                   </span>
               </td>
-                  <td className="py-3 px-2 md:py-4 md:px-3 text-center">
-                    <span className="font-bold font-playfair text-xs md:text-sm text-white">
+                  <td className="py-2 px-1 sm:py-3 sm:px-2 md:py-4 md:px-3 text-center min-w-[40px] sm:min-w-[50px]">
+                    <span className="font-bold font-playfair text-[10px] sm:text-xs md:text-sm text-white">
                     {team.points}
                   </span>
                 </td>

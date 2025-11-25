@@ -43,7 +43,7 @@ export default function Footer() {
                   />
                 </div>
               )}
-              <h3 className="text-2xl md:text-3xl font-bold font-playfair">KŽK Partizan 195</h3>
+              <h3 className="text-2xl md:text-3xl font-bold font-playfair">KŽK Partizan 1953</h3>
             </div>
             <p className="text-gray-400 text-sm mb-4">
               Ženski Košarkaški Klub Partizan - Tradicija, ponos i uspeh od 1953. godine.
@@ -124,7 +124,7 @@ export default function Footer() {
         </div>
 
         <div className="border-t border-white/10 mt-8 pt-8 text-center text-gray-400 text-sm">
-          <p>&copy; {new Date().getFullYear()} KŽK Partizan 195. Sva prava zadržana.</p>
+          <p>&copy; {new Date().getFullYear()} KŽK Partizan 1953. Sva prava zadržana.</p>
         </div>
       </div>
     </footer>

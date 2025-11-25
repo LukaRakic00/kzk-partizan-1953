@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Calendar, Clock, MapPin, ExternalLink, Video } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useMatches, Match } from '@/hooks/useMatches';
 import Image from 'next/image';
 
@@ -119,48 +119,118 @@ export default function LiveMatches() {
   const { upcomingMatches, pastMatches, loading, error } = useMatches();
   const upcomingSliderRef = useRef<HTMLDivElement>(null);
   const pastSliderRef = useRef<HTMLDivElement>(null);
+  const upcomingAutoScrollRef = useRef<number | null>(null);
+  const pastAutoScrollRef = useRef<number | null>(null);
+  const isUserInteracting = useRef(false);
+  const [isVisible, setIsVisible] = useState(true);
+  const lastScrollY = useRef(0);
 
-  // Auto-scroll za predstojeće mečeve
+  // Auto-scroll kontinuirano u desno za predstojeće mečeve
   useEffect(() => {
     if (!upcomingSliderRef.current || upcomingMatches.length === 0) return;
 
-    const slider = upcomingSliderRef.current;
-    let scrollAmount = 0;
-    const scrollSpeed = 0.5; // px per frame
+    const container = upcomingSliderRef.current;
+    const scrollSpeed = 1; // px per frame
 
-    const scroll = () => {
-      scrollAmount += scrollSpeed;
-      if (scrollAmount >= slider.scrollWidth - slider.clientWidth) {
-        scrollAmount = 0; // Reset na početak
+    const autoScroll = () => {
+      if (isUserInteracting.current) {
+        upcomingAutoScrollRef.current = requestAnimationFrame(autoScroll);
+        return;
       }
-      slider.scrollLeft = scrollAmount;
-      requestAnimationFrame(scroll);
+
+      const maxScroll = container.scrollWidth - container.clientWidth;
+      const currentScroll = container.scrollLeft;
+
+      if (currentScroll >= maxScroll - 1) {
+        // Reset na početak bez animacije za kontinuirani efekat
+        container.scrollLeft = 0;
+      } else {
+        container.scrollLeft = currentScroll + scrollSpeed;
+      }
+
+      upcomingAutoScrollRef.current = requestAnimationFrame(autoScroll);
     };
 
-    const animationId = requestAnimationFrame(scroll);
-    return () => cancelAnimationFrame(animationId);
+    upcomingAutoScrollRef.current = requestAnimationFrame(autoScroll);
+
+    return () => {
+      if (upcomingAutoScrollRef.current) {
+        cancelAnimationFrame(upcomingAutoScrollRef.current);
+      }
+    };
   }, [upcomingMatches]);
 
-  // Auto-scroll za protekle mečeve (sporije)
+  // Auto-scroll kontinuirano u desno za protekle mečeve - samo kada je vidljiv
   useEffect(() => {
-    if (!pastSliderRef.current || pastMatches.length === 0) return;
-
-    const slider = pastSliderRef.current;
-    let scrollAmount = 0;
-    const scrollSpeed = 0.3; // Sporije za protekle mečeve
-
-    const scroll = () => {
-      scrollAmount += scrollSpeed;
-      if (scrollAmount >= slider.scrollWidth - slider.clientWidth) {
-        scrollAmount = 0;
+    if (!pastSliderRef.current || pastMatches.length === 0 || !isVisible) {
+      // Zaustavi auto-scroll ako nije vidljiv
+      if (pastAutoScrollRef.current) {
+        cancelAnimationFrame(pastAutoScrollRef.current);
+        pastAutoScrollRef.current = null;
       }
-      slider.scrollLeft = scrollAmount;
-      requestAnimationFrame(scroll);
+      return;
+    }
+
+    const container = pastSliderRef.current;
+    const scrollSpeed = 1; // px per frame
+
+    const autoScroll = () => {
+      // Zaustavi ako nije više vidljiv
+      if (!isVisible || isUserInteracting.current) {
+        pastAutoScrollRef.current = requestAnimationFrame(autoScroll);
+        return;
+      }
+
+      const maxScroll = container.scrollWidth - container.clientWidth;
+      const currentScroll = container.scrollLeft;
+
+      if (currentScroll >= maxScroll - 1) {
+        // Reset na početak bez animacije za kontinuirani efekat
+        container.scrollLeft = 0;
+      } else {
+        container.scrollLeft = currentScroll + scrollSpeed;
+      }
+
+      pastAutoScrollRef.current = requestAnimationFrame(autoScroll);
     };
 
-    const animationId = requestAnimationFrame(scroll);
-    return () => cancelAnimationFrame(animationId);
-  }, [pastMatches]);
+    pastAutoScrollRef.current = requestAnimationFrame(autoScroll);
+
+    return () => {
+      if (pastAutoScrollRef.current) {
+        cancelAnimationFrame(pastAutoScrollRef.current);
+      }
+    };
+  }, [pastMatches, isVisible]);
+
+  // Pause auto-scroll kada korisnik interaguje
+  const handleUserInteraction = () => {
+    isUserInteracting.current = true;
+    setTimeout(() => {
+      isUserInteracting.current = false;
+    }, 3000); // Pauziraj 3 sekunde nakon interakcije
+  };
+
+  // Detektuj scroll direction i sakrij/prikaži slajder
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      
+      // Ako scroll-uje na dole, sakrij
+      if (currentScrollY > lastScrollY.current && currentScrollY > 100) {
+        setIsVisible(false);
+      } 
+      // Ako scroll-uje na gore, prikaži
+      else if (currentScrollY < lastScrollY.current) {
+        setIsVisible(true);
+      }
+      
+      lastScrollY.current = currentScrollY;
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   if (loading) {
     return (
@@ -187,17 +257,25 @@ export default function LiveMatches() {
       {/* Predstojeći Mečevi - Slider */}
       {upcomingMatches.length > 0 && (
         <div id="live-matches" className="bg-black/50 border-t border-white/10 py-8 md:py-12">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-12">
               <h2 className="text-2xl md:text-3xl font-bold font-playfair uppercase tracking-wider mb-4">
-          Predstojeći Mečevi
-        </h2>
+                Predstojeći Mečevi
+              </h2>
               <div className="w-24 h-1 bg-white mx-auto"></div>
             </div>
             <div
               ref={upcomingSliderRef}
-              className="flex gap-4 md:gap-6 overflow-x-hidden scrollbar-hide"
-              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+              onTouchStart={handleUserInteraction}
+              onMouseDown={handleUserInteraction}
+              onWheel={handleUserInteraction}
+              className="flex gap-4 md:gap-6 overflow-x-auto scrollbar-hide"
+              style={{ 
+                scrollbarWidth: 'none', 
+                msOverflowStyle: 'none',
+                WebkitOverflowScrolling: 'touch',
+                touchAction: 'pan-x'
+              }}
             >
               {upcomingMatches.map((match, index) => (
                 <div key={match.id} className="flex-shrink-0 w-full md:w-96">
@@ -209,19 +287,30 @@ export default function LiveMatches() {
         </div>
       )}
 
-      {/* Protekli Mečevi - Slider na dnu */}
+      {/* Protekli Mečevi - Horizontalni Slider na dnu sa show/hide na scroll */}
       {pastMatches.length > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 bg-black/95 border-t border-white/10 py-3 md:py-4 z-40 shadow-lg">
+        <AnimatePresence>
+          {isVisible && (
+            <motion.div
+              initial={{ y: 100, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 100, opacity: 0 }}
+              transition={{ duration: 0.3, ease: 'easeInOut' }}
+              className="fixed bottom-0 left-0 right-0 bg-black/95 border-t border-white/10 py-1.5 sm:py-2 md:py-3 z-40 shadow-lg"
+            >
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div
               ref={pastSliderRef}
-              className="flex gap-4 md:gap-6 overflow-x-auto scrollbar-hide pb-2 snap-x snap-mandatory"
-              style={{ 
-                scrollbarWidth: 'none', 
-                msOverflowStyle: 'none',
-                WebkitOverflowScrolling: 'touch',
-                scrollSnapType: 'x mandatory'
-              }}
+                  onTouchStart={handleUserInteraction}
+                  onMouseDown={handleUserInteraction}
+                  onWheel={handleUserInteraction}
+                  className="flex gap-2 sm:gap-3 md:gap-4 overflow-x-auto scrollbar-hide pb-1 sm:pb-2"
+                  style={{ 
+                    scrollbarWidth: 'none', 
+                    msOverflowStyle: 'none',
+                    WebkitOverflowScrolling: 'touch',
+                    touchAction: 'pan-x'
+                  }}
             >
               {pastMatches.slice(0, 20).map((match, index) => (
             <motion.div
@@ -229,92 +318,90 @@ export default function LiveMatches() {
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: index * 0.05 }}
-                  className="flex-shrink-0 bg-white/5 border border-white/10 rounded-lg p-3 md:p-4 hover:bg-white/10 transition-all w-[85vw] sm:w-72 md:min-w-[280px] snap-start"
+                      className="flex-shrink-0 bg-white/5 border border-white/10 rounded-lg p-1.5 sm:p-2 md:p-3 hover:bg-white/10 transition-all w-[70vw] sm:w-56 md:min-w-[240px]"
             >
-                  {/* Date and Time - Iznad svega */}
-                  <div className="flex items-center justify-between mb-3 pb-2 border-b border-white/10">
-                    <div className="flex items-center gap-2 text-xs text-gray-400">
-                      <Calendar size={12} className="flex-shrink-0" />
-                      <span className="truncate">{match.date}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-xs text-gray-500">
-                      <Clock size={12} className="flex-shrink-0" />
-                      <span className="truncate">{match.time}</span>
-                    </div>
-                    <span className="text-xs px-2 py-0.5 bg-white/10 rounded whitespace-nowrap">Kolo {match.round}</span>
-                  </div>
-
-                  <div className="flex items-center gap-4 mb-3">
-                    {/* Home Team Logo/Initials */}
-                    <div className="flex flex-col items-center gap-1">
-                      <div className="w-12 h-12 rounded-full bg-white/10 border border-white/20 flex items-center justify-center font-bold font-playfair text-sm">
-                        {getTeamInitials(match.homeTeam)}
+                      {/* Date and Time - Još kompaktnije */}
+                      <div className="flex items-center justify-between mb-1.5 sm:mb-2 pb-1.5 sm:pb-2 border-b border-white/10">
+                        <div className="flex items-center gap-1 text-[9px] sm:text-[10px] text-gray-400">
+                          <Calendar size={8} className="flex-shrink-0 sm:w-2.5 sm:h-2.5" />
+                          <span className="truncate">{match.date}</span>
+                        </div>
+                        <span className="text-[9px] sm:text-[10px] px-1 sm:px-1.5 py-0.5 bg-white/10 rounded whitespace-nowrap">Kolo {match.round}</span>
                       </div>
-                      <span className="text-xs font-montserrat text-gray-400 text-center max-w-[70px] sm:max-w-[80px] truncate">
-                        {match.homeTeam.toLowerCase().includes('partizan') ? 'KŽK Partizan 1953' : match.homeTeam}
+
+                      <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3 mb-1.5 sm:mb-2">
+                        {/* Home Team - Još manji */}
+                        <div className="flex flex-col items-center gap-0.5 flex-1">
+                          <div className="w-6 h-6 sm:w-8 sm:h-8 md:w-10 md:h-10 rounded-full bg-white/10 border border-white/20 flex items-center justify-center font-bold font-playfair text-[8px] sm:text-[10px] md:text-xs">
+                            {getTeamInitials(match.homeTeam)}
+                          </div>
+                          <span className="text-[8px] sm:text-[9px] md:text-[10px] font-montserrat text-gray-400 text-center max-w-[50px] sm:max-w-[60px] md:max-w-[70px] truncate">
+                            {match.homeTeam.toLowerCase().includes('partizan') ? 'KŽK Partizan 1953' : match.homeTeam}
                       </span>
                     </div>
 
-                    {/* Score */}
-                    <div className="flex flex-col items-center gap-1">
+                        {/* Score - Još manji */}
+                        <div className="flex flex-col items-center gap-0.5">
                       {match.score ? (
-                          <div className="text-xl font-bold font-playfair">
+                            <div className="text-sm sm:text-base md:text-lg font-bold font-playfair">
                             <span className={match.isHome && match.score.home > match.score.away ? 'text-green-400' : match.isHome && match.score.home < match.score.away ? 'text-red-400' : 'text-gray-400'}>
                               {match.isHome ? match.score.home : match.score.away}
                             </span>
-                            <span className="text-gray-500 mx-1">:</span>
+                              <span className="text-gray-500 mx-0.5">:</span>
                             <span className={!match.isHome && match.score.away > match.score.home ? 'text-green-400' : !match.isHome && match.score.away < match.score.home ? 'text-red-400' : 'text-gray-400'}>
                               {match.isHome ? match.score.away : match.score.home}
                 </span>
                           </div>
                       ) : (
-                        <span className="text-sm font-montserrat text-gray-500">VS</span>
+                            <span className="text-[10px] sm:text-xs font-montserrat text-gray-500">VS</span>
                 )}
               </div>
 
-                    {/* Away Team Logo/Initials */}
-                    <div className="flex flex-col items-center gap-1">
-                      <div className="w-12 h-12 rounded-full bg-white/10 border border-white/20 flex items-center justify-center font-bold font-playfair text-sm">
+                        {/* Away Team - Još manji */}
+                        <div className="flex flex-col items-center gap-0.5 flex-1">
+                          <div className="w-6 h-6 sm:w-8 sm:h-8 md:w-10 md:h-10 rounded-full bg-white/10 border border-white/20 flex items-center justify-center font-bold font-playfair text-[8px] sm:text-[10px] md:text-xs">
                         {getTeamInitials(match.awayTeam)}
                   </div>
-                      <span className="text-xs font-montserrat text-gray-400 text-center max-w-[70px] sm:max-w-[80px] truncate">
-                        {match.awayTeam.toLowerCase().includes('partizan') ? 'KŽK Partizan 1953' : match.awayTeam}
+                          <span className="text-[8px] sm:text-[9px] md:text-[10px] font-montserrat text-gray-400 text-center max-w-[50px] sm:max-w-[60px] md:max-w-[70px] truncate">
+                            {match.awayTeam.toLowerCase().includes('partizan') ? 'KŽK Partizan 1953' : match.awayTeam}
                       </span>
-                </div>
+                        </div>
                 </div>
 
-                  {/* Linkovi za statistike i video */}
-                  {(match.linkLive || match.linkStat) && (
-                    <div className="flex gap-2 pt-2 border-t border-white/10">
-                      {match.linkLive && (
-                        <a
-                          href={match.linkLive}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-1 text-xs text-red-400 hover:text-red-300 transition-colors font-montserrat flex-1 justify-center px-2 py-1.5 bg-white/5 rounded hover:bg-white/10"
-                        >
-                          <Video size={12} />
-                          <span className="hidden sm:inline">Video</span>
-                        </a>
+                      {/* Linkovi za statistike i video - Još kompaktnije */}
+                      {(match.linkLive || match.linkStat) && (
+                        <div className="flex gap-1 pt-1 border-t border-white/10">
+                          {match.linkLive && (
+                            <a
+                              href={match.linkLive}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-0.5 text-[8px] sm:text-[9px] md:text-[10px] text-red-400 hover:text-red-300 transition-colors font-montserrat flex-1 justify-center px-1 sm:px-1.5 py-0.5 sm:py-1 bg-white/5 rounded hover:bg-white/10"
+                            >
+                              <Video size={8} className="sm:w-2.5 sm:h-2.5" />
+                              <span className="hidden sm:inline">Video</span>
+                            </a>
+                          )}
+                          {match.linkStat && (
+                            <a
+                              href={match.linkStat}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-0.5 text-[8px] sm:text-[9px] md:text-[10px] text-blue-400 hover:text-blue-300 transition-colors font-montserrat flex-1 justify-center px-1 sm:px-1.5 py-0.5 sm:py-1 bg-white/5 rounded hover:bg-white/10"
+                            >
+                              <ExternalLink size={8} className="sm:w-2.5 sm:h-2.5" />
+                              <span className="hidden sm:inline">Statistika</span>
+                            </a>
+                          )}
+                        </div>
                       )}
-                      {match.linkStat && (
-                        <a
-                          href={match.linkStat}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 transition-colors font-montserrat flex-1 justify-center px-2 py-1.5 bg-white/5 rounded hover:bg-white/10"
-                        >
-                          <ExternalLink size={12} />
-                          <span className="hidden sm:inline">Statistika</span>
-                        </a>
-                      )}
+                    </motion.div>
+                  ))}
+                </div>
               </div>
-                  )}
             </motion.div>
-          ))}
-        </div>
-      </div>
-    </div>
+          )}
+        </AnimatePresence>
       )}
     </>
   );

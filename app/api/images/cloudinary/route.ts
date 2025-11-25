@@ -25,8 +25,6 @@ export async function GET(req: NextRequest) {
     // Učitaj slike direktno iz Cloudinary
     const images = await listImagesFromCloudinary(folder);
     
-    console.log(`Found ${images.length} images from Cloudinary folder: ${folder}`);
-    
     return NextResponse.json(images);
   } catch (error: any) {
     console.error('Get Cloudinary images error:', error);
