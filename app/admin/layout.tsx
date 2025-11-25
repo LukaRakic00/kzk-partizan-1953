@@ -71,6 +71,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { href: '/admin/podesavanja', label: 'Podešavanja', icon: Cog },
   ];
 
+  const isLoginPage = pathname === '/admin/login';
+
+  // Ako je login stranica, prikaži samo children bez sidebara
+  if (isLoginPage) {
+    return <>{children}</>;
+  }
+
   return (
     <div className="min-h-screen bg-black">
       {/* Mobile Header */}
