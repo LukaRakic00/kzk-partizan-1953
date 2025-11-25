@@ -1,11 +1,27 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+// Automatski detektuj API URL - u browser-u koristi trenutni origin, u server-side koristi env varijablu
+const getApiUrl = () => {
+  if (typeof window !== 'undefined') {
+    // U browser-u - koristi trenutni origin (automatski radi i u dev i u production)
+    return window.location.origin;
+  }
+  // U server-side - koristi env varijablu ili fallback na localhost
+  return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+};
+
+const API_URL = getApiUrl();
 
 export class ApiClient {
   private baseUrl: string;
   private token: string | null = null;
 
   constructor() {
-    this.baseUrl = API_URL;
+    // U browser-u, uvek koristi trenutni origin
+    if (typeof window !== 'undefined') {
+      this.baseUrl = window.location.origin;
+    } else {
+      this.baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+    }
+    
     if (typeof window !== 'undefined') {
       this.token = localStorage.getItem('auth-token');
     }
