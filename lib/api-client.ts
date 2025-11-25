@@ -1,37 +1,28 @@
-// Automatski detektuj API URL - u browser-u koristi trenutni origin, u server-side koristi env varijablu
-const getApiUrl = () => {
-  if (typeof window !== 'undefined') {
-    // U browser-u - koristi trenutni origin (automatski radi i u dev i u production)
-    return window.location.origin;
-  }
-  // U server-side - koristi env varijablu ili fallback na localhost
-  return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
-};
-
-const API_URL = getApiUrl();
-
 export class ApiClient {
-  private baseUrl: string;
   private token: string | null = null;
 
   constructor() {
-    // U browser-u, uvek koristi trenutni origin
-    if (typeof window !== 'undefined') {
-      this.baseUrl = window.location.origin;
-    } else {
-      this.baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
-    }
-    
     if (typeof window !== 'undefined') {
       this.token = localStorage.getItem('auth-token');
     }
+  }
+
+  // Dinamički određuj baseUrl - uvek koristi trenutni origin u browser-u
+  private getBaseUrl(): string {
+    if (typeof window !== 'undefined') {
+      // U browser-u - koristi trenutni origin (automatski radi i u dev i u production)
+      return window.location.origin;
+    }
+    // U server-side - koristi env varijablu ili fallback na localhost
+    return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
   }
 
   async request<T>(
     endpoint: string,
     options: RequestInit = {}
   ): Promise<T> {
-    const url = `${this.baseUrl}${endpoint}`;
+    const baseUrl = this.getBaseUrl();
+    const url = `${baseUrl}${endpoint}`;
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       ...(options.headers as Record<string, string>),
