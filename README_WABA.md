@@ -42,7 +42,7 @@ Ručno pokreće scraping i ažurira bazu podataka.
 ```
 
 ### GET `/api/cron/waba-update`
-Cron job endpoint za automatsko ažuriranje svakih 3 sata.
+Cron job endpoint za automatsko ažuriranje jednom dnevno (u 12:00).
 
 **Authorization:** 
 - Ako je postavljen `CRON_SECRET`, zahtev mora imati header: `Authorization: Bearer ${CRON_SECRET}`
@@ -51,7 +51,7 @@ Cron job endpoint za automatsko ažuriranje svakih 3 sata.
 ## Automatsko Ažuriranje
 
 ### Vercel Cron Jobs
-Ako deploy-uješ na Vercel, `vercel.json` je već konfigurisan za automatsko ažuriranje svakih 3 sata.
+Ako deploy-uješ na Vercel, `vercel.json` je već konfigurisan za automatsko ažuriranje jednom dnevno (u 12:00). Vercel Hobby plan dozvoljava samo jednom dnevno cron job-ove.
 
 ### Lokalno Testiranje
 Možeš ručno pozvati cron endpoint:

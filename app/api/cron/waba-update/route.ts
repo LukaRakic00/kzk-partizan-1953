@@ -8,7 +8,7 @@ export const maxDuration = 60;
 
 const LEAGUE_ID = '31913';
 
-// Cron job endpoint - poziva se automatski svakih 3 sata
+// Cron job endpoint - poziva se automatski jednom dnevno (u 12:00)
 // Može se pozvati i ručno: GET /api/cron/waba-update
 export async function GET(request: NextRequest) {
   // Proveri autorizaciju (Vercel Cron Jobs automatski dodaje header)

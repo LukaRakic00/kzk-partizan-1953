@@ -7,7 +7,7 @@ export const runtime = 'nodejs'; // Puppeteer zahteva Node.js runtime
 export const maxDuration = 60; // 60 sekundi timeout za scraping
 
 const LEAGUE_ID = '31913';
-const UPDATE_INTERVAL = 3 * 60 * 60 * 1000; // 3 sata
+const UPDATE_INTERVAL = 24 * 60 * 60 * 1000; // 24 sata (jedan dan)
 
 // GET - Vrati trenutne standings iz baze
 export async function GET() {
@@ -18,7 +18,7 @@ export async function GET() {
       .sort({ rank: 1 })
       .lean();
 
-    // Proveri da li su podaci stari (stariji od 3 sata)
+    // Proveri da li su podaci stari (stariji od 24 sata)
     const firstStanding = standings[0] as { updatedAt?: Date } | undefined;
     const lastUpdated = firstStanding?.updatedAt;
     const isStale = lastUpdated && (Date.now() - new Date(lastUpdated).getTime()) > UPDATE_INTERVAL;

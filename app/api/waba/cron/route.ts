@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 
-// Cron job endpoint koji se poziva svaka 3 sata
+// Cron job endpoint koji se poziva jednom dnevno (u 12:00)
 // Zahteva secret token za bezbednost
 export async function GET(request: Request) {
   try {
