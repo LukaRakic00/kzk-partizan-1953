@@ -11,8 +11,8 @@ export async function GET(req: NextRequest) {
 
     if (!status) {
       status = await ClubStatus.create({
-        title: 'Status Kluba',
-        content: 'Dodajte informacije o statusu kluba...',
+        title: 'Statut Kluba',
+        content: 'Dodajte informacije o statutu kluba...',
         sections: [],
       });
     }
@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(status);
   } catch (error) {
     console.error('Get club status error:', error);
-    return NextResponse.json({ error: 'Greška pri učitavanju statusa kluba' }, { status: 500 });
+    return NextResponse.json({ error: 'Greška pri učitavanju statuta kluba' }, { status: 500 });
   }
 }
 
@@ -51,7 +51,7 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json(status);
   } catch (error) {
     console.error('Update club status error:', error);
-    return NextResponse.json({ error: 'Greška pri ažuriranju statusa kluba' }, { status: 500 });
+    return NextResponse.json({ error: 'Greška pri ažuriranju statuta kluba' }, { status: 500 });
   }
 }
 

@@ -11,7 +11,7 @@ import Image from 'next/image';
 const navItems = [
   { href: '/', label: 'POČETNA' },
   { href: '/tim', label: 'TIM' },
-  { href: '/status-kluba', label: 'STATUS KLUBA' },
+  { href: '/statut-kluba', label: 'STATUT KLUBA' },
   { href: '/istorijat', label: 'ISTORIJAT' },
   { href: '/galerija', label: 'GALERIJA' },
   { href: '/novosti', label: 'NOVOSTI' },

@@ -65,7 +65,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { href: '/admin/galerija', label: 'Galerija', icon: ImageIcon },
     { href: '/admin/tim', label: 'Tim i Rukovodstvo', icon: Users },
     { href: '/admin/istorijat', label: 'Istorijat', icon: BookOpen },
-    { href: '/admin/status-kluba', label: 'Status Kluba', icon: Settings },
+    { href: '/admin/statut-kluba', label: 'Statut Kluba', icon: Settings },
     { href: '/admin/slike', label: 'Slike', icon: FileImage },
     { href: '/admin/kontakt', label: 'Kontakt Poruke', icon: Mail },
     { href: '/admin/podesavanja', label: 'Podešavanja', icon: Cog },

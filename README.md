@@ -40,7 +40,7 @@ NEXT_PUBLIC_API_URL=http://localhost:3000
 
 ## Funkcionalnosti
 
-- **Javne stranice**: Početna, Tim, Status Kluba, Istorijat, Galerija, Novosti, Kontakt
+- **Javne stranice**: Početna, Tim, Statut Kluba, Istorijat, Galerija, Novosti, Kontakt
 - **Admin panel**: Upravljanje igračima, vestima, galerijom, istorijatom
 - **Live tabela**: Automatsko ažuriranje rezultata iz WABA lige
 - **Mečevi**: Prikaz predstojećih i proteklih mečeva
