@@ -1,6 +1,17 @@
 {
   "buildCommand": "bun run build",
   "installCommand": "bun install",
+  "functions": {
+    "app/api/waba/init/route.ts": {
+      "maxDuration": 60
+    },
+    "app/api/waba/standings/update/route.ts": {
+      "maxDuration": 60
+    },
+    "app/api/cron/waba-update/route.ts": {
+      "maxDuration": 60
+    }
+  },
   "crons": [
     {
       "path": "/api/cron/waba-update",

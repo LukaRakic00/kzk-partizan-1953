@@ -28,15 +28,32 @@ U `vercel.json`, dodajte:
 
 ### 3. Environment Variables
 
-Nisu potrebne dodatne environment variables.
+**Opciono:** Ako Puppeteer/Playwright ne rade u produkciji, možete koristiti ScrapingBee API:
 
-## Alternativno Rešenje
+```bash
+# Dodajte u Vercel Environment Variables
+SCRAPINGBEE_API_KEY=your_api_key_here
+```
 
-Ako Puppeteer/Playwright ne rade u produkciji, možete koristiti:
+Besplatni plan ScrapingBee daje 1000 zahteva mesečno, što je dovoljno za dnevne update-e.
 
-1. **ScrapingBee API** - Servis koji renderuje JavaScript stranice
-2. **Browserless.io** - Cloud browser servis
-3. **Manual Update** - Ručno ažuriranje podataka kroz admin panel
+## Alternativno Rešenje - ScrapingBee API (Preporučeno za Vercel)
+
+Ako Puppeteer/Playwright ne rade u produkciji, najbolje rešenje je koristiti ScrapingBee API:
+
+1. **Registrujte se na ScrapingBee**: https://www.scrapingbee.com/
+2. **Dobijte API key** (besplatni plan: 1000 zahteva/mesec)
+3. **Dodajte API key u Vercel Environment Variables**:
+   - Idite na Vercel Dashboard → Your Project → Settings → Environment Variables
+   - Dodajte `SCRAPINGBEE_API_KEY` sa vašim API key-em
+4. **Redeploy projekat**
+
+Scraper će automatski koristiti ScrapingBee API ako je API key dostupan.
+
+### Druge Alternative:
+
+1. **Browserless.io** - Cloud browser servis (zahteva subscription)
+2. **Manual Update** - Ručno ažuriranje podataka kroz admin panel
 
 ## Troubleshooting
 

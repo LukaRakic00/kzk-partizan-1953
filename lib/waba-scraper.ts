@@ -294,10 +294,28 @@ export class WABAStandingsScraper {
     try {
       console.log('Koristim fetch metodu za scraping...');
       
-      // Pokušaj da koristim neki servis koji renderuje JavaScript stranice
-      // Ako imate API key za neki servis, možete ga koristiti ovde
-      // Na primer: ScrapingBee, Browserless, ili slično
+      // Pokušaj prvo sa ScrapingBee API ako je dostupan (za produkciju)
+      const scrapingBeeApiKey = process.env.SCRAPINGBEE_API_KEY;
+      if (scrapingBeeApiKey) {
+        try {
+          console.log('Pokušavam sa ScrapingBee API...');
+          const scrapingBeeUrl = `https://app.scrapingbee.com/api/v1/?api_key=${scrapingBeeApiKey}&url=${encodeURIComponent(CONFIG.URL)}&render_js=true&wait=3000`;
+          const response = await fetch(scrapingBeeUrl);
+          
+          if (response.ok) {
+            const html = await response.text();
+            const standings = this.parseRowsDirectly(html);
+            if (standings.length > 0) {
+              console.log(`Uspješno učitano ${standings.length} timova (ScrapingBee)`);
+              return standings;
+            }
+          }
+        } catch (sbError) {
+          console.warn('ScrapingBee API neuspešan, pokušavam sa običnim fetch...', sbError);
+        }
+      }
       
+      // Pokušaj sa običnim fetch-om
       const response = await fetch(CONFIG.URL, {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -465,10 +483,25 @@ export class WABAStandingsScraper {
 
   private parseRowsDirectly(html: string): WabaTeamData[] {
     const standings: WabaTeamData[] = [];
-    const skipHeaders = ['Games', 'Wins', 'Losses', 'Losses by forfeit', 'Team', 'G', 'W', 'L', 'P'];
+    const skipHeaders = ['Games', 'Wins', 'Losses', 'Losses by forfeit', 'Team', 'G', 'W', 'L', 'P', '#', 'No', 'Rank'];
+    
+    // Pokušaj da pronađeš tabelu na različite načine
+    let tableContent = html;
+    
+    // Pokušaj da pronađeš tbody
+    const tbodyMatch = html.match(/<tbody[^>]*>([\s\S]*?)<\/tbody>/i);
+    if (tbodyMatch) {
+      tableContent = tbodyMatch[1];
+    } else {
+      // Pokušaj da pronađeš tabelu
+      const tableMatch = html.match(/<table[^>]*>([\s\S]*?)<\/table>/i);
+      if (tableMatch) {
+        tableContent = tableMatch[1];
+      }
+    }
     
     // Pronađi sve tr redove
-    const trMatches = Array.from(html.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/gi));
+    const trMatches = Array.from(tableContent.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/gi));
     
     for (let index = 0; index < trMatches.length; index++) {
       const trMatch = trMatches[index];
@@ -479,11 +512,29 @@ export class WABAStandingsScraper {
       const cells: string[] = [];
       
       for (const tdMatch of tdMatches) {
-        const text = tdMatch[1]
+        let text = tdMatch[1]
           .replace(/<[^>]*>/g, '')
           .replace(/&nbsp;/g, ' ')
+          .replace(/&amp;/g, '&')
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&quot;/g, '"')
           .replace(/\s+/g, ' ')
           .trim();
+        
+        // Ako je ćelija prazna, pokušaj da pronađeš tekst u span ili div elementima
+        if (!text && tdMatch[1]) {
+          const spanMatch = tdMatch[1].match(/<span[^>]*>([\s\S]*?)<\/span>/i);
+          if (spanMatch) {
+            text = spanMatch[1].replace(/<[^>]*>/g, '').trim();
+          } else {
+            const divMatch = tdMatch[1].match(/<div[^>]*>([\s\S]*?)<\/div>/i);
+            if (divMatch) {
+              text = divMatch[1].replace(/<[^>]*>/g, '').trim();
+            }
+          }
+        }
+        
         cells.push(text);
       }
 
