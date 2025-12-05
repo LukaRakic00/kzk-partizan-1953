@@ -9,9 +9,10 @@ import InteractiveBackground from '@/components/InteractiveBackground';
 import { apiClient } from '@/lib/api-client';
 import { useMatches } from '@/hooks/useMatches';
 import Link from 'next/link';
-import { ArrowRight, Trophy, Users, Calendar, Newspaper, Clock, MapPin, Radio } from 'lucide-react';
+import { ArrowRight, Trophy, Users, Calendar, Newspaper, Clock, MapPin, Radio, Send, Mail, Phone } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
+import toast from 'react-hot-toast';
 
 export default function Home() {
   const [heroImage, setHeroImage] = useState<string | null>(null);
@@ -23,17 +24,30 @@ export default function Home() {
   const [partnerImages, setPartnerImages] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [latestNews, setLatestNews] = useState<any[]>([]);
-  const [aboutTitle, setAboutTitle] = useState('KŽK PARTIZAN 1953');
-  const [aboutText, setAboutText] = useState('');
-  const { nextMatch, lastMatch, liveMatches } = useMatches();
+  const { nextMatch, lastMatch, liveMatches, pastMatches } = useMatches();
   const currentLiveMatch = liveMatches.length > 0 ? liveMatches[0] : null;
   const [activeMatchIndex, setActiveMatchIndex] = useState(0);
+  const [contactFormData, setContactFormData] = useState({
+    name: '',
+    email: '',
+    title: '',
+    message: '',
+  });
+  const [submittingContact, setSubmittingContact] = useState(false);
   
-  // Pripremi mečeve za carousel (prioritet: live > next > last)
+  // Pripremi mečeve za carousel (prioritet: live > next > prethodni mečevi po datumu)
   const matchesForCarousel = [];
   if (currentLiveMatch) matchesForCarousel.push({ type: 'live', match: currentLiveMatch });
   if (nextMatch) matchesForCarousel.push({ type: 'next', match: nextMatch });
-  if (lastMatch) matchesForCarousel.push({ type: 'last', match: lastMatch });
+  
+  // Dodaj najnovije prethodne mečeve (sortirani po datumu, najnoviji prvo)
+  const recentPastMatches = pastMatches
+    .filter(m => m.score) // Samo mečevi sa rezultatom
+    .slice(0, 5); // Uzmi najnovijih 5 prethodnih mečeva
+  
+  recentPastMatches.forEach((match) => {
+    matchesForCarousel.push({ type: 'last', match });
+  });
   
   // Auto-play carousel svake 3 sekunde
   useEffect(() => {
@@ -113,20 +127,6 @@ export default function Home() {
       const news = await apiClient.getNews();
       const publishedNews = news.filter((item: any) => item.published).slice(0, 3);
       setLatestNews(publishedNews);
-
-      // Učitaj "O nama" sekciju
-      const aboutTitleSetting = await apiClient.getSettings('about_title');
-      if (aboutTitleSetting && aboutTitleSetting.value) {
-        setAboutTitle(aboutTitleSetting.value);
-      }
-
-      const aboutTextSetting = await apiClient.getSettings('about_text');
-      if (aboutTextSetting && aboutTextSetting.value) {
-        setAboutText(aboutTextSetting.value);
-      } else {
-        // Default tekst ako nije postavljen
-        setAboutText('KŽK Partizan 1953 je ženski košarkaški klub sa bogatom tradicijom i velikim uspehom u domaćim i međunarodnim takmičenjima. Osnovan 1953. godine, klub je postao simbol istrajnosti, timskog duha i posvećenosti sportu. Kroz decenije, KŽK Partizan je iznedrio mnoge vrhunske igračice koje su ostavile značajan trag u ženskoj košarci. Klub se ponosi svojim radom na razvoju mladih talenata i promociji ženskog sporta, pružajući inspiraciju i podršku svim generacijama sportistkinja. Sa jasnim ciljevima i jakom zajednicom, KŽK Partizan 1953 nastavlja da gradi uspešnu budućnost i širi ljubav prema košarci.');
-      }
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -380,33 +380,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* O nama Section */}
-      <section className="py-20 bg-black/50 relative z-10">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            className="text-center mb-12"
-          >
-            <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold font-playfair uppercase tracking-wider mb-4 text-white">
-              {aboutTitle}
-            </h2>
-            <div className="w-24 h-1 bg-white mx-auto mb-8"></div>
-          </motion.div>
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-            className="prose prose-invert max-w-none"
-          >
-            <p className="text-lg md:text-xl text-gray-300 leading-relaxed text-center">
-              {aboutText}
-            </p>
-          </motion.div>
-        </div>
-      </section>
-
       {/* Background Image Section */}
       {backgroundImage && (
         <section className="relative h-64 md:h-96 overflow-hidden">
@@ -424,58 +397,102 @@ export default function Home() {
       )}
 
         {/* Features Section */}
-        <section className="py-12 md:py-20 bg-black relative z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8">
-            <Link href="/istorijat" className="text-center group">
-              <div className="w-12 h-12 md:w-16 md:h-16 mx-auto mb-3 md:mb-4 bg-white/10 rounded-full flex items-center justify-center group-hover:bg-white group-hover:text-black transition-all">
-                <Trophy size={24} className="md:w-8 md:h-8" />
-              </div>
-              <h3 className="text-base md:text-xl font-semibold mb-1 md:mb-2 group-hover:text-white transition-colors">Trofeji</h3>
-              <p className="text-gray-400 text-xs md:text-sm hidden md:block">
-                {sectionTexts.section_trophies || 'Bogata istorija uspeha'}
-              </p>
-            </Link>
+        <section className="py-16 md:py-24 bg-black relative z-10">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+              >
+                <Link 
+                  href="/o-nama" 
+                  className="block h-full bg-white/5 backdrop-blur-sm border border-white/10 rounded-lg p-5 md:p-6 text-center group hover:bg-white/10 hover:border-yellow-500/30 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg hover:shadow-yellow-500/10"
+                >
+                  <div className="w-14 h-14 md:w-16 md:h-16 mx-auto mb-3 md:mb-4 bg-gradient-to-br from-yellow-500/20 to-yellow-600/20 rounded-xl flex items-center justify-center group-hover:from-yellow-500/30 group-hover:to-yellow-600/30 transition-all duration-300 border border-yellow-500/20 group-hover:border-yellow-500/40">
+                    <Trophy size={28} className="md:w-8 md:h-8 text-yellow-400 group-hover:text-yellow-300 group-hover:scale-110 transition-all duration-300" strokeWidth={1.5} />
+                  </div>
+                  <h3 className="text-base md:text-lg font-bold font-playfair mb-2 text-white group-hover:text-yellow-400 transition-colors">
+                    Trofeji
+                  </h3>
+                  <p className="text-gray-400 text-xs md:text-sm leading-relaxed">
+                    {sectionTexts.section_trophies || 'Bogata istorija uspeha'}
+                  </p>
+                </Link>
+              </motion.div>
 
-            <Link href="/tim" className="text-center group">
-              <div className="w-12 h-12 md:w-16 md:h-16 mx-auto mb-3 md:mb-4 bg-white/10 rounded-full flex items-center justify-center group-hover:bg-white group-hover:text-black transition-all">
-                <Users size={24} className="md:w-8 md:h-8" />
-              </div>
-              <h3 className="text-base md:text-xl font-semibold mb-1 md:mb-2 group-hover:text-white transition-colors">Tim</h3>
-              <p className="text-gray-400 text-xs md:text-sm hidden md:block">
-                {sectionTexts.section_team || 'Najbolji igrači'}
-              </p>
-            </Link>
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+              >
+                <Link 
+                  href="/tim" 
+                  className="block h-full bg-white/5 backdrop-blur-sm border border-white/10 rounded-lg p-5 md:p-6 text-center group hover:bg-white/10 hover:border-blue-500/30 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg hover:shadow-blue-500/10"
+                >
+                  <div className="w-14 h-14 md:w-16 md:h-16 mx-auto mb-3 md:mb-4 bg-gradient-to-br from-blue-500/20 to-blue-600/20 rounded-xl flex items-center justify-center group-hover:from-blue-500/30 group-hover:to-blue-600/30 transition-all duration-300 border border-blue-500/20 group-hover:border-blue-500/40">
+                    <Users size={28} className="md:w-8 md:h-8 text-blue-400 group-hover:text-blue-300 group-hover:scale-110 transition-all duration-300" strokeWidth={1.5} />
+                  </div>
+                  <h3 className="text-base md:text-lg font-bold font-playfair mb-2 text-white group-hover:text-blue-400 transition-colors">
+                    Tim
+                  </h3>
+                  <p className="text-gray-400 text-xs md:text-sm leading-relaxed">
+                    {sectionTexts.section_team || 'Najbolji igrači'}
+                  </p>
+                </Link>
+              </motion.div>
 
-            <Link href="/#live-matches" className="text-center group">
-              <div className="w-12 h-12 md:w-16 md:h-16 mx-auto mb-3 md:mb-4 bg-white/10 rounded-full flex items-center justify-center group-hover:bg-white group-hover:text-black transition-all">
-                <Calendar size={24} className="md:w-8 md:h-8" />
-              </div>
-              <h3 className="text-base md:text-xl font-semibold mb-1 md:mb-2 group-hover:text-white transition-colors">Mečevi</h3>
-              <p className="text-gray-400 text-xs md:text-sm hidden md:block">
-                {sectionTexts.section_matches || 'Pratite nas'}
-              </p>
-            </Link>
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+              >
+                <Link 
+                  href="/#live-matches" 
+                  className="block h-full bg-white/5 backdrop-blur-sm border border-white/10 rounded-lg p-5 md:p-6 text-center group hover:bg-white/10 hover:border-green-500/30 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg hover:shadow-green-500/10"
+                >
+                  <div className="w-14 h-14 md:w-16 md:h-16 mx-auto mb-3 md:mb-4 bg-gradient-to-br from-green-500/20 to-green-600/20 rounded-xl flex items-center justify-center group-hover:from-green-500/30 group-hover:to-green-600/30 transition-all duration-300 border border-green-500/20 group-hover:border-green-500/40">
+                    <Calendar size={28} className="md:w-8 md:h-8 text-green-400 group-hover:text-green-300 group-hover:scale-110 transition-all duration-300" strokeWidth={1.5} />
+                  </div>
+                  <h3 className="text-base md:text-lg font-bold font-playfair mb-2 text-white group-hover:text-green-400 transition-colors">
+                    Mečevi
+                  </h3>
+                  <p className="text-gray-400 text-xs md:text-sm leading-relaxed">
+                    {sectionTexts.section_matches || 'Pratite nas'}
+                  </p>
+                </Link>
+              </motion.div>
 
-            <Link href="/novosti" className="text-center group">
-              <div className="w-12 h-12 md:w-16 md:h-16 mx-auto mb-3 md:mb-4 bg-white/10 rounded-full flex items-center justify-center group-hover:bg-white group-hover:text-black transition-all">
-                <Newspaper size={24} className="md:w-8 md:h-8" />
-              </div>
-              <h3 className="text-base md:text-xl font-semibold mb-1 md:mb-2 group-hover:text-white transition-colors">Novosti</h3>
-              <p className="text-gray-400 text-xs md:text-sm hidden md:block">
-                {sectionTexts.section_news || 'Najnovije vesti'}
-              </p>
-            </Link>
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 }}
+              >
+                <Link 
+                  href="/vesti" 
+                  className="block h-full bg-white/5 backdrop-blur-sm border border-white/10 rounded-lg p-5 md:p-6 text-center group hover:bg-white/10 hover:border-purple-500/30 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg hover:shadow-purple-500/10"
+                >
+                  <div className="w-14 h-14 md:w-16 md:h-16 mx-auto mb-3 md:mb-4 bg-gradient-to-br from-purple-500/20 to-purple-600/20 rounded-xl flex items-center justify-center group-hover:from-purple-500/30 group-hover:to-purple-600/30 transition-all duration-300 border border-purple-500/20 group-hover:border-purple-500/40">
+                    <Newspaper size={28} className="md:w-8 md:h-8 text-purple-400 group-hover:text-purple-300 group-hover:scale-110 transition-all duration-300" strokeWidth={1.5} />
+                  </div>
+                  <h3 className="text-base md:text-lg font-bold font-playfair mb-2 text-white group-hover:text-purple-400 transition-colors">
+                    Vesti
+                  </h3>
+                  <p className="text-gray-400 text-xs md:text-sm leading-relaxed">
+                    {sectionTexts.section_news || 'Najnovije vesti'}
+                  </p>
+                </Link>
+              </motion.div>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
 
       {/* Images Gallery Section */}
       {homeImages.length > 0 && (
         <section className="py-20 bg-black/50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-12">
-              <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold font-playfair uppercase tracking-wider mb-4">
+              <h2 className="text-2xl md:text-3xl font-bold font-playfair uppercase tracking-wider mb-4">
               {sectionTexts.section_gallery_title || 'Galerija'}
             </h2>
               <div className="w-24 h-1 bg-white mx-auto"></div>
@@ -507,14 +524,14 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-12 gap-4">
             <div>
-              <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold font-playfair uppercase tracking-wider mb-4">Najnovije Vesti</h2>
+              <h2 className="text-2xl md:text-3xl font-bold font-playfair uppercase tracking-wider mb-4">Najnovije Vesti</h2>
               <div className="w-24 h-1 bg-white"></div>
             </div>
             <Link
-              href="/novosti"
+              href="/vesti"
               className="text-white hover:text-gray-300 uppercase text-sm tracking-wider flex items-center group self-start sm:self-auto"
             >
-              Sve Vesti
+              Sve Novosti
               <ArrowRight className="ml-2 group-hover:translate-x-1 transition-transform" size={20} />
             </Link>
           </div>
@@ -528,7 +545,7 @@ export default function Home() {
                   transition={{ delay: index * 0.1 }}
                   className="bg-white/5 border border-white/10 hover:bg-white/10 transition-all group"
                 >
-                  <Link href={`/novosti/${item.slug}`}>
+                  <Link href={`/vesti/${item.slug}`}>
                     <div className="aspect-video relative overflow-hidden mb-4">
                       {item.image ? (
                         <Image
@@ -568,103 +585,174 @@ export default function Home() {
         </div>
       </section>
 
-      {/* President Section */}
-      <section className="py-20 bg-black/50 border-t border-white/10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 items-center">
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="order-2 md:order-1"
-            >
-              <p className="text-lg md:text-xl text-gray-300 leading-relaxed">
-                {sectionTexts.president_message || 'Kao novi predsednik KŽK Partizan, sa velikim entuzijazmom preuzimam odgovornost i viziju razvoja našeg kluba. Moj glavni cilj je da otvorimo vrata što većem broju mladih – da im pružimo podršku, motivaciju i priliku da rastu, ne samo kao sportisti, već i kao ljudi. Verujem da upravo kroz zajedništvo, posvećenost i strast možemo ispisati nove stranice uspeha i vratiti Partizan tamo gde pripada – u sam vrh ženskog sporta.'}
-              </p>
-            </motion.div>
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="order-1 md:order-2 flex flex-col items-center md:items-end"
-            >
-              <div className="relative w-48 h-48 md:w-56 md:h-56 rounded-full overflow-hidden border-4 border-white/20 shadow-xl mb-4">
-                {sectionTexts.president_image ? (
-                  <Image
-                    src={sectionTexts.president_image}
-                    alt="Predsednik kluba"
-                    fill
-                    className="object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full bg-white/10 flex items-center justify-center">
-                    <span className="text-gray-500 text-sm">Slika</span>
-                  </div>
-                )}
-                </div>
-              <div className="text-center md:text-right">
-                <p className="text-white font-bold font-playfair text-lg md:text-xl">{sectionTexts.president_name || 'Stevica Kujundžić'}</p>
-                <p className="text-gray-400 text-sm md:text-base mt-1">{sectionTexts.president_title || 'Predsednik kluba'}</p>
-              </div>
-            </motion.div>
-          </div>
-        </div>
-      </section>
-
       {/* League Table */}
       <LeagueTable />
 
       {/* Live Matches */}
       <LiveMatches />
 
-      {/* Škola Košarke Sekcija */}
+      {/* Kontakt Forma Sekcija */}
       <section className="py-20 bg-black/50 border-t border-white/10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="max-w-4xl mx-auto"
+            className="text-center mb-12"
           >
-            <div className="text-center mb-12">
-              <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold font-playfair uppercase tracking-wider mb-4">
-                Škola Košarke
+            <h2 className="text-2xl md:text-3xl font-bold font-playfair uppercase tracking-wider mb-4">
+                Kontaktirajte Nas
               </h2>
-              <div className="w-24 h-1 bg-white mx-auto mb-8"></div>
-            </div>
-            
-            <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-lg p-8 md:p-12">
-              <motion.p
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-                className="text-lg md:text-xl text-gray-300 leading-relaxed mb-8 text-center"
-              >
-                {sectionTexts.basketball_school_text || 'KŽK Partizan 1953 svake godine otvara vrata novim generacijama mladih košarkašica kroz upis u školu košarke. Naš cilj je da otkrijemo, razvijemo i inspirišemo buduće zvezde ovog sporta. Ako voliš košarku, sanjaš velike snove i želiš da rasteš uz podršku vrhunskih trenera i tradicije duge decenijama – pravo je vreme da postaneš deo crno-bele porodice!'}
-              </motion.p>
-              
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
-                className="bg-white/5 border border-white/10 rounded-lg p-6 text-center"
-              >
-                <h3 className="text-xl md:text-2xl font-bold font-playfair mb-4 text-white">Kontakt</h3>
-                <div className="space-y-3 text-gray-300">
-                  <p className="text-lg font-semibold">{sectionTexts.basketball_school_contact_name || 'Sofija Čukić'}</p>
-                  <a 
-                    href={`tel:${sectionTexts.basketball_school_contact_phone || '+381668391992'}`}
-                    className="block text-lg hover:text-white transition-colors"
-                  >
-                    {sectionTexts.basketball_school_contact_phone || '+381 66 8391 992'}
-                  </a>
-                  <a 
-                    href={`mailto:${sectionTexts.basketball_school_contact_email || 'sofija.cukic@kzkpartizan1953.rs'}`}
-                    className="block text-lg hover:text-white transition-colors break-all"
-                  >
-                    {sectionTexts.basketball_school_contact_email || 'sofija.cukic@kzkpartizan1953.rs'}
-                  </a>
-                </div>
-              </motion.div>
-            </div>
+            <div className="w-24 h-1 bg-white mx-auto mb-8"></div>
+            <p className="text-xl text-gray-400 max-w-2xl mx-auto">
+              Za sve dodatne informacije, pitanja ili saradnju, slobodno nas kontaktirajte
+            </p>
           </motion.div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+            {/* Contact Info */}
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="space-y-8"
+            >
+              <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-lg p-8">
+                <h2 className="text-2xl font-bold font-playfair mb-6 text-white">Kontakt Informacije</h2>
+                <div className="space-y-6">
+                  <div className="flex items-start space-x-4">
+                    <div className="w-12 h-12 bg-white/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <MapPin size={24} className="text-white" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold mb-1 text-white">Adresa</h3>
+                      <p className="text-gray-300">Humska 1,</p>
+                      <p className="text-gray-300">11000 Beograd, Srbija</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start space-x-4">
+                    <div className="w-12 h-12 bg-white/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <Phone size={24} className="text-white" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold mb-1 text-white">Telefon</h3>
+                      <a href="tel:+381112647658" className="text-gray-300 hover:text-white transition-colors">
+                        +381 11 264 76 58
+                      </a>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start space-x-4">
+                    <div className="w-12 h-12 bg-white/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <Mail size={24} className="text-white" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold mb-1 text-white">Email</h3>
+                      <a href="mailto:info@kzkpartizan1953.rs" className="text-gray-300 hover:text-white transition-colors">
+                        info@kzkpartizan1953.rs
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Contact Form */}
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-lg p-8"
+            >
+              <h2 className="text-2xl font-bold font-playfair mb-6 text-white">Pošaljite Poruku</h2>
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                setSubmittingContact(true);
+                try {
+                  await apiClient.sendContactMessage({
+                    name: contactFormData.name,
+                    email: contactFormData.email,
+                    title: contactFormData.title,
+                    message: contactFormData.message,
+                  });
+                  toast.success('Poruka je uspešno poslata!');
+                  setContactFormData({ name: '', email: '', title: '', message: '' });
+                } catch (error: any) {
+                  toast.error(error.message || 'Greška pri slanju poruke');
+                } finally {
+                  setSubmittingContact(false);
+                }
+              }} className="space-y-6">
+                <div>
+                  <label htmlFor="home-name" className="block text-sm font-medium mb-2 text-gray-300">
+                    Ime i Prezime <span className="text-red-400">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    id="home-name"
+                    required
+                    value={contactFormData.name}
+                    onChange={(e) => setContactFormData({ ...contactFormData, name: e.target.value })}
+                    className="w-full bg-white/5 border border-white/10 px-4 py-3 text-white focus:outline-none focus:border-white transition-colors rounded-lg"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="home-email" className="block text-sm font-medium mb-2 text-gray-300">
+                    Email <span className="text-red-400">*</span>
+                  </label>
+                  <input
+                    type="email"
+                    id="home-email"
+                    required
+                    value={contactFormData.email}
+                    onChange={(e) => setContactFormData({ ...contactFormData, email: e.target.value })}
+                    className="w-full bg-white/5 border border-white/10 px-4 py-3 text-white focus:outline-none focus:border-white transition-colors rounded-lg"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="home-title" className="block text-sm font-medium mb-2 text-gray-300">
+                    Naslov poruke <span className="text-red-400">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    id="home-title"
+                    required
+                    value={contactFormData.title}
+                    onChange={(e) => setContactFormData({ ...contactFormData, title: e.target.value })}
+                    className="w-full bg-white/5 border border-white/10 px-4 py-3 text-white focus:outline-none focus:border-white transition-colors rounded-lg"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="home-message" className="block text-sm font-medium mb-2 text-gray-300">
+                    Poruka <span className="text-gray-500 text-xs">(opciono)</span>
+                  </label>
+                  <textarea
+                    id="home-message"
+                    rows={6}
+                    value={contactFormData.message}
+                    onChange={(e) => setContactFormData({ ...contactFormData, message: e.target.value })}
+                    className="w-full bg-white/5 border border-white/10 px-4 py-3 text-white focus:outline-none focus:border-white transition-colors resize-none rounded-lg"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={submittingContact}
+                  className="w-full bg-white text-black px-6 py-4 font-semibold uppercase tracking-wider hover:bg-gray-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center rounded-lg"
+                >
+                  {submittingContact ? (
+                    'Slanje...'
+                  ) : (
+                    <>
+                      <Send className="mr-2" size={20} />
+                      Pošalji Poruku
+                    </>
+                  )}
+                </button>
+              </form>
+            </motion.div>
+          </div>
         </div>
       </section>
 
@@ -677,7 +765,7 @@ export default function Home() {
               animate={{ opacity: 1, y: 0 }}
               className="text-center mb-12"
             >
-              <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold font-playfair uppercase tracking-wider mb-4">
+              <h2 className="text-2xl md:text-3xl font-bold font-playfair uppercase tracking-wider mb-4">
               Partneri
             </h2>
               <div className="w-24 h-1 bg-white mx-auto"></div>

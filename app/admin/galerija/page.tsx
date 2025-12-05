@@ -234,13 +234,23 @@ export default function AdminGallery() {
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-4">
                 {gallery.images.slice(0, 4).map((image, index) => (
-                  <div key={index} className="aspect-square relative">
-                    <Image
-                      src={image}
-                      alt={`${gallery.title} ${index + 1}`}
-                      fill
-                      className="object-cover"
-                    />
+                  <div key={index} className="aspect-square relative overflow-hidden rounded">
+                    {image ? (
+                      <Image
+                        src={image}
+                        alt={`${gallery.title} ${index + 1}`}
+                        fill
+                        className="object-cover"
+                        unoptimized
+                        onError={(e) => {
+                          e.currentTarget.src = '/placeholder-image.png';
+                        }}
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-white/10 flex items-center justify-center">
+                        <span className="text-gray-500 text-xs">Slika</span>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -365,14 +375,24 @@ export default function AdminGallery() {
                           }`}
                           onClick={() => selectImageFromCloudinary(img.url)}
                         >
-                          <Image
-                            src={img.url}
-                            alt={`Image ${index + 1}`}
-                            fill
-                            className="object-cover"
-                          />
+                          {img.url ? (
+                            <Image
+                              src={img.url}
+                              alt={`Image ${index + 1}`}
+                              fill
+                              className="object-cover"
+                              unoptimized
+                              onError={(e) => {
+                                e.currentTarget.src = '/placeholder-image.png';
+                              }}
+                            />
+                          ) : (
+                            <div className="w-full h-full bg-white/10 flex items-center justify-center">
+                              <span className="text-gray-500 text-xs">Slika</span>
+                            </div>
+                          )}
                           {formData.images.includes(img.url) && (
-                            <div className="absolute inset-0 bg-green-500/30 flex items-center justify-center">
+                            <div className="absolute inset-0 bg-green-500/30 flex items-center justify-center z-10">
                               <span className="text-white font-bold">✓</span>
                             </div>
                           )}
@@ -390,17 +410,27 @@ export default function AdminGallery() {
                   <label className="block text-sm font-medium mb-2">Upload-ovane Slike</label>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-4">
                     {formData.images.map((image, index) => (
-                      <div key={index} className="relative aspect-square group">
-                        <Image
-                          src={image}
-                          alt={`Image ${index + 1}`}
-                          fill
-                          className="object-cover"
-                        />
+                      <div key={index} className="relative aspect-square group overflow-hidden rounded">
+                        {image ? (
+                          <Image
+                            src={image}
+                            alt={`Image ${index + 1}`}
+                            fill
+                            className="object-cover"
+                            unoptimized
+                            onError={(e) => {
+                              e.currentTarget.src = '/placeholder-image.png';
+                            }}
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-white/10 flex items-center justify-center">
+                            <span className="text-gray-500 text-xs">Slika</span>
+                          </div>
+                        )}
                         <button
                           type="button"
                           onClick={() => removeImage(index)}
-                          className="absolute top-2 right-2 bg-red-500 text-white p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="absolute top-2 right-2 bg-red-500 text-white p-1 opacity-0 group-hover:opacity-100 transition-opacity z-10"
                         >
                           <X size={16} />
                         </button>

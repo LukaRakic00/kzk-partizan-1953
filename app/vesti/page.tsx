@@ -25,7 +25,7 @@ interface News {
   category: string;
 }
 
-export default function NovostiPage() {
+export default function VestiPage() {
   const [news, setNews] = useState<News[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -56,15 +56,15 @@ export default function NovostiPage() {
       <div className="relative z-10">
         <Navbar />
 
-      <section className="pt-32 pb-20 px-4 sm:px-6 lg:px-8">
+      <section className="pt-32 md:pt-40 pb-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="text-center mb-12"
           >
-            <h1 className="text-5xl md:text-6xl font-bold font-playfair mb-4 uppercase tracking-wider">
-              Novosti
+            <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold font-playfair mb-4 uppercase tracking-wider text-white">
+              Vesti
             </h1>
             <p className="text-xl text-gray-400 max-w-2xl mx-auto">
               Pratite najnovije vesti i dešavanja u klubu
@@ -87,7 +87,7 @@ export default function NovostiPage() {
                       transition={{ delay: index * 0.1 }}
                       className="bg-white/5 border border-white/10 hover:bg-white/10 transition-all group"
                     >
-                      <Link href={`/novosti/${item.slug}`}>
+                      <Link href={`/vesti/${item.slug}`}>
                         <div className="aspect-video relative overflow-hidden">
                           {item.image ? (
                             <Image

@@ -83,8 +83,11 @@ export class ApiClient {
   }
 
   // Players
-  async getPlayers(year?: number) {
-    const url = year ? `/api/players?year=${year}` : '/api/players';
+  async getPlayers(year?: number, category?: string) {
+    const params = new URLSearchParams();
+    if (year) params.append('year', year.toString());
+    if (category) params.append('category', category);
+    const url = params.toString() ? `/api/players?${params.toString()}` : '/api/players';
     return this.request<any[]>(url);
   }
 
@@ -271,6 +274,12 @@ export class ApiClient {
   async getContacts(unreadOnly?: boolean): Promise<{ contacts: any[]; success: boolean; total: number; unread: number }> {
     const url = unreadOnly ? '/api/contact?unread=true' : '/api/contact';
     return this.request<{ contacts: any[]; success: boolean; total: number; unread: number }>(url);
+  }
+
+  async deleteContact(id: string) {
+    return this.request(`/api/contact/${id}`, {
+      method: 'DELETE',
+    });
   }
 
   // Team

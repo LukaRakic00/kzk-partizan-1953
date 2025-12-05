@@ -1,4 +1,11 @@
-import puppeteer from 'puppeteer';
+let puppeteer: any = null;
+
+// Pokušaj da učitamo puppeteer, ali ne bacaj grešku ako nije dostupan
+try {
+  puppeteer = require('puppeteer');
+} catch (e) {
+  console.log('Puppeteer nije dostupan, koristićemo fetch metodu');
+}
 
 const CONFIG = {
   LEAGUE_ID: '31913',
@@ -20,38 +27,51 @@ export interface WabaTeamData {
 
 export class WABAStandingsScraper {
   private browser: any = null;
+  private usePuppeteer: boolean = false;
 
   async initialize() {
-    try {
-      this.browser = await puppeteer.launch({
-        headless: true,
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-accelerated-2d-canvas',
-          '--no-first-run',
-          '--no-zygote',
-          '--disable-gpu',
-          '--disable-blink-features=AutomationControlled',
-          '--disable-features=IsolateOrigins,site-per-process',
-          '--window-size=1920,1080',
-        ],
-      });
-      return true;
-    } catch (err) {
-      console.error('Greška pri inicijalizaciji Puppeteer:', err);
-      throw err;
+    // Pokušaj da inicijalizujemo Puppeteer samo ako je dostupan
+    if (puppeteer) {
+      try {
+        this.browser = await puppeteer.launch({
+          headless: true,
+          args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-accelerated-2d-canvas',
+            '--no-first-run',
+            '--no-zygote',
+            '--disable-gpu',
+            '--disable-blink-features=AutomationControlled',
+            '--disable-features=IsolateOrigins,site-per-process',
+            '--window-size=1920,1080',
+          ],
+        });
+        this.usePuppeteer = true;
+        console.log('Puppeteer uspešno inicijalizovan');
+        return true;
+      } catch (err: any) {
+        console.warn('Greška pri inicijalizaciji Puppeteer, koristićemo fetch metodu:', err.message);
+        this.usePuppeteer = false;
+        return false;
+      }
+    } else {
+      console.log('Puppeteer nije dostupan, koristićemo fetch metodu');
+      this.usePuppeteer = false;
+      return false;
     }
   }
 
   async scrapeStandings(): Promise<WabaTeamData[]> {
+    // Ako Puppeteer nije dostupan ili nije uspeo da se inicijalizuje, koristi fetch
+    if (!this.usePuppeteer || !this.browser) {
+      console.log('Koristim fetch metodu jer Puppeteer nije dostupan');
+      return this.scrapeWithFetch();
+    }
+
     let page = null;
     try {
-      if (!this.browser) {
-        await this.initialize();
-      }
-
       page = await this.browser.newPage();
       page.setDefaultNavigationTimeout(CONFIG.TIMEOUT);
       page.setDefaultTimeout(CONFIG.TIMEOUT);
@@ -197,12 +217,126 @@ export class WABAStandingsScraper {
       return standings;
 
     } catch (err) {
-      console.error('Greška pri scrapanju:', err);
-      throw err;
+      console.error('Greška pri scrapanju sa Puppeteer:', err);
+      // Fallback na fetch ako Puppeteer ne radi
+      console.log('Pokušavam sa fetch metodom...');
+      return this.scrapeWithFetch();
     } finally {
       if (page) {
         await page.close();
       }
+    }
+  }
+
+  private async scrapeWithFetch(): Promise<WabaTeamData[]> {
+    try {
+      console.log('Koristim fetch metodu za scraping...');
+      const response = await fetch(CONFIG.URL, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const html = await response.text();
+      
+      // Parsiraj HTML - izvuci tabelu
+      const tableMatch = html.match(/<table[^>]*>([\s\S]*?)<\/table>/i);
+      if (!tableMatch) {
+        throw new Error('Tabela nije pronađena na stranici');
+      }
+
+      const tableHtml = tableMatch[1];
+      const rowMatches = Array.from(tableHtml.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/gi));
+      
+      const standings: WabaTeamData[] = [];
+      const skipHeaders = ['Games', 'Wins', 'Losses', 'Losses by forfeit', 'Team', 'G', 'W', 'L', 'P'];
+
+      for (let index = 0; index < rowMatches.length; index++) {
+        const rowMatch = rowMatches[index];
+        const row = rowMatch[1];
+        const cellMatches = Array.from(row.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/gi));
+        const cells: string[] = [];
+        
+        for (const cellMatch of cellMatches) {
+          const text = cellMatch[1]
+            .replace(/<[^>]*>/g, '')
+            .replace(/\s+/g, ' ')
+            .trim();
+          cells.push(text);
+        }
+
+        if (cells.length < 5) continue;
+        
+        // Preskoči header redove
+        const firstCell = cells[0] || '';
+        const secondCell = cells[1] || '';
+        if (skipHeaders.includes(firstCell) || skipHeaders.includes(secondCell)) {
+          continue;
+        }
+
+        // Preskoči redove koji su samo brojevi bez imena tima
+        if (!secondCell || secondCell.length === 0) continue;
+
+        // Struktura tabele: No | Team | G | W | L | P | PTS/OPTS | +/-
+        let rank = 0;
+        const noCell = cells[0] || '';
+        if (!isNaN(parseInt(noCell)) && parseInt(noCell) > 0) {
+          rank = parseInt(noCell);
+        } else {
+          rank = index + 1;
+        }
+
+        const teamName = cells[1] || '';
+        const gp = parseInt(cells[2] || '0') || 0;
+        const w = parseInt(cells[3] || '0') || 0;
+        const l = parseInt(cells[4] || '0') || 0;
+        const points = parseInt(cells[5] || '0') || 0;
+
+        // PTS/OPTS (format: "100/80" ili slično)
+        let pts = 0;
+        let opts = 0;
+        const ptsOptsCell = cells[6] || '';
+        if (ptsOptsCell.includes('/')) {
+          const parts = ptsOptsCell.split('/');
+          pts = parseInt(parts[0]?.trim() || '0') || 0;
+          opts = parseInt(parts[1]?.trim() || '0') || 0;
+        }
+
+        // +/- (razlika)
+        const diffCell = cells[7] || '';
+        const diffValue = diffCell.replace(/\+/g, '').trim();
+        const diff = parseInt(diffValue || '0') || 0;
+
+        // Dodaj samo ako ima ime tima i validne podatke
+        if (teamName && teamName.length > 0 && rank > 0) {
+          standings.push({
+            rank,
+            team: teamName.trim(),
+            gp: gp || (w + l),
+            w,
+            l,
+            points,
+            pts,
+            opts,
+            diff,
+          });
+        }
+      }
+
+      console.log(`Uspješno učitano ${standings.length} timova (fetch metoda)`);
+      
+      if (standings.length === 0) {
+        throw new Error('Nijedan tim nije pronađen');
+      }
+
+      return standings;
+    } catch (err) {
+      console.error('Greška pri scrapanju sa fetch metodom:', err);
+      throw err;
     }
   }
 

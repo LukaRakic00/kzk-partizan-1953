@@ -5,6 +5,9 @@ export interface ITeam extends Document {
   title: string;
   description: string;
   teamImage: string;
+  upravniOdborImage?: string;
+  menadzmentImage?: string;
+  rukovodstvoImage?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -13,6 +16,7 @@ export interface IManagement extends Document {
   name: string;
   position: string;
   image?: string;
+  type: 'upravni_odbor' | 'menadzment' | 'rukovodstvo';
   order: number;
   createdAt: Date;
   updatedAt: Date;
@@ -37,6 +41,15 @@ const TeamSchema: Schema = new Schema(
       type: String,
       required: true,
     },
+    upravniOdborImage: {
+      type: String,
+    },
+    menadzmentImage: {
+      type: String,
+    },
+    rukovodstvoImage: {
+      type: String,
+    },
   },
   {
     timestamps: true,
@@ -55,6 +68,12 @@ const ManagementSchema: Schema = new Schema(
     },
     image: {
       type: String,
+    },
+    type: {
+      type: String,
+      enum: ['upravni_odbor', 'menadzment', 'rukovodstvo'],
+      required: true,
+      default: 'rukovodstvo',
     },
     order: {
       type: Number,

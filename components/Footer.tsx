@@ -68,13 +68,23 @@ export default function Footer() {
             </h4>
             <ul className="space-y-2">
               <li>
+                <Link href="/" className="text-gray-400 hover:text-white text-sm transition-colors">
+                  Početna
+                </Link>
+              </li>
+              <li>
                 <Link href="/tim" className="text-gray-400 hover:text-white text-sm transition-colors">
                   Tim
                 </Link>
               </li>
               <li>
-                <Link href="/novosti" className="text-gray-400 hover:text-white text-sm transition-colors">
-                  Novosti
+                <Link href="/o-nama" className="text-gray-400 hover:text-white text-sm transition-colors">
+                  O Nama
+                </Link>
+              </li>
+              <li>
+                <Link href="/vesti" className="text-gray-400 hover:text-white text-sm transition-colors">
+                  Vesti
                 </Link>
               </li>
               <li>

@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import { apiClient } from '@/lib/api-client';
 import { motion } from 'framer-motion';
-import { Users, Newspaper, Image as ImageIcon, BookOpen, TrendingUp, Sparkles } from 'lucide-react';
+import { Users, Newspaper, Image as ImageIcon, BookOpen, TrendingUp, Sparkles, RefreshCw, CheckCircle2, AlertCircle } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState({
@@ -13,9 +14,13 @@ export default function AdminDashboard() {
     history: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [wabaUpdating, setWabaUpdating] = useState(false);
+  const [wabaLastUpdate, setWabaLastUpdate] = useState<string | null>(null);
+  const [wabaStatus, setWabaStatus] = useState<'idle' | 'success' | 'error'>('idle');
 
   useEffect(() => {
     loadStats();
+    loadWabaStatus();
   }, []);
 
   const loadStats = async () => {
@@ -37,6 +42,56 @@ export default function AdminDashboard() {
       console.error('Error loading stats:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadWabaStatus = async () => {
+    try {
+      const response = await fetch('/api/waba/standings');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.lastUpdated) {
+          setWabaLastUpdate(data.lastUpdated);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading WABA status:', error);
+    }
+  };
+
+  const handleWabaUpdate = async () => {
+    try {
+      setWabaUpdating(true);
+      setWabaStatus('idle');
+      
+      const response = await fetch('/api/waba/init', {
+        method: 'GET',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Greška pri ažuriranju WABA lige');
+      }
+
+      const data = await response.json();
+      
+      setWabaStatus('success');
+      setWabaLastUpdate(new Date().toISOString());
+      toast.success(`WABA liga uspešno ažurirana! Učitano ${data.standings?.length || 0} timova.`);
+      
+      setTimeout(() => {
+        setWabaStatus('idle');
+      }, 3000);
+    } catch (error: any) {
+      console.error('Error updating WABA:', error);
+      setWabaStatus('error');
+      toast.error(error.message || 'Greška pri ažuriranju WABA lige');
+      
+      setTimeout(() => {
+        setWabaStatus('idle');
+      }, 5000);
+    } finally {
+      setWabaUpdating(false);
     }
   };
 
@@ -134,6 +189,70 @@ export default function AdminDashboard() {
           })}
         </div>
       )}
+
+      {/* WABA Liga Ažuriranje Sekcija */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.4 }}
+        className="bg-white/5 border border-white/10 p-6 md:p-8 rounded-lg"
+      >
+        <div className="mb-4">
+          <h2 className="text-xl sm:text-2xl font-bold font-playfair uppercase tracking-wider mb-2">
+            WABA Liga Ažuriranje
+          </h2>
+          <p className="text-gray-400 text-sm">
+            Ažuriraj podatke WABA lige iz baze podataka. Scraping može potrajati 10-30 sekundi.
+          </p>
+          {wabaLastUpdate && (
+            <p className="text-gray-500 text-xs mt-2">
+              Poslednje ažuriranje: {new Date(wabaLastUpdate).toLocaleString('sr-RS')}
+            </p>
+          )}
+        </div>
+
+        <div className="flex items-center gap-4">
+          <button
+            onClick={handleWabaUpdate}
+            disabled={wabaUpdating}
+            className={`px-6 py-3 font-semibold uppercase tracking-wider transition-all flex items-center gap-2 ${
+              wabaStatus === 'success'
+                ? 'bg-green-500 text-white'
+                : wabaStatus === 'error'
+                ? 'bg-red-500 text-white'
+                : 'bg-white text-black hover:bg-gray-200'
+            } disabled:opacity-50 disabled:cursor-not-allowed`}
+          >
+            {wabaUpdating ? (
+              <>
+                <RefreshCw className="animate-spin" size={20} />
+                <span>Ažuriranje...</span>
+              </>
+            ) : wabaStatus === 'success' ? (
+              <>
+                <CheckCircle2 size={20} />
+                <span>Uspešno Ažurirano</span>
+              </>
+            ) : wabaStatus === 'error' ? (
+              <>
+                <AlertCircle size={20} />
+                <span>Greška</span>
+              </>
+            ) : (
+              <>
+                <RefreshCw size={20} />
+                <span>Ažuriraj WABA Ligu</span>
+              </>
+            )}
+          </button>
+          
+          {wabaUpdating && (
+            <div className="text-gray-400 text-sm">
+              Molimo sačekajte, scraping je u toku...
+            </div>
+          )}
+        </div>
+      </motion.div>
 
       <motion.div
         initial={{ opacity: 0 }}

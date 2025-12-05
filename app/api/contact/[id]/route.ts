@@ -41,3 +41,36 @@ export async function PUT(
   }
 }
 
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    await connectDB();
+
+    const token = getAuthToken(req);
+    if (!token) {
+      return NextResponse.json({ error: 'Niste autentifikovani' }, { status: 401 });
+    }
+
+    const payload = verifyToken(token);
+    if (!payload) {
+      return NextResponse.json({ error: 'Neispravan token' }, { status: 401 });
+    }
+
+    const contact = await Contact.findByIdAndDelete(params.id);
+
+    if (!contact) {
+      return NextResponse.json({ error: 'Poruka nije pronađena' }, { status: 404 });
+    }
+
+    return NextResponse.json({ message: 'Poruka je uspešno obrisana' });
+  } catch (error: any) {
+    console.error('Delete contact error:', error);
+    return NextResponse.json(
+      { error: 'Greška pri brisanju poruke' },
+      { status: 500 }
+    );
+  }
+}
+

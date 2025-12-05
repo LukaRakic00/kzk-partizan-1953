@@ -11,16 +11,11 @@ interface Management {
   name: string;
   position: string;
   image?: string;
+  type: 'upravni_odbor' | 'menadzment' | 'rukovodstvo';
   order: number;
 }
 
 export default function AdminTim() {
-  const [teamData, setTeamData] = useState({
-    season: '2024/25',
-    title: 'Tim košarkaškog kluba partizan 1953 za 2024/25 godinu',
-    description: 'Sa ponosom vam predstavljamo naš tim za 2024/25. godinu – snagu, strast i talenat koji će nas voditi ka novim pobedama!',
-    teamImage: '',
-  });
   const [management, setManagement] = useState<Management[]>([]);
   const [loading, setLoading] = useState(true);
   const [savingTeam, setSavingTeam] = useState(false);
@@ -30,10 +25,21 @@ export default function AdminTim() {
     name: '',
     position: '',
     image: '',
+    type: 'rukovodstvo' as 'upravni_odbor' | 'menadzment' | 'rukovodstvo',
     order: 0,
+  });
+  const [teamData, setTeamData] = useState({
+    season: '2024/25',
+    title: 'Tim košarkaškog kluba partizan 1953 za 2024/25 godinu',
+    description: 'Sa ponosom vam predstavljamo naš tim za 2024/25. godinu – snagu, strast i talenat koji će nas voditi ka novim pobedama!',
+    teamImage: '',
+    upravniOdborImage: '',
+    menadzmentImage: '',
+    rukovodstvoImage: '',
   });
   const [uploadingTeamImage, setUploadingTeamImage] = useState(false);
   const [uploadingManagementImage, setUploadingManagementImage] = useState(false);
+  const [uploadingSectionImage, setUploadingSectionImage] = useState<string | null>(null);
 
   useEffect(() => {
     loadData();
@@ -42,13 +48,16 @@ export default function AdminTim() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const team = await apiClient.getTeam() as { season?: string; title?: string; description?: string; teamImage?: string } | null;
+      const team = await apiClient.getTeam() as { season?: string; title?: string; description?: string; teamImage?: string; upravniOdborImage?: string; menadzmentImage?: string; rukovodstvoImage?: string } | null;
       if (team) {
         setTeamData({
           season: team.season || '2024/25',
           title: team.title || '',
           description: team.description || '',
           teamImage: team.teamImage || '',
+          upravniOdborImage: team.upravniOdborImage || '',
+          menadzmentImage: team.menadzmentImage || '',
+          rukovodstvoImage: team.rukovodstvoImage || '',
         });
       }
       const mgmt = await apiClient.getManagement();
@@ -108,6 +117,30 @@ export default function AdminTim() {
     }
   };
 
+  const handleSectionImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, section: 'upravniOdborImage' | 'menadzmentImage' | 'rukovodstvoImage') => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingSectionImage(section);
+    try {
+      const uploadFormData = new FormData();
+      uploadFormData.append('file', file);
+      uploadFormData.append('folder', 'tim');
+      const token = localStorage.getItem('auth-token');
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: uploadFormData,
+      });
+      const data = await response.json();
+      setTeamData((prev) => ({ ...prev, [section]: data.url }));
+      toast.success('Slika je uspešno upload-ovana');
+    } catch (error) {
+      toast.error('Greška pri upload-u slike');
+    } finally {
+      setUploadingSectionImage(null);
+    }
+  };
+
   const handleSaveTeam = async () => {
     try {
       setSavingTeam(true);
@@ -131,7 +164,7 @@ export default function AdminTim() {
       }
       setShowManagementModal(false);
       setEditingManagement(null);
-      setManagementForm({ name: '', position: '', image: '', order: 0 });
+      setManagementForm({ name: '', position: '', image: '', type: 'rukovodstvo', order: 0 });
       loadData();
     } catch (error: any) {
       toast.error(error.message || 'Greška pri čuvanju rukovodstva');
@@ -144,6 +177,7 @@ export default function AdminTim() {
       name: item.name,
       position: item.position,
       image: item.image || '',
+      type: item.type,
       order: item.order,
     });
     setShowManagementModal(true);
@@ -224,6 +258,54 @@ export default function AdminTim() {
                   </div>
                 )}
               </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">Slika Ispod Upravnog Odbora</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => handleSectionImageUpload(e, 'upravniOdborImage')}
+                  className="block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-white/10 file:text-white hover:file:bg-white/20"
+                  disabled={uploadingSectionImage === 'upravniOdborImage'}
+                />
+                {uploadingSectionImage === 'upravniOdborImage' && <p className="text-sm text-gray-400 mt-2">Upload u toku...</p>}
+                {teamData.upravniOdborImage && (
+                  <div className="mt-4 relative w-full h-64 sm:h-96 rounded-lg overflow-hidden border border-white/20">
+                    <Image src={teamData.upravniOdborImage} alt="Upravni Odbor" fill className="object-cover" />
+                  </div>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">Slika Ispod Menadžmenta</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => handleSectionImageUpload(e, 'menadzmentImage')}
+                  className="block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-white/10 file:text-white hover:file:bg-white/20"
+                  disabled={uploadingSectionImage === 'menadzmentImage'}
+                />
+                {uploadingSectionImage === 'menadzmentImage' && <p className="text-sm text-gray-400 mt-2">Upload u toku...</p>}
+                {teamData.menadzmentImage && (
+                  <div className="mt-4 relative w-full h-64 sm:h-96 rounded-lg overflow-hidden border border-white/20">
+                    <Image src={teamData.menadzmentImage} alt="Menadžment" fill className="object-cover" />
+                  </div>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">Slika Ispod Rukovodstva</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => handleSectionImageUpload(e, 'rukovodstvoImage')}
+                  className="block w-full text-sm text-gray-400 file:mr-4 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-white/10 file:text-white hover:file:bg-white/20"
+                  disabled={uploadingSectionImage === 'rukovodstvoImage'}
+                />
+                {uploadingSectionImage === 'rukovodstvoImage' && <p className="text-sm text-gray-400 mt-2">Upload u toku...</p>}
+                {teamData.rukovodstvoImage && (
+                  <div className="mt-4 relative w-full h-64 sm:h-96 rounded-lg overflow-hidden border border-white/20">
+                    <Image src={teamData.rukovodstvoImage} alt="Rukovodstvo" fill className="object-cover" />
+                  </div>
+                )}
+              </div>
               <button
                 onClick={handleSaveTeam}
                 disabled={savingTeam}
@@ -235,62 +317,149 @@ export default function AdminTim() {
             </div>
           </div>
 
-          {/* Rukovodstvo Sekcija */}
+          {/* Management Sekcija */}
           <div className="bg-white/5 border border-white/10 p-4 sm:p-6 md:p-8 rounded-lg">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
               <h2 className="text-xl sm:text-2xl font-bold font-playfair uppercase tracking-wider">
-                Rukovodstvo Sekcija
+                Upravni Odbor, Menadžment i Rukovodstvo
               </h2>
               <button
                 onClick={() => {
                   setEditingManagement(null);
-                  setManagementForm({ name: '', position: '', image: '', order: management.length });
+                  setManagementForm({ name: '', position: '', image: '', type: 'rukovodstvo', order: management.length });
                   setShowManagementModal(true);
                 }}
                 className="bg-white text-black px-4 sm:px-6 py-2 sm:py-3 font-semibold uppercase tracking-wider hover:bg-gray-200 transition-all flex items-center text-sm sm:text-base w-full sm:w-auto justify-center"
               >
                 <Plus className="mr-2" size={18} />
-                Dodaj Člana Rukovodstva
+                Dodaj Člana
               </button>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-              {management.map((item) => (
-                <div
-                  key={item._id}
-                  className="bg-white/5 border border-white/10 p-4 sm:p-6 rounded-lg hover:bg-white/10 transition-all"
-                >
-                  <div className="flex flex-col items-center text-center">
-                    <div className="relative w-24 h-24 sm:w-32 sm:h-32 rounded-full overflow-hidden border-4 border-white/20 mb-4">
-                      {item.image ? (
-                        <Image src={item.image} alt={item.name} fill className="object-cover" />
-                      ) : (
-                        <div className="w-full h-full bg-white/10 flex items-center justify-center">
-                          <span className="text-gray-500 text-xs">Slika</span>
-                        </div>
-                      )}
-                    </div>
-                    <h3 className="text-lg sm:text-xl font-bold font-playfair mb-1">{item.name}</h3>
-                    <p className="text-sm sm:text-base text-gray-400 mb-4">{item.position}</p>
-                    <div className="flex gap-2 w-full">
-                      <button
-                        onClick={() => handleEditManagement(item)}
-                        className="flex-1 bg-white/10 text-white px-3 sm:px-4 py-2 hover:bg-white/20 transition-all flex items-center justify-center text-xs sm:text-sm"
-                      >
-                        <Edit size={14} className="sm:mr-2" />
-                        <span className="hidden sm:inline">Izmeni</span>
-                      </button>
-                      <button
-                        onClick={() => handleDeleteManagement(item._id)}
-                        className="flex-1 bg-red-500/20 text-red-400 px-3 sm:px-4 py-2 hover:bg-red-500/30 transition-all flex items-center justify-center text-xs sm:text-sm"
-                      >
-                        <Trash2 size={14} className="sm:mr-2" />
-                        <span className="hidden sm:inline">Obriši</span>
-                      </button>
+            <div className="mb-8">
+              <h3 className="text-lg sm:text-xl font-bold font-playfair uppercase tracking-wider mb-4">Upravni Odbor</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6">
+                {management.filter((item) => item.type === 'upravni_odbor').map((item) => (
+                  <div
+                    key={item._id}
+                    className="bg-white/5 border border-white/10 p-4 sm:p-6 rounded-lg hover:bg-white/10 transition-all"
+                  >
+                    <div className="flex flex-col items-center text-center">
+                      <div className="relative w-24 h-24 sm:w-32 sm:h-32 rounded-full overflow-hidden border-4 border-white/20 mb-4">
+                        {item.image ? (
+                          <Image src={item.image} alt={item.name} fill className="object-cover" />
+                        ) : (
+                          <div className="w-full h-full bg-white/10 flex items-center justify-center">
+                            <span className="text-gray-500 text-xs">Slika</span>
+                          </div>
+                        )}
+                      </div>
+                      <h3 className="text-lg sm:text-xl font-bold font-playfair mb-1">{item.name}</h3>
+                      <p className="text-sm sm:text-base text-gray-400 mb-4">{item.position}</p>
+                      <div className="flex gap-2 w-full">
+                        <button
+                          onClick={() => handleEditManagement(item)}
+                          className="flex-1 bg-white/10 text-white px-3 sm:px-4 py-2 hover:bg-white/20 transition-all flex items-center justify-center text-xs sm:text-sm"
+                        >
+                          <Edit size={14} className="sm:mr-2" />
+                          <span className="hidden sm:inline">Izmeni</span>
+                        </button>
+                        <button
+                          onClick={() => handleDeleteManagement(item._id)}
+                          className="flex-1 bg-red-500/20 text-red-400 px-3 sm:px-4 py-2 hover:bg-red-500/30 transition-all flex items-center justify-center text-xs sm:text-sm"
+                        >
+                          <Trash2 size={14} className="sm:mr-2" />
+                          <span className="hidden sm:inline">Obriši</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
+            </div>
+
+            <div className="mb-8">
+              <h3 className="text-lg sm:text-xl font-bold font-playfair uppercase tracking-wider mb-4">Menadžment</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6">
+                {management.filter((item) => item.type === 'menadzment').map((item) => (
+                  <div
+                    key={item._id}
+                    className="bg-white/5 border border-white/10 p-4 sm:p-6 rounded-lg hover:bg-white/10 transition-all"
+                  >
+                    <div className="flex flex-col items-center text-center">
+                      <div className="relative w-24 h-24 sm:w-32 sm:h-32 rounded-full overflow-hidden border-4 border-white/20 mb-4">
+                        {item.image ? (
+                          <Image src={item.image} alt={item.name} fill className="object-cover" />
+                        ) : (
+                          <div className="w-full h-full bg-white/10 flex items-center justify-center">
+                            <span className="text-gray-500 text-xs">Slika</span>
+                          </div>
+                        )}
+                      </div>
+                      <h3 className="text-lg sm:text-xl font-bold font-playfair mb-1">{item.name}</h3>
+                      <p className="text-sm sm:text-base text-gray-400 mb-4">{item.position}</p>
+                      <div className="flex gap-2 w-full">
+                        <button
+                          onClick={() => handleEditManagement(item)}
+                          className="flex-1 bg-white/10 text-white px-3 sm:px-4 py-2 hover:bg-white/20 transition-all flex items-center justify-center text-xs sm:text-sm"
+                        >
+                          <Edit size={14} className="sm:mr-2" />
+                          <span className="hidden sm:inline">Izmeni</span>
+                        </button>
+                        <button
+                          onClick={() => handleDeleteManagement(item._id)}
+                          className="flex-1 bg-red-500/20 text-red-400 px-3 sm:px-4 py-2 hover:bg-red-500/30 transition-all flex items-center justify-center text-xs sm:text-sm"
+                        >
+                          <Trash2 size={14} className="sm:mr-2" />
+                          <span className="hidden sm:inline">Obriši</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <h3 className="text-lg sm:text-xl font-bold font-playfair uppercase tracking-wider mb-4">Rukovodstvo</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                {management.filter((item) => item.type === 'rukovodstvo').map((item) => (
+                  <div
+                    key={item._id}
+                    className="bg-white/5 border border-white/10 p-4 sm:p-6 rounded-lg hover:bg-white/10 transition-all"
+                  >
+                    <div className="flex flex-col items-center text-center">
+                      <div className="relative w-24 h-24 sm:w-32 sm:h-32 rounded-full overflow-hidden border-4 border-white/20 mb-4">
+                        {item.image ? (
+                          <Image src={item.image} alt={item.name} fill className="object-cover" />
+                        ) : (
+                          <div className="w-full h-full bg-white/10 flex items-center justify-center">
+                            <span className="text-gray-500 text-xs">Slika</span>
+                          </div>
+                        )}
+                      </div>
+                      <h3 className="text-lg sm:text-xl font-bold font-playfair mb-1">{item.name}</h3>
+                      <p className="text-sm sm:text-base text-gray-400 mb-4">{item.position}</p>
+                      <div className="flex gap-2 w-full">
+                        <button
+                          onClick={() => handleEditManagement(item)}
+                          className="flex-1 bg-white/10 text-white px-3 sm:px-4 py-2 hover:bg-white/20 transition-all flex items-center justify-center text-xs sm:text-sm"
+                        >
+                          <Edit size={14} className="sm:mr-2" />
+                          <span className="hidden sm:inline">Izmeni</span>
+                        </button>
+                        <button
+                          onClick={() => handleDeleteManagement(item._id)}
+                          className="flex-1 bg-red-500/20 text-red-400 px-3 sm:px-4 py-2 hover:bg-red-500/30 transition-all flex items-center justify-center text-xs sm:text-sm"
+                        >
+                          <Trash2 size={14} className="sm:mr-2" />
+                          <span className="hidden sm:inline">Obriši</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
@@ -301,7 +470,7 @@ export default function AdminTim() {
         <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4">
           <div className="bg-black border border-white/10 p-4 sm:p-6 md:p-8 max-w-md w-full max-h-[90vh] overflow-y-auto">
             <h2 className="text-xl sm:text-2xl font-bold font-playfair mb-4 sm:mb-6">
-              {editingManagement ? 'Izmeni Rukovodstvo' : 'Dodaj Rukovodstvo'}
+              {editingManagement ? 'Izmeni Člana' : 'Dodaj Člana'}
             </h2>
             <div className="space-y-4 sm:space-y-6">
               <div>
@@ -323,6 +492,18 @@ export default function AdminTim() {
                   onChange={(e) => setManagementForm((prev) => ({ ...prev, position: e.target.value }))}
                   className="w-full bg-white/5 border border-white/10 px-3 sm:px-4 py-2 sm:py-3 text-white text-sm sm:text-base focus:outline-none focus:border-white"
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">Tip</label>
+                <select
+                  value={managementForm.type}
+                  onChange={(e) => setManagementForm((prev) => ({ ...prev, type: e.target.value as 'upravni_odbor' | 'menadzment' | 'rukovodstvo' }))}
+                  className="w-full bg-white/5 border border-white/10 px-3 sm:px-4 py-2 sm:py-3 text-white text-sm sm:text-base focus:outline-none focus:border-white"
+                >
+                  <option value="upravni_odbor">Upravni Odbor</option>
+                  <option value="menadzment">Menadžment</option>
+                  <option value="rukovodstvo">Rukovodstvo</option>
+                </select>
               </div>
               <div>
                 <label className="block text-sm font-medium mb-2">Slika</label>
@@ -360,7 +541,7 @@ export default function AdminTim() {
                   onClick={() => {
                     setShowManagementModal(false);
                     setEditingManagement(null);
-                    setManagementForm({ name: '', position: '', image: '', order: 0 });
+                    setManagementForm({ name: '', position: '', image: '', type: 'rukovodstvo', order: 0 });
                   }}
                   className="flex-1 bg-white/10 text-white px-4 sm:px-6 py-2 sm:py-3 font-semibold uppercase tracking-wider hover:bg-white/20 transition-all text-sm sm:text-base"
                 >

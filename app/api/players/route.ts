@@ -9,8 +9,15 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = new URL(req.url);
     const year = searchParams.get('year');
+    const category = searchParams.get('category');
 
-    const query = year ? { year: parseInt(year) } : {};
+    const query: any = {};
+    if (year) {
+      query.year = parseInt(year);
+    }
+    if (category) {
+      query.category = category;
+    }
     const players = await Player.find(query).sort({ number: 1 });
 
     return NextResponse.json(players);

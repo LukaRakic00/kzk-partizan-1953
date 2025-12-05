@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { apiClient } from '@/lib/api-client';
-import { motion } from 'framer-motion';
 import { Plus, Edit, Trash2, Eye } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Image from 'next/image';
@@ -34,7 +33,7 @@ export default function AdminNews() {
     images: [] as string[],
     published: false,
     category: 'Vesti',
-    tags: '',
+    publishedAt: '',
   });
   const [uploading, setUploading] = useState(false);
   const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
@@ -114,8 +113,9 @@ export default function AdminNews() {
       const newsData = {
         ...formData,
         slug: formData.slug || generateSlug(formData.title),
-        tags: formData.tags.split(',').map((tag) => tag.trim()).filter(Boolean),
-        publishedAt: formData.published ? new Date().toISOString() : undefined,
+        publishedAt: formData.publishedAt 
+          ? new Date(formData.publishedAt).toISOString() 
+          : (formData.published ? new Date().toISOString() : undefined),
       };
 
       if (editingNews) {
@@ -137,7 +137,7 @@ export default function AdminNews() {
         images: [],
         published: false,
         category: 'Vesti',
-        tags: '',
+        publishedAt: '',
       });
       loadNews();
     } catch (error: any) {
@@ -150,6 +150,7 @@ export default function AdminNews() {
       // Učitaj punu vest da dobijemo content i images
       const fullNews = await apiClient.getNewsBySlug(item.slug);
       setEditingNews(item);
+      const publishedAtDate = fullNews.publishedAt || item.publishedAt;
       setFormData({
         title: fullNews.title || item.title,
         slug: fullNews.slug || item.slug,
@@ -159,7 +160,9 @@ export default function AdminNews() {
         images: fullNews.images || [],
         published: fullNews.published !== undefined ? fullNews.published : item.published,
         category: fullNews.category || item.category,
-        tags: fullNews.tags ? fullNews.tags.join(', ') : '',
+        publishedAt: publishedAtDate 
+          ? new Date(publishedAtDate).toISOString().slice(0, 16)
+          : '',
       });
       setShowModal(true);
     } catch (error) {
@@ -195,7 +198,7 @@ export default function AdminNews() {
               images: [],
               published: false,
               category: 'Vesti',
-              tags: '',
+              publishedAt: '',
             });
             setShowModal(true);
           }}
@@ -253,7 +256,7 @@ export default function AdminNews() {
                   </div>
                   <div className="flex flex-col sm:flex-row gap-2 sm:space-x-2 mt-4">
                     <Link
-                      href={`/novosti/${item.slug}`}
+                      href={`/vesti/${item.slug}`}
                       target="_blank"
                       className="bg-white/10 text-white px-3 sm:px-4 py-2 hover:bg-white/20 transition-all flex items-center justify-center text-xs sm:text-sm"
                     >
@@ -317,26 +320,14 @@ export default function AdminNews() {
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">Kategorija</label>
-                  <input
-                    type="text"
-                    value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                    className="w-full bg-white/5 border border-white/10 px-4 py-3 text-white focus:outline-none focus:border-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">Tagovi (razdvojeno zarezom)</label>
-                  <input
-                    type="text"
-                    value={formData.tags}
-                    onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
-                    className="w-full bg-white/5 border border-white/10 px-4 py-3 text-white focus:outline-none focus:border-white"
-                    placeholder="tag1, tag2, tag3"
-                  />
-                </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">Kategorija</label>
+                <input
+                  type="text"
+                  value={formData.category}
+                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                  className="w-full bg-black border border-white/20 px-4 py-3 text-white focus:outline-none focus:border-white"
+                />
               </div>
 
               <div>
@@ -414,17 +405,28 @@ export default function AdminNews() {
                 {uploadingIndex !== null && <p className="text-sm text-gray-400 mt-2">Upload u toku...</p>}
               </div>
 
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  id="published"
-                  checked={formData.published}
-                  onChange={(e) => setFormData({ ...formData, published: e.target.checked })}
-                  className="w-4 h-4 mr-2"
-                />
-                <label htmlFor="published" className="text-sm">
-                  Objavi odmah
-                </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="published"
+                    checked={formData.published}
+                    onChange={(e) => setFormData({ ...formData, published: e.target.checked })}
+                    className="w-4 h-4 mr-2"
+                  />
+                  <label htmlFor="published" className="text-sm">
+                    Objavi
+                  </label>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">Datum objave</label>
+                  <input
+                    type="datetime-local"
+                    value={formData.publishedAt}
+                    onChange={(e) => setFormData({ ...formData, publishedAt: e.target.value })}
+                    className="w-full bg-black border border-white/20 px-4 py-3 text-white focus:outline-none focus:border-white"
+                  />
+                </div>
               </div>
 
               <div className="flex space-x-4">

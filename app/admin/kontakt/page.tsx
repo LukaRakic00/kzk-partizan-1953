@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { apiClient } from '@/lib/api-client';
 import { motion } from 'framer-motion';
-import { Mail, Phone, User, Calendar, CheckCircle, XCircle, Eye, EyeOff } from 'lucide-react';
+import { Mail, User, Calendar, CheckCircle, Eye, EyeOff, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface Contact {
@@ -52,6 +52,21 @@ export default function AdminKontakt() {
       }
     } catch (error) {
       toast.error('Greška pri označavanju poruke');
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Da li ste sigurni da želite da obrišete ovu poruku?')) return;
+
+    try {
+      await apiClient.deleteContact(id);
+      toast.success('Poruka je uspešno obrisana');
+      if (selectedContact?._id === id) {
+        setSelectedContact(null);
+      }
+      loadContacts();
+    } catch (error: any) {
+      toast.error(error.message || 'Greška pri brisanju poruke');
     }
   };
 
@@ -120,25 +135,41 @@ export default function AdminKontakt() {
                 key={contact._id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                onClick={() => setSelectedContact(contact)}
-                className={`p-4 border cursor-pointer transition-all ${
+                className={`p-4 border transition-all ${
                   selectedContact?._id === contact._id
                     ? 'bg-white/10 border-white'
                     : 'bg-white/5 border-white/10 hover:bg-white/10'
                 } ${!contact.read ? 'border-l-4 border-l-blue-500' : ''}`}
               >
-                <div className="flex items-start justify-between mb-2">
-                  <div className="flex-1">
-                    <h3 className="font-bold text-white mb-1">{contact.title}</h3>
-                    <p className="text-sm text-gray-400 truncate">{contact.name}</p>
+                <div 
+                  onClick={() => setSelectedContact(contact)}
+                  className="cursor-pointer"
+                >
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex-1">
+                      <h3 className="font-bold text-white mb-1">{contact.title}</h3>
+                      <p className="text-sm text-gray-400 truncate">{contact.name}</p>
+                    </div>
+                    {!contact.read && (
+                      <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0 mt-1"></div>
+                    )}
                   </div>
-                  {!contact.read && (
-                    <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0 mt-1"></div>
-                  )}
+                  <div className="flex items-center gap-2 text-xs text-gray-500">
+                    <Calendar size={12} />
+                    <span>{formatDate(contact.createdAt)}</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 text-xs text-gray-500">
-                  <Calendar size={12} />
-                  <span>{formatDate(contact.createdAt)}</span>
+                <div className="mt-3 pt-3 border-t border-white/10">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(contact._id);
+                    }}
+                    className="w-full px-3 py-1.5 bg-red-600/20 hover:bg-red-600/30 text-red-400 transition-colors text-xs flex items-center justify-center gap-2"
+                  >
+                    <Trash2 size={14} />
+                    Obriši
+                  </button>
                 </div>
               </motion.div>
             ))}
@@ -173,15 +204,24 @@ export default function AdminKontakt() {
                       </div>
                     </div>
                   </div>
-                  {!selectedContact.read && (
+                  <div className="flex items-center gap-2">
+                    {!selectedContact.read && (
+                      <button
+                        onClick={() => markAsRead(selectedContact._id)}
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white transition-colors text-sm flex items-center gap-2"
+                      >
+                        <CheckCircle size={16} />
+                        Označi kao pročitano
+                      </button>
+                    )}
                     <button
-                      onClick={() => markAsRead(selectedContact._id)}
-                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white transition-colors text-sm flex items-center gap-2"
+                      onClick={() => handleDelete(selectedContact._id)}
+                      className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white transition-colors text-sm flex items-center gap-2"
                     >
-                      <CheckCircle size={16} />
-                      Označi kao pročitano
+                      <Trash2 size={16} />
+                      Obriši
                     </button>
-                  )}
+                  </div>
                 </div>
 
                 {selectedContact.message && (
@@ -197,19 +237,6 @@ export default function AdminKontakt() {
                   <div className="flex items-center gap-2 text-sm text-gray-400">
                     <Calendar size={16} />
                     <span>Poslato: {formatDate(selectedContact.createdAt)}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-400 mt-2">
-                    {selectedContact.read ? (
-                      <>
-                        <CheckCircle size={16} className="text-green-400" />
-                        <span className="text-green-400">Pročitano</span>
-                      </>
-                    ) : (
-                      <>
-                        <XCircle size={16} className="text-blue-400" />
-                        <span className="text-blue-400">Nepročitano</span>
-                      </>
-                    )}
                   </div>
                 </div>
               </motion.div>

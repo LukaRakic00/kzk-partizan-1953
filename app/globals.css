@@ -153,3 +153,29 @@ body {
   }
 }
 
+/* Select dropdown styles for admin panel */
+select {
+  color-scheme: dark;
+}
+
+select option {
+  background-color: #000000;
+  color: #ffffff;
+  padding: 8px;
+}
+
+/* Ensure select dropdown is visible in dark theme */
+select:focus {
+  outline: none;
+}
+
+/* For better visibility in admin panel */
+select option:checked {
+  background-color: #ffffff;
+  color: #000000;
+}
+
+select option:hover {
+  background-color: #1a1a1a;
+}
+

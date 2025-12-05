@@ -6,7 +6,10 @@ import { verifyToken, getAuthToken } from '@/lib/auth';
 export async function GET(req: NextRequest) {
   try {
     await connectDB();
-    const management = await Management.find().sort({ order: 1 });
+    const { searchParams } = new URL(req.url);
+    const type = searchParams.get('type');
+    const query = type ? { type } : {};
+    const management = await Management.find(query).sort({ order: 1 });
     return NextResponse.json(management);
   } catch (error) {
     console.error('Get management error:', error);

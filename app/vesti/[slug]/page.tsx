@@ -24,10 +24,9 @@ interface News {
   publishedAt?: string;
   views: number;
   category: string;
-  tags: string[];
 }
 
-export default function NewsDetailPage() {
+export default function VestiDetailPage() {
   const params = useParams();
   const [news, setNews] = useState<News | null>(null);
   const [loading, setLoading] = useState(true);
@@ -60,10 +59,10 @@ export default function NewsDetailPage() {
       <div className="relative z-10">
         <Navbar />
 
-      <article className="pt-32 pb-20 px-4 sm:px-6 lg:px-8">
+      <article className="pt-32 md:pt-40 pb-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto">
           <Link
-            href="/novosti"
+            href="/vesti"
             className="inline-flex items-center text-gray-400 hover:text-white mb-8 transition-colors"
           >
             <ArrowLeft className="mr-2" size={20} />
@@ -136,19 +135,6 @@ export default function NewsDetailPage() {
                   {news.content}
                 </ReactMarkdown>
               </div>
-
-              {news.tags && news.tags.length > 0 && (
-                <div className="flex flex-wrap gap-2 pt-8 border-t border-white/10">
-                  {news.tags.map((tag, index) => (
-                    <span
-                      key={index}
-                      className="px-3 py-1 bg-white/10 text-sm uppercase tracking-wider"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              )}
             </motion.div>
           ) : (
             <div className="text-center py-20">

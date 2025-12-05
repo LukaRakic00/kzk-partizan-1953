@@ -17,7 +17,13 @@ export async function GET() {
 
     console.log('Pokretanje inicijalnog WABA scraping-a...');
     
-    await scraper.initialize();
+    // Pokušaj da inicijalizujemo Puppeteer, ali ne bacaj grešku ako ne uspe
+    try {
+      await scraper.initialize();
+    } catch (initError: any) {
+      console.warn('Puppeteer inicijalizacija neuspešna, koristiće se fetch metoda:', initError.message);
+    }
+    
     const scrapedData = await scraper.scrapeStandings();
 
     if (scrapedData.length === 0) {
@@ -56,7 +62,7 @@ export async function GET() {
 
     return NextResponse.json({
       success: true,
-      message: `Uspješno učitano ${savedStandings.length} timova u bazu`,
+      message: `Uspešno učitano ${savedStandings.length} timova u bazu`,
       standings: savedStandings,
       timestamp: new Date().toISOString(),
     });

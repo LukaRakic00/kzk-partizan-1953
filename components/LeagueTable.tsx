@@ -202,13 +202,13 @@ export default function LeagueTable() {
   const currentTeams = activeTab === 'zls' ? zlsTeams : wabaTeams;
   const currentLoading = activeTab === 'zls' ? zlsLoading : wabaLoading;
   const currentError = activeTab === 'zls' ? zlsError : wabaError;
-  const leagueName = activeTab === 'zls' ? 'Ženska Liga Srbije (ZLS)' : 'WABA Liga';
+  const leagueName = activeTab === 'zls' ? 'Prva Ženska Liga Srbije (ŽLS)' : 'WABA Liga';
 
   return (
     <div className="bg-black/50 border-t border-white/10 py-8 md:py-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-12">
-          <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold font-playfair uppercase tracking-wider mb-4">
+          <h2 className="text-[30px] font-bold font-playfair uppercase tracking-wider mb-4">
           Tabele
         </h2>
           <div className="w-24 h-1 bg-white mx-auto"></div>
