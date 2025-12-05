@@ -17,18 +17,21 @@ export async function GET() {
 
     console.log('Pokretanje inicijalnog WABA scraping-a...');
     
-    // Pokušaj da inicijalizujemo Puppeteer - ovo je važno jer fetch metoda ne može da vidi JavaScript-renderovane tabele
-    let puppeteerInitialized = false;
+    // Pokušaj da inicijalizujemo browser automation (Playwright ili Puppeteer)
+    // Ovo je važno jer fetch metoda ne može da vidi JavaScript-renderovane tabele
+    let browserInitialized = false;
     try {
-      puppeteerInitialized = await scraper.initialize();
-      if (puppeteerInitialized) {
-        console.log('Puppeteer uspešno inicijalizovan - koristiće se za scraping');
+      browserInitialized = await scraper.initialize();
+      if (browserInitialized) {
+        console.log('Browser automation uspešno inicijalizovan - koristiće se za scraping');
       } else {
-        console.warn('Puppeteer nije uspeo da se inicijalizuje, koristiće se fetch metoda (može biti problematično)');
+        console.warn('Browser automation nije uspeo da se inicijalizuje, koristiće se fetch metoda (može biti problematično)');
+        console.warn('NAPOMENA: U produkciji, proverite da li su instalirani puppeteer-core, @sparticuz/chromium ili playwright paketi.');
       }
     } catch (initError: any) {
-      console.warn('Puppeteer inicijalizacija neuspešna, koristiće se fetch metoda:', initError.message);
+      console.warn('Browser automation inicijalizacija neuspešna, koristiće se fetch metoda:', initError.message);
       console.warn('NAPOMENA: Fetch metoda možda neće moći da pronađe tabelu ako stranica koristi JavaScript za renderovanje.');
+      console.warn('U produkciji (Vercel), proverite da li su instalirani puppeteer-core, @sparticuz/chromium ili playwright paketi.');
     }
     
     let scrapedData: any[] = [];
@@ -37,14 +40,14 @@ export async function GET() {
       scrapedData = await scraper.scrapeStandings();
     } catch (scrapeError: any) {
       console.error('Scraping error:', scrapeError);
-      // Ako je greška vezana za tabelu, probaj ponovo sa Puppeteer-om
+      // Ako je greška vezana za tabelu, probaj ponovo sa browser automation-om
       if (scrapeError.message && scrapeError.message.includes('Tabela nije pronađena')) {
-        console.log('Pokušavam ponovo sa Puppeteer-om...');
+        console.log('Pokušavam ponovo sa browser automation-om...');
         try {
           await scraper.initialize();
           scrapedData = await scraper.scrapeStandings();
         } catch (retryError: any) {
-          throw new Error(`Greška pri scrapanju: ${scrapeError.message}. Stranica možda koristi JavaScript za renderovanje tabele, što zahteva Puppeteer.`);
+          throw new Error(`Greška pri scrapanju: ${scrapeError.message}. Stranica verovatno koristi JavaScript za renderovanje tabele, što zahteva browser automation (Playwright/Puppeteer). U produkciji, proverite da li su instalirani potrebni paketi.`);
         }
       } else {
         throw scrapeError;
@@ -99,7 +102,7 @@ export async function GET() {
     let userMessage = 'Greška pri učitavanju podataka';
     
     if (errorMessage.includes('Tabela nije pronađena')) {
-      userMessage = 'Tabela nije pronađena na stranici. Stranica možda koristi JavaScript za renderovanje, što zahteva Puppeteer. Proverite da li je Puppeteer instaliran i da li radi u produkciji.';
+      userMessage = 'Tabela nije pronađena na stranici. Stranica verovatno koristi JavaScript za renderovanje, što zahteva browser automation (Playwright/Puppeteer). U produkciji (Vercel), proverite da li su instalirani puppeteer-core, @sparticuz/chromium ili playwright paketi.';
     } else if (errorMessage.includes('Nijedan tim nije pronađen')) {
       userMessage = 'Nijedan tim nije pronađen. Proverite da li je URL ispravan i da li stranica sadrži tabelu sa timovima.';
     } else if (errorMessage.includes('timeout') || errorMessage.includes('Timeout')) {
@@ -110,7 +113,7 @@ export async function GET() {
       { 
         error: userMessage,
         message: errorMessage,
-        details: 'Ako se greška nastavi, proverite da li je Puppeteer instaliran i da li radi u produkciji. Fetch metoda ne može da vidi JavaScript-renderovane tabele.',
+        details: 'Ako se greška nastavi, proverite da li su instalirani puppeteer-core, @sparticuz/chromium ili playwright paketi u produkciji. Fetch metoda ne može da vidi JavaScript-renderovane tabele.',
       },
       { status: 500 }
     );

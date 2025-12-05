@@ -1,7 +1,8 @@
 let puppeteer: any = null;
 let chromium: any = null;
+let playwright: any = null;
 
-// Pokušaj da učitamo puppeteer-core sa @sparticuz/chromium za serverless okruženja (Vercel)
+// Pokušaj da učitamo različite opcije za browser automation
 try {
   // Prvo pokušaj sa puppeteer-core i @sparticuz/chromium (za Vercel/serverless)
   try {
@@ -10,11 +11,21 @@ try {
     console.log('Koristim puppeteer-core sa @sparticuz/chromium (serverless)');
   } catch (e) {
     // Ako to ne radi, pokušaj sa običnim puppeteer
-    puppeteer = require('puppeteer');
-    console.log('Koristim obični puppeteer');
+    try {
+      puppeteer = require('puppeteer');
+      console.log('Koristim obični puppeteer');
+    } catch (e2) {
+      // Ako ni to ne radi, pokušaj sa Playwright
+      try {
+        playwright = require('playwright');
+        console.log('Koristim Playwright');
+      } catch (e3) {
+        console.log('Nijedan browser automation tool nije dostupan');
+      }
+    }
   }
 } catch (e) {
-  console.log('Puppeteer nije dostupan, koristićemo fetch metodu');
+  console.log('Browser automation nije dostupan, koristićemo fetch metodu');
 }
 
 const CONFIG = {
@@ -38,9 +49,29 @@ export interface WabaTeamData {
 export class WABAStandingsScraper {
   private browser: any = null;
   private usePuppeteer: boolean = false;
+  private usePlaywright: boolean = false;
 
   async initialize() {
-    // Pokušaj da inicijalizujemo Puppeteer samo ako je dostupan
+    // Pokušaj da inicijalizujemo Playwright prvo (bolja podrška za serverless)
+    if (playwright) {
+      try {
+        this.browser = await playwright.chromium.launch({
+          headless: true,
+          args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+          ],
+        });
+        this.usePlaywright = true;
+        console.log('Playwright uspešno inicijalizovan');
+        return true;
+      } catch (err: any) {
+        console.warn('Greška pri inicijalizaciji Playwright:', err.message);
+      }
+    }
+
+    // Pokušaj da inicijalizujemo Puppeteer ako Playwright ne radi
     if (puppeteer) {
       try {
         // Ako koristimo puppeteer-core sa @sparticuz/chromium (serverless)
@@ -82,16 +113,21 @@ export class WABAStandingsScraper {
         return false;
       }
     } else {
-      console.log('Puppeteer nije dostupan, koristićemo fetch metodu');
+      console.log('Nijedan browser automation tool nije dostupan, koristićemo fetch metodu');
       this.usePuppeteer = false;
       return false;
     }
   }
 
   async scrapeStandings(): Promise<WabaTeamData[]> {
+    // Ako Playwright je dostupan, koristi ga
+    if (this.usePlaywright && this.browser) {
+      return this.scrapeWithPlaywright();
+    }
+
     // Ako Puppeteer nije dostupan ili nije uspeo da se inicijalizuje, koristi fetch
     if (!this.usePuppeteer || !this.browser) {
-      console.log('Koristim fetch metodu jer Puppeteer nije dostupan ili nije inicijalizovan');
+      console.log('Koristim fetch metodu jer browser automation nije dostupan ili nije inicijalizovan');
       console.warn('NAPOMENA: Fetch metoda možda neće moći da pronađe tabelu ako stranica koristi JavaScript za renderovanje.');
       return this.scrapeWithFetch();
     }
@@ -257,11 +293,19 @@ export class WABAStandingsScraper {
   private async scrapeWithFetch(): Promise<WabaTeamData[]> {
     try {
       console.log('Koristim fetch metodu za scraping...');
+      
+      // Pokušaj da koristim neki servis koji renderuje JavaScript stranice
+      // Ako imate API key za neki servis, možete ga koristiti ovde
+      // Na primer: ScrapingBee, Browserless, ili slično
+      
       const response = await fetch(CONFIG.URL, {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
           'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
           'Accept-Language': 'en-US,en;q=0.5',
+          'Accept-Encoding': 'gzip, deflate, br',
+          'Connection': 'keep-alive',
+          'Upgrade-Insecure-Requests': '1',
         },
       });
 
@@ -502,6 +546,112 @@ export class WABAStandingsScraper {
     }
 
     return standings;
+  }
+
+  private async scrapeWithPlaywright(): Promise<WabaTeamData[]> {
+    let page = null;
+    try {
+      page = await this.browser.newPage();
+      await page.setViewportSize({ width: 1920, height: 1080 });
+      
+      console.log(`Učitavanje stranice sa Playwright: ${CONFIG.URL}`);
+      
+      await page.goto(CONFIG.URL, { 
+        waitUntil: 'networkidle',
+        timeout: CONFIG.TIMEOUT 
+      });
+
+      // Čekaj da se tabela učita
+      await page.waitForSelector('table tbody tr', { timeout: 10000 }).catch(() => {
+        console.log('Tabela nije pronađena odmah, nastavljam...');
+      });
+
+      // Pauziraj 2 sekunde da se svi podaci učitaju
+      await page.waitForTimeout(2000);
+
+      // Izvuci podatke iz stranice
+      const standings = await page.evaluate(() => {
+        const rows = document.querySelectorAll('table tbody tr');
+        const data: WabaTeamData[] = [];
+        
+        const skipHeaders = ['Games', 'Wins', 'Losses', 'Losses by forfeit', 'Team', 'G', 'W', 'L', 'P'];
+
+        rows.forEach((row, index) => {
+          const cells = Array.from(row.querySelectorAll('td')).map(c => c?.innerText?.trim() || '');
+          
+          if (cells.length < 5) return;
+          
+          const firstCell = cells[0] || '';
+          const secondCell = cells[1] || '';
+          if (skipHeaders.includes(firstCell) || skipHeaders.includes(secondCell)) {
+            return;
+          }
+          
+          if (!secondCell || secondCell.length === 0) return;
+          
+          let rank = 0;
+          const noCell = cells[0] || '';
+          if (!isNaN(parseInt(noCell)) && parseInt(noCell) > 0) {
+            rank = parseInt(noCell);
+          } else {
+            rank = index + 1;
+          }
+          
+          const teamName = cells[1] || '';
+          const gp = parseInt(cells[2] || '0') || 0;
+          const w = parseInt(cells[3] || '0') || 0;
+          const l = parseInt(cells[4] || '0') || 0;
+          const points = parseInt(cells[5] || '0') || 0;
+          
+          let pts = 0;
+          let opts = 0;
+          const ptsOptsCell = cells[6] || '';
+          if (ptsOptsCell.includes('/')) {
+            const parts = ptsOptsCell.split('/');
+            pts = parseInt(parts[0]?.trim() || '0') || 0;
+            opts = parseInt(parts[1]?.trim() || '0') || 0;
+          }
+          
+          const diffCell = cells[7] || '';
+          const diffValue = diffCell.replace(/\+/g, '').trim();
+          const diff = parseInt(diffValue || '0') || 0;
+            
+          if (teamName && teamName.length > 0 && rank > 0) {
+            data.push({
+              rank,
+              team: teamName.trim(),
+              gp: gp || (w + l),
+              w,
+              l,
+              points,
+              pts,
+              opts,
+              diff,
+            });
+          }
+        });
+
+        return data;
+      });
+
+      console.log(`Uspješno učitano ${standings.length} timova (Playwright)`);
+      
+      if (standings.length === 0) {
+        throw new Error('Nijedan tim nije pronađen');
+      }
+
+      return standings;
+
+    } catch (err) {
+      console.error('Greška pri scrapanju sa Playwright:', err);
+      // Fallback na fetch ako Playwright ne radi
+      console.log('Pokušavam sa fetch metodom...');
+      return this.scrapeWithFetch();
+    } finally {
+      if (page) {
+        await page.close();
+      }
+    }
   }
 
   async close() {
