@@ -23,6 +23,8 @@
     "next-cloudinary": "^5.11.0",
     "next-seo": "^6.5.0",
     "puppeteer": "^24.31.0",
+    "puppeteer-core": "^24.31.0",
+    "@sparticuz/chromium": "^131.0.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-hook-form": "^7.49.2",

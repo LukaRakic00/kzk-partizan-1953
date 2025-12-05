@@ -1,8 +1,18 @@
 let puppeteer: any = null;
+let chromium: any = null;
 
-// Pokušaj da učitamo puppeteer, ali ne bacaj grešku ako nije dostupan
+// Pokušaj da učitamo puppeteer-core sa @sparticuz/chromium za serverless okruženja (Vercel)
 try {
-  puppeteer = require('puppeteer');
+  // Prvo pokušaj sa puppeteer-core i @sparticuz/chromium (za Vercel/serverless)
+  try {
+    puppeteer = require('puppeteer-core');
+    chromium = require('@sparticuz/chromium');
+    console.log('Koristim puppeteer-core sa @sparticuz/chromium (serverless)');
+  } catch (e) {
+    // Ako to ne radi, pokušaj sa običnim puppeteer
+    puppeteer = require('puppeteer');
+    console.log('Koristim obični puppeteer');
+  }
 } catch (e) {
   console.log('Puppeteer nije dostupan, koristićemo fetch metodu');
 }
@@ -33,21 +43,36 @@ export class WABAStandingsScraper {
     // Pokušaj da inicijalizujemo Puppeteer samo ako je dostupan
     if (puppeteer) {
       try {
-        this.browser = await puppeteer.launch({
-          headless: true,
-          args: [
-            '--no-sandbox',
-            '--disable-setuid-sandbox',
-            '--disable-dev-shm-usage',
-            '--disable-accelerated-2d-canvas',
-            '--no-first-run',
-            '--no-zygote',
-            '--disable-gpu',
-            '--disable-blink-features=AutomationControlled',
-            '--disable-features=IsolateOrigins,site-per-process',
-            '--window-size=1920,1080',
-          ],
-        });
+        // Ako koristimo puppeteer-core sa @sparticuz/chromium (serverless)
+        if (chromium) {
+          // Konfiguriši Chromium za serverless okruženje
+          chromium.setGraphicsMode(false);
+          
+          this.browser = await puppeteer.launch({
+            args: chromium.args,
+            defaultViewport: chromium.defaultViewport,
+            executablePath: await chromium.executablePath(),
+            headless: chromium.headless,
+          });
+        } else {
+          // Koristi obični Puppeteer (za lokalno okruženje)
+          this.browser = await puppeteer.launch({
+            headless: true,
+            args: [
+              '--no-sandbox',
+              '--disable-setuid-sandbox',
+              '--disable-dev-shm-usage',
+              '--disable-accelerated-2d-canvas',
+              '--no-first-run',
+              '--no-zygote',
+              '--disable-gpu',
+              '--disable-blink-features=AutomationControlled',
+              '--disable-features=IsolateOrigins,site-per-process',
+              '--window-size=1920,1080',
+            ],
+          });
+        }
+        
         this.usePuppeteer = true;
         console.log('Puppeteer uspešno inicijalizovan');
         return true;
@@ -377,12 +402,19 @@ export class WABAStandingsScraper {
       console.log(`Uspješno učitano ${standings.length} timova (fetch metoda)`);
       
       if (standings.length === 0) {
-        throw new Error('Nijedan tim nije pronađen. Stranica možda koristi JavaScript za renderovanje tabele.');
+        // Ako fetch metoda ne može da pronađe podatke, verovatno je problem sa JavaScript renderovanjem
+        throw new Error('Nijedan tim nije pronađen. Stranica verovatno koristi JavaScript za renderovanje tabele, što zahteva Puppeteer. U produkciji, proverite da li su instalirani puppeteer-core i @sparticuz/chromium paketi.');
       }
 
       return standings;
-    } catch (err) {
+    } catch (err: any) {
       console.error('Greška pri scrapanju sa fetch metodom:', err);
+      
+      // Ako je greška vezana za tabelu, daj jasniju poruku
+      if (err.message && err.message.includes('Tabela nije pronađena')) {
+        throw new Error('Tabela nije pronađena na stranici. Stranica verovatno koristi JavaScript za renderovanje, što zahteva Puppeteer. U produkciji (Vercel), proverite da li su instalirani puppeteer-core i @sparticuz/chromium paketi.');
+      }
+      
       throw err;
     }
   }
