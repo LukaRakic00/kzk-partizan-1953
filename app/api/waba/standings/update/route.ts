@@ -26,10 +26,24 @@ export async function GET(request: NextRequest) {
   try {
     await connectDB();
 
-    console.log(`[${new Date().toISOString()}] Pokretanje automatskog ažuriranja WABA standings...`);
+    const timestamp = new Date().toISOString();
+    console.log(`[${timestamp}] Pokretanje automatskog ažuriranja WABA standings...`);
+    console.log(`[${timestamp}] Environment:`, {
+      VERCEL: process.env.VERCEL,
+      VERCEL_ENV: process.env.VERCEL_ENV,
+      NODE_ENV: process.env.NODE_ENV,
+    });
     
-    await scraper.initialize();
+    const browserInitialized = await scraper.initialize();
+    if (!browserInitialized) {
+      console.error(`[${timestamp}] ✗ Browser automation nije uspeo da se inicijalizuje`);
+      console.error(`[${timestamp}] Proverite da li su instalirani puppeteer-core i @sparticuz/chromium paketi.`);
+    } else {
+      console.log(`[${timestamp}] ✓ Browser automation uspešno inicijalizovan`);
+    }
+    
     const scrapedData = await scraper.scrapeStandings();
+    console.log(`[${timestamp}] ✓ Scraping uspešan: pronađeno ${scrapedData.length} timova`);
 
     if (scrapedData.length === 0) {
       throw new Error('Nijedan tim nije pronađen');
@@ -62,11 +76,21 @@ export async function GET(request: NextRequest) {
       timestamp: new Date().toISOString(),
     });
   } catch (error: any) {
-    console.error(`[${new Date().toISOString()}] ✗ Greška:`, error);
+    const timestamp = new Date().toISOString();
+    console.error(`[${timestamp}] ✗ Greška:`, error.message);
+    console.error(`[${timestamp}] Stack trace:`, error.stack);
+    
+    let userMessage = error.message || 'Greška pri ažuriranju';
+    if (error.message && error.message.includes('Tabela nije pronađena')) {
+      userMessage = 'Tabela nije pronađena na stranici. Stranica verovatno koristi JavaScript za renderovanje, što zahteva browser automation (Playwright/Puppeteer). U produkciji (Vercel), proverite da li su instalirani puppeteer-core i @sparticuz/chromium paketi.';
+    }
+    
     return NextResponse.json(
       { 
-        error: 'Greška pri ažuriranju',
+        error: userMessage,
         message: error.message,
+        timestamp,
+        details: 'Ako se greška nastavi, proverite da li su instalirani puppeteer-core i @sparticuz/chromium paketi u produkciji.',
       },
       { status: 500 }
     );

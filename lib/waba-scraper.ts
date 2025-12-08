@@ -52,9 +52,87 @@ export class WABAStandingsScraper {
   private usePlaywright: boolean = false;
 
   async initialize() {
-    // Pokušaj da inicijalizujemo Playwright prvo (bolja podrška za serverless)
+    // Detektuj da li smo u Vercel/produkciji
+    const isVercel = process.env.VERCEL === '1' || process.env.VERCEL_ENV;
+    const isProduction = process.env.NODE_ENV === 'production';
+    
+    // Za Vercel/produkciju, prioritizuj Puppeteer sa @sparticuz/chromium
+    // Za lokalno okruženje, možemo koristiti bilo koji
+    if (isVercel || (isProduction && chromium)) {
+      // Pokušaj prvo sa Puppeteer + @sparticuz/chromium (najbolje za Vercel)
+      if (puppeteer && chromium) {
+        try {
+          console.log('Pokušavam inicijalizaciju Puppeteer sa @sparticuz/chromium za Vercel...');
+          
+          // Konfiguriši Chromium za serverless okruženje
+          chromium.setGraphicsMode(false);
+          
+          const executablePath = await chromium.executablePath();
+          console.log('Chromium executable path:', executablePath ? 'OK' : 'MISSING');
+          
+          this.browser = await puppeteer.launch({
+            args: chromium.args,
+            defaultViewport: chromium.defaultViewport,
+            executablePath: executablePath,
+            headless: chromium.headless,
+          });
+          
+          this.usePuppeteer = true;
+          console.log('✓ Puppeteer uspešno inicijalizovan sa @sparticuz/chromium');
+          return true;
+        } catch (err: any) {
+          console.error('✗ Greška pri inicijalizaciji Puppeteer sa @sparticuz/chromium:', err.message);
+          console.error('Stack trace:', err.stack);
+          // Ne vraćaj false još, probaj Playwright
+        }
+      }
+    } else {
+      // Za lokalno okruženje, probaj obični Puppeteer prvo
+      if (puppeteer) {
+        try {
+          if (chromium) {
+            // Koristi puppeteer-core sa @sparticuz/chromium
+            chromium.setGraphicsMode(false);
+            const executablePath = await chromium.executablePath();
+            
+            this.browser = await puppeteer.launch({
+              args: chromium.args,
+              defaultViewport: chromium.defaultViewport,
+              executablePath: executablePath,
+              headless: chromium.headless,
+            });
+          } else {
+            // Koristi obični Puppeteer (za lokalno okruženje)
+            this.browser = await puppeteer.launch({
+              headless: true,
+              args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-accelerated-2d-canvas',
+                '--no-first-run',
+                '--no-zygote',
+                '--disable-gpu',
+                '--disable-blink-features=AutomationControlled',
+                '--disable-features=IsolateOrigins,site-per-process',
+                '--window-size=1920,1080',
+              ],
+            });
+          }
+          
+          this.usePuppeteer = true;
+          console.log('✓ Puppeteer uspešno inicijalizovan');
+          return true;
+        } catch (err: any) {
+          console.warn('Greška pri inicijalizaciji Puppeteer:', err.message);
+        }
+      }
+    }
+
+    // Fallback: Pokušaj sa Playwright (može raditi u nekim okruženjima)
     if (playwright) {
       try {
+        console.log('Pokušavam inicijalizaciju Playwright...');
         this.browser = await playwright.chromium.launch({
           headless: true,
           args: [
@@ -64,59 +142,26 @@ export class WABAStandingsScraper {
           ],
         });
         this.usePlaywright = true;
-        console.log('Playwright uspešno inicijalizovan');
+        console.log('✓ Playwright uspešno inicijalizovan');
         return true;
       } catch (err: any) {
-        console.warn('Greška pri inicijalizaciji Playwright:', err.message);
+        console.warn('✗ Greška pri inicijalizaciji Playwright:', err.message);
+        console.warn('Stack trace:', err.stack);
       }
     }
 
-    // Pokušaj da inicijalizujemo Puppeteer ako Playwright ne radi
-    if (puppeteer) {
-      try {
-        // Ako koristimo puppeteer-core sa @sparticuz/chromium (serverless)
-        if (chromium) {
-          // Konfiguriši Chromium za serverless okruženje
-          chromium.setGraphicsMode(false);
-          
-          this.browser = await puppeteer.launch({
-            args: chromium.args,
-            defaultViewport: chromium.defaultViewport,
-            executablePath: await chromium.executablePath(),
-            headless: chromium.headless,
-          });
-        } else {
-          // Koristi obični Puppeteer (za lokalno okruženje)
-          this.browser = await puppeteer.launch({
-            headless: true,
-            args: [
-              '--no-sandbox',
-              '--disable-setuid-sandbox',
-              '--disable-dev-shm-usage',
-              '--disable-accelerated-2d-canvas',
-              '--no-first-run',
-              '--no-zygote',
-              '--disable-gpu',
-              '--disable-blink-features=AutomationControlled',
-              '--disable-features=IsolateOrigins,site-per-process',
-              '--window-size=1920,1080',
-            ],
-          });
-        }
-        
-        this.usePuppeteer = true;
-        console.log('Puppeteer uspešno inicijalizovan');
-        return true;
-      } catch (err: any) {
-        console.warn('Greška pri inicijalizaciji Puppeteer, koristićemo fetch metodu:', err.message);
-        this.usePuppeteer = false;
-        return false;
-      }
-    } else {
-      console.log('Nijedan browser automation tool nije dostupan, koristićemo fetch metodu');
-      this.usePuppeteer = false;
-      return false;
-    }
+    // Ako ništa nije uspelo
+    console.error('✗ Nijedan browser automation tool nije uspeo da se inicijalizuje');
+    console.error('Dostupni paketi:', {
+      puppeteer: !!puppeteer,
+      chromium: !!chromium,
+      playwright: !!playwright,
+      vercel: isVercel,
+      production: isProduction,
+    });
+    
+    this.usePuppeteer = false;
+    return false;
   }
 
   async scrapeStandings(): Promise<WabaTeamData[]> {

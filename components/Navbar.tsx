@@ -49,11 +49,11 @@ export default function Navbar() {
         setLogoUrl(setting.value);
       } else {
         // Fallback na default logo
-        setLogoUrl('https://res.cloudinary.com/diy4whjvs/image/upload/v1763032549/logo-zkz-01_lnh8b3.png');
+        setLogoUrl('/kzk_partizan.png');
       }
     } catch (error) {
       // Fallback na default logo
-      setLogoUrl('https://res.cloudinary.com/diy4whjvs/image/upload/v1763032549/logo-zkz-01_lnh8b3.png');
+      setLogoUrl('/kzk_partizan.png');
     }
   };
 

@@ -21,32 +21,51 @@ export async function GET() {
     // Ovo je važno jer fetch metoda ne može da vidi JavaScript-renderovane tabele
     let browserInitialized = false;
     try {
+      console.log('Inicijalizacija browser automation-a...');
+      console.log('Environment:', {
+        VERCEL: process.env.VERCEL,
+        VERCEL_ENV: process.env.VERCEL_ENV,
+        NODE_ENV: process.env.NODE_ENV,
+      });
+      
       browserInitialized = await scraper.initialize();
       if (browserInitialized) {
-        console.log('Browser automation uspešno inicijalizovan - koristiće se za scraping');
+        console.log('✓ Browser automation uspešno inicijalizovan - koristiće se za scraping');
       } else {
-        console.warn('Browser automation nije uspeo da se inicijalizuje, koristiće se fetch metoda (može biti problematično)');
-        console.warn('NAPOMENA: U produkciji, proverite da li su instalirani puppeteer-core, @sparticuz/chromium ili playwright paketi.');
+        console.error('✗ Browser automation nije uspeo da se inicijalizuje');
+        console.error('Proverite da li su instalirani puppeteer-core i @sparticuz/chromium paketi.');
+        console.error('U Vercel produkciji, ovi paketi su obavezni za JavaScript-renderovane stranice.');
       }
     } catch (initError: any) {
-      console.warn('Browser automation inicijalizacija neuspešna, koristiće se fetch metoda:', initError.message);
-      console.warn('NAPOMENA: Fetch metoda možda neće moći da pronađe tabelu ako stranica koristi JavaScript za renderovanje.');
-      console.warn('U produkciji (Vercel), proverite da li su instalirani puppeteer-core, @sparticuz/chromium ili playwright paketi.');
+      console.error('✗ Browser automation inicijalizacija neuspešna:', initError.message);
+      console.error('Stack trace:', initError.stack);
+      console.error('NAPOMENA: Fetch metoda neće moći da pronađe tabelu ako stranica koristi JavaScript za renderovanje.');
+      console.error('U produkciji (Vercel), proverite da li su instalirani puppeteer-core i @sparticuz/chromium paketi.');
     }
     
     let scrapedData: any[] = [];
     
     try {
+      console.log('Pokretanje scraping-a...');
       scrapedData = await scraper.scrapeStandings();
+      console.log(`✓ Scraping uspešan: pronađeno ${scrapedData.length} timova`);
     } catch (scrapeError: any) {
-      console.error('Scraping error:', scrapeError);
-      // Ako je greška vezana za tabelu, probaj ponovo sa browser automation-om
-      if (scrapeError.message && scrapeError.message.includes('Tabela nije pronađena')) {
+      console.error('✗ Scraping error:', scrapeError.message);
+      console.error('Stack trace:', scrapeError.stack);
+      
+      // Ako je greška vezana za tabelu i browser nije inicijalizovan, probaj ponovo
+      if (scrapeError.message && scrapeError.message.includes('Tabela nije pronađena') && !browserInitialized) {
         console.log('Pokušavam ponovo sa browser automation-om...');
         try {
-          await scraper.initialize();
-          scrapedData = await scraper.scrapeStandings();
+          browserInitialized = await scraper.initialize();
+          if (browserInitialized) {
+            scrapedData = await scraper.scrapeStandings();
+            console.log(`✓ Retry uspešan: pronađeno ${scrapedData.length} timova`);
+          } else {
+            throw new Error(`Greška pri scrapanju: ${scrapeError.message}. Browser automation nije uspeo da se inicijalizuje. U Vercel produkciji, proverite da li su instalirani puppeteer-core i @sparticuz/chromium paketi.`);
+          }
         } catch (retryError: any) {
+          console.error('✗ Retry neuspešan:', retryError.message);
           throw new Error(`Greška pri scrapanju: ${scrapeError.message}. Stranica verovatno koristi JavaScript za renderovanje tabele, što zahteva browser automation (Playwright/Puppeteer). U produkciji, proverite da li su instalirani potrebni paketi.`);
         }
       } else {
