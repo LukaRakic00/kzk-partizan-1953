@@ -63,11 +63,71 @@ export class WABAStandingsScraper {
     const isVercel = process.env.VERCEL === '1' || process.env.VERCEL_ENV;
     const isProduction = process.env.NODE_ENV === 'production';
     
-    // Za Vercel/produkciju, prioritizuj Playwright (bolja podrška za serverless)
-    // Zatim Puppeteer, a na kraju ScrapingBee API
+    // Za Vercel/produkciju, prioritizuj Puppeteer + @sparticuz/chromium
+    // Playwright ne radi u Vercel serverless bez bundling browser-a
+    // Zatim ScrapingBee API kao fallback
     
-    // 1. Pokušaj prvo sa Playwright (najbolje za serverless okruženja)
-    if (playwright) {
+    // 1. Za Vercel/produkciju, koristi Puppeteer + @sparticuz/chromium (najbolje za serverless)
+    if (isVercel || (isProduction && chromium)) {
+      if (puppeteer && chromium) {
+        try {
+          console.log('Pokušavam inicijalizaciju Puppeteer sa @sparticuz/chromium za Vercel...');
+          
+          // Konfiguriši chromium za Vercel - isključi graphics mode
+          if (typeof chromium.setGraphicsMode === 'function') {
+            chromium.setGraphicsMode(false);
+          }
+          
+          const executablePath = await chromium.executablePath();
+          console.log('Chromium executable path:', executablePath ? 'OK' : 'MISSING');
+          
+          if (!executablePath) {
+            throw new Error('Chromium executable path nije dostupan');
+          }
+          
+          // Koristi argumente koje @sparticuz/chromium preporučuje za Vercel
+          // @sparticuz/chromium već ima dobre default argumente, samo dodajemo dodatne ako je potrebno
+          const chromiumArgs = [
+            ...(chromium.args || []),
+            '--disable-gpu',
+            '--disable-software-rasterizer',
+            '--disable-dev-shm-usage',
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+          ];
+          
+          // Ukloni duplikate
+          const uniqueArgs = [...new Set(chromiumArgs)];
+          
+          this.browser = await puppeteer.launch({
+            args: uniqueArgs,
+            defaultViewport: chromium.defaultViewport || { width: 1920, height: 1080 },
+            executablePath: executablePath,
+            headless: chromium.headless !== false, // Uvek headless u produkciji
+          });
+          
+          this.usePuppeteer = true;
+          console.log('✓ Puppeteer uspešno inicijalizovan sa @sparticuz/chromium');
+          return true;
+        } catch (err: any) {
+          const errorMsg = err?.message || String(err);
+          console.error('✗ Greška pri inicijalizaciji Puppeteer sa @sparticuz/chromium:', errorMsg);
+          
+          // Ako je greška vezana za shared libraries, to znači da @sparticuz/chromium
+          // možda nije pravilno instaliran ili verzija nije kompatibilna
+          if (errorMsg.includes('shared libraries') || errorMsg.includes('libnss3.so')) {
+            console.error('NAPOMENA: @sparticuz/chromium zahteva dodatne system biblioteke.');
+            console.error('Proverite da li je @sparticuz/chromium pravilno instaliran i da li je verzija kompatibilna sa Vercel Lambda okruženjem.');
+            console.error('Preporučeno: koristite ScrapingBee API kao alternativu.');
+          }
+          
+          console.error('Stack trace:', err.stack);
+        }
+      }
+    }
+    
+    // 2. Za lokalno okruženje, probaj Playwright
+    if (!isVercel && playwright) {
       try {
         console.log('Pokušavam inicijalizaciju Playwright...');
         
@@ -102,43 +162,9 @@ export class WABAStandingsScraper {
         console.warn('Stack trace:', err.stack);
       }
     }
-
-    // 2. Fallback: Pokušaj sa Puppeteer + @sparticuz/chromium
-    if (isVercel || (isProduction && chromium)) {
-      if (puppeteer && chromium) {
-        try {
-          console.log('Pokušavam inicijalizaciju Puppeteer sa @sparticuz/chromium za Vercel...');
-          
-          const executablePath = await chromium.executablePath();
-          console.log('Chromium executable path:', executablePath ? 'OK' : 'MISSING');
-          
-          // Dodaj dodatne argumente za serverless okruženje
-          const chromiumArgs = [
-            ...chromium.args,
-            '--disable-gpu',
-            '--disable-software-rasterizer',
-            '--disable-dev-shm-usage',
-            '--no-sandbox',
-            '--disable-setuid-sandbox',
-            '--single-process',
-          ];
-          
-          this.browser = await puppeteer.launch({
-            args: chromiumArgs,
-            defaultViewport: chromium.defaultViewport,
-            executablePath: executablePath,
-            headless: chromium.headless,
-          });
-          
-          this.usePuppeteer = true;
-          console.log('✓ Puppeteer uspešno inicijalizovan sa @sparticuz/chromium');
-          return true;
-        } catch (err: any) {
-          console.error('✗ Greška pri inicijalizaciji Puppeteer sa @sparticuz/chromium:', err.message);
-          console.error('Stack trace:', err.stack);
-        }
-      }
-    } else {
+    
+    // 3. Fallback: Pokušaj sa običnim Puppeteer (za lokalno okruženje)
+    if (!isVercel) {
       // Za lokalno okruženje, probaj obični Puppeteer
       if (puppeteer) {
         try {
