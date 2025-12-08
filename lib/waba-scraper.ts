@@ -316,20 +316,104 @@ export class WABAStandingsScraper {
       }
 
       // Čekaj da se tabela učita - nova struktura koristi mbt-table klasu
-      await page.waitForSelector('table.mbt-table tbody tr, table tbody tr', { timeout: 10000 }).catch(() => {
-        console.log('Tabela nije pronađena odmah, nastavljam...');
-      });
+      // Pokušaj sa različitim selektorima
+      let tableFound = false;
+      const selectors = [
+        'table.mbt-table tbody tr',
+        'table.mbt-table tr',
+        'table tbody tr',
+        'table tr',
+        '.mbt-table tbody tr',
+        'table[class*="mbt"] tbody tr'
+      ];
+      
+      for (const selector of selectors) {
+        try {
+          await page.waitForSelector(selector, { timeout: 5000 });
+          console.log(`✓ Tabela pronađena sa selektorom: ${selector}`);
+          tableFound = true;
+          break;
+        } catch (err) {
+          // Probaj sledeći selektor
+        }
+      }
+      
+      if (!tableFound) {
+        console.log('Tabela nije pronađena sa standardnim selektorima, nastavljam sa čekanjem...');
+      }
 
-      // Pauziraj 2 sekunde da se svi podaci učitaju (waitForTimeout je uklonjen u novijim verzijama)
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Pauziraj duže da se svi podaci učitaju (JavaScript renderovanje)
+      await new Promise(resolve => setTimeout(resolve, 5000));
+
+      // Proveri da li tabela postoji pre parsiranja
+      const tableExists = await page.evaluate(() => {
+        const table = document.querySelector('table.mbt-table') || document.querySelector('table');
+        return !!table;
+      });
+      
+      if (!tableExists) {
+        console.error('Tabela nije pronađena na stranici nakon čekanja');
+        // Pokušaj da sačekaš još malo
+        await new Promise(resolve => setTimeout(resolve, 3000));
+      }
 
       // Izvuci podatke iz stranice
       const standings = await page.evaluate(() => {
-        // Pokušaj prvo sa mbt-table, pa fallback na običnu tabelu
-        const table = document.querySelector('table.mbt-table') || document.querySelector('table');
-        if (!table) return [];
+        // Pronađi sve tabele sa mbt-table klasom
+        const allTables = Array.from(document.querySelectorAll('table.mbt-table'));
+        
+        // Pronađi glavnu tabelu sa standings podacima (ona koja ima redove sa linkovima na timove)
+        let table: HTMLTableElement | null = null;
+        
+        for (const t of allTables) {
+          // Preskoči tabele koje su u legend div-u
+          const parentDiv = t.closest('div');
+          if (parentDiv && (parentDiv.id?.includes('legend') || parentDiv.classList.contains('mbt-subcontent'))) {
+            continue;
+          }
+          
+          // Proveri da li tabela ima redove sa linkovima na timove (team_id atribut)
+          const hasTeamLinks = t.querySelectorAll('a[team_id]').length > 0;
+          if (hasTeamLinks) {
+            table = t as HTMLTableElement;
+            console.log('Pronađena glavna tabela sa team linkovima');
+            break;
+          }
+        }
+        
+        // Ako nije pronađena sa team linkovima, uzmi prvu tabelu koja nije u legend div-u
+        if (!table) {
+          for (const t of allTables) {
+            const parentDiv = t.closest('div');
+            if (!parentDiv || (!parentDiv.id?.includes('legend') && !parentDiv.classList.contains('mbt-subcontent'))) {
+              table = t as HTMLTableElement;
+              console.log('Pronađena tabela (fallback)');
+              break;
+            }
+          }
+        }
+        
+        // Fallback na bilo koju tabelu
+        if (!table) {
+          table = document.querySelector('table.mbt-table') as HTMLTableElement || 
+                  document.querySelector('table[class*="mbt"]') as HTMLTableElement ||
+                  document.querySelector('table') as HTMLTableElement;
+        }
+        
+        if (!table) {
+          console.error('Tabela nije pronađena u DOM-u');
+          // Debug: loguj sve tabele na stranici
+          const allTablesDebug = document.querySelectorAll('table');
+          console.error(`Pronađeno tabela: ${allTablesDebug.length}`);
+          allTablesDebug.forEach((t, i) => {
+            const parent = t.closest('div');
+            console.error(`Tabela ${i}:`, t.className, t.id, 'parent:', parent?.id, parent?.className);
+          });
+          return [];
+        }
         
         const rows = table.querySelectorAll('tbody tr');
+        console.log(`Pronađeno redova u tabeli: ${rows.length}`);
         const data: WabaTeamData[] = [];
         
         // Lista header redova koje treba preskočiti
@@ -378,14 +462,24 @@ export class WABAStandingsScraper {
           }
           
           // Kolona 1: Team (tim) - iz <a> taga unutar td.team_name
+          // Proveri da li postoji link sa team_id atributom (glavna tabela)
           const teamCell = cells[1];
           if (teamCell) {
-            const teamLink = teamCell.querySelector('a');
+            const teamLink = teamCell.querySelector('a[team_id]') || teamCell.querySelector('a');
             if (teamLink) {
               teamName = teamLink.textContent?.trim() || '';
+              // Ako nema team_id, možda je ovo legend tabela - preskoči
+              if (!teamLink.hasAttribute('team_id') && teamName.length < 3) {
+                return; // Verovatno legend tabela
+              }
             } else {
               teamName = teamCell.textContent?.trim() || '';
             }
+          }
+          
+          // Ako nema ime tima ili je prekratko, preskoči (verovatno legend)
+          if (!teamName || teamName.length < 2) {
+            return;
           }
           
           // Kolona 2: W/L (format: "6/0" ili "6<span></span>/<span></span>0")
@@ -428,7 +522,23 @@ export class WABAStandingsScraper {
       console.log(`Uspješno učitano ${standings.length} timova`);
       
       if (standings.length === 0) {
-        throw new Error('Nijedan tim nije pronađen');
+        // Pokušaj da dobiješ više informacija o tome zašto nije pronađeno
+        const debugInfo = await page.evaluate(() => {
+          const table = document.querySelector('table.mbt-table') || document.querySelector('table');
+          if (!table) {
+            return { error: 'Tabela nije pronađena', tablesCount: document.querySelectorAll('table').length };
+          }
+          const rows = table.querySelectorAll('tbody tr');
+          return {
+            tableFound: true,
+            rowsCount: rows.length,
+            firstRowContent: rows[0]?.textContent?.substring(0, 100) || 'N/A',
+            tableClass: table.className
+          };
+        });
+        
+        console.error('Debug info:', debugInfo);
+        throw new Error(`Nijedan tim nije pronađen. Debug: ${JSON.stringify(debugInfo)}`);
       }
 
       return standings;
@@ -461,7 +571,8 @@ export class WABAStandingsScraper {
     
     try {
       // ScrapingBee API sa render_js=true za JavaScript-renderovane stranice
-      const scrapingBeeUrl = `https://app.scrapingbee.com/api/v1/?api_key=${encodeURIComponent(scrapingBeeApiKey)}&url=${encodeURIComponent(CONFIG.URL)}&render_js=true&wait=5000`;
+      // Povećaj wait vreme da se tabela potpuno učita (maksimum je 10000ms)
+      const scrapingBeeUrl = `https://app.scrapingbee.com/api/v1/?api_key=${encodeURIComponent(scrapingBeeApiKey)}&url=${encodeURIComponent(CONFIG.URL)}&render_js=true&wait=10000`;
       
       console.log('Pozivam ScrapingBee API...');
       const response = await fetch(scrapingBeeUrl, {
@@ -494,13 +605,30 @@ export class WABAStandingsScraper {
 
       console.log(`ScrapingBee vratio ${html.length} karaktera HTML-a`);
       
+      // Proveri da li HTML sadrži mbt-table
+      const hasMbtTable = html.includes('mbt-table') || html.includes('mbt-standings');
+      console.log(`HTML sadrži mbt-table: ${hasMbtTable}`);
+      
+      // Debug: loguj mali deo HTML-a da vidimo strukturu
+      const tableMatch = html.match(/<table[^>]*class="[^"]*mbt[^"]*"[^>]*>[\s\S]{0,500}/i);
+      if (tableMatch) {
+        console.log('Pronađena mbt tabela u HTML-u:', tableMatch[0].substring(0, 200));
+      }
+      
       const standings = this.parseRowsDirectly(html);
       
       if (standings.length === 0) {
         // Pokušaj sa različitim parsiranjem
         console.warn('Prvo parsiranje nije pronašlo podatke, pokušavam alternativno...');
+        
+        // Debug: proveri šta je u HTML-u
+        const debugTableMatch = html.match(/<table[^>]*>[\s\S]{0,1000}/i);
+        if (debugTableMatch) {
+          console.log('Debug - pronađena tabela u HTML-u:', debugTableMatch[0].substring(0, 500));
+        }
+        
         // Možda treba da sačekamo malo duže ili koristimo drugačije parametre
-        throw new Error('ScrapingBee vratio HTML ali tabela nije pronađena');
+        throw new Error('ScrapingBee vratio HTML ali tabela nije pronađena ili nema podataka');
       }
 
       console.log(`✓ Uspešno učitano ${standings.length} timova (ScrapingBee)`);
@@ -652,17 +780,38 @@ export class WABAStandingsScraper {
         }
 
         // Kolona 1: Team (tim) - iz <a> taga unutar td.team_name
+        // Proveri da li postoji link sa team_id atributom (glavna tabela)
         let teamName = '';
         const teamCellHtml = cells[1]?.html || '';
-        const teamLinkMatch = teamCellHtml.match(/<a[^>]*>([\s\S]*?)<\/a>/i);
-        if (teamLinkMatch) {
-          teamName = teamLinkMatch[1]
+        // Prvo pokušaj da pronađeš link sa team_id atributom
+        const teamIdLinkMatch = teamCellHtml.match(/<a[^>]*team_id[^>]*>([\s\S]*?)<\/a>/i);
+        if (teamIdLinkMatch) {
+          teamName = teamIdLinkMatch[1]
             .replace(/<[^>]*>/g, '')
             .replace(/&nbsp;/g, ' ')
             .replace(/\s+/g, ' ')
             .trim();
         } else {
-          teamName = secondCell;
+          // Fallback na običan link
+          const teamLinkMatch = teamCellHtml.match(/<a[^>]*>([\s\S]*?)<\/a>/i);
+          if (teamLinkMatch) {
+            teamName = teamLinkMatch[1]
+              .replace(/<[^>]*>/g, '')
+              .replace(/&nbsp;/g, ' ')
+              .replace(/\s+/g, ' ')
+              .trim();
+            // Ako nema team_id, možda je ovo legend tabela - preskoči ako je prekratko
+            if (teamName.length < 3) {
+              continue; // Verovatno legend tabela
+            }
+          } else {
+            teamName = secondCell;
+          }
+        }
+        
+        // Ako nema ime tima ili je prekratko, preskoči (verovatno legend)
+        if (!teamName || teamName.length < 2) {
+          continue;
         }
 
         // Kolona 2: W/L (format: "6/0" ili "6<span></span>/<span></span>0")
@@ -725,24 +874,81 @@ export class WABAStandingsScraper {
     const skipHeaders = ['Games', 'Wins', 'Losses', 'Losses by forfeit', 'Team', 'G', 'W', 'L', 'P', '#', 'No', 'Rank', 'W/L', 'Points'];
     
     // Pokušaj da pronađeš tabelu na različite načine - prvo mbt-table
-    let tableContent = html;
+    let tableContent = '';
+    let tableFound = false;
     
-    // Pokušaj da pronađeš mbt-table
-    const mbtTableMatch = html.match(/<table[^>]*class="[^"]*mbt-table[^"]*"[^>]*>([\s\S]*?)<\/table>/i);
-    if (mbtTableMatch) {
-      tableContent = mbtTableMatch[1];
-    } else {
-      // Pokušaj da pronađeš tbody
+    // Pronađi sve tabele sa mbt-table klasom
+    const allTableMatches = Array.from(html.matchAll(/<table[^>]*class="[^"]*mbt-table[^"]*"[^>]*>([\s\S]*?)<\/table>/gi));
+    
+    // Pronađi glavnu tabelu sa standings podacima (ona koja ima linkove sa team_id atributom)
+    for (const tableMatch of allTableMatches) {
+      const fullTable = tableMatch[0];
+      const tableHtml = tableMatch[1];
+      
+      // Preskoči tabele koje su u legend div-u
+      const beforeTable = html.substring(0, html.indexOf(fullTable));
+      const legendMatch = beforeTable.match(/<div[^>]*(?:id="[^"]*legend[^"]*"|class="[^"]*mbt-subcontent[^"]*")[^>]*>[\s\S]*$/i);
+      if (legendMatch) {
+        console.log('parseRowsDirectly: Preskočena legend tabela');
+        continue;
+      }
+      
+      // Proveri da li tabela ima linkove sa team_id atributom
+      const hasTeamLinks = /<a[^>]*team_id[^>]*>/i.test(fullTable);
+      if (hasTeamLinks) {
+        tableContent = tableHtml;
+        tableFound = true;
+        console.log('parseRowsDirectly: Pronađena glavna tabela sa team_id linkovima');
+        break;
+      }
+    }
+    
+    // Ako nije pronađena sa team_id linkovima, uzmi prvu tabelu koja nije u legend div-u
+    if (!tableFound) {
+      for (const tableMatch of allTableMatches) {
+        const fullTable = tableMatch[0];
+        const tableHtml = tableMatch[1];
+        const beforeTable = html.substring(0, html.indexOf(fullTable));
+        const legendMatch = beforeTable.match(/<div[^>]*(?:id="[^"]*legend[^"]*"|class="[^"]*mbt-subcontent[^"]*")[^>]*>[\s\S]*$/i);
+        if (!legendMatch) {
+          tableContent = tableHtml;
+          tableFound = true;
+          console.log('parseRowsDirectly: Pronađena tabela (fallback)');
+          break;
+        }
+      }
+    }
+    
+    // Fallback na prvu mbt-table
+    if (!tableFound && allTableMatches.length > 0) {
+      tableContent = allTableMatches[0][1];
+      tableFound = true;
+      console.log('parseRowsDirectly: Pronađena prva mbt-table (fallback)');
+    }
+    
+    // Ako i dalje nije pronađena, probaj sa tbody ili običnom tabelom
+    if (!tableFound) {
       const tbodyMatch = html.match(/<tbody[^>]*>([\s\S]*?)<\/tbody>/i);
       if (tbodyMatch) {
         tableContent = tbodyMatch[1];
+        tableFound = true;
+        console.log('parseRowsDirectly: Pronađen tbody');
       } else {
-        // Pokušaj da pronađeš tabelu
         const tableMatch = html.match(/<table[^>]*>([\s\S]*?)<\/table>/i);
         if (tableMatch) {
           tableContent = tableMatch[1];
+          tableFound = true;
+          console.log('parseRowsDirectly: Pronađena obična tabela');
         }
       }
+    }
+    
+    if (!tableFound) {
+      console.error('parseRowsDirectly: Tabela nije pronađena u HTML-u');
+      // Debug: loguj mali deo HTML-a
+      const htmlSnippet = html.substring(0, 2000);
+      console.error('parseRowsDirectly: HTML snippet:', htmlSnippet);
+      return [];
     }
     
     // Pronađi sve tr redove
@@ -806,19 +1012,40 @@ export class WABAStandingsScraper {
         rank = index + 1;
       }
 
-      // Kolona 1: Team (tim) - iz <a> taga unutar td.team_name
-      let teamName = '';
-      const teamCellHtml = cells[1]?.html || '';
-      const teamLinkMatch = teamCellHtml.match(/<a[^>]*>([\s\S]*?)<\/a>/i);
-      if (teamLinkMatch) {
-        teamName = teamLinkMatch[1]
-          .replace(/<[^>]*>/g, '')
-          .replace(/&nbsp;/g, ' ')
-          .replace(/\s+/g, ' ')
-          .trim();
-      } else {
-        teamName = secondCell;
-      }
+        // Kolona 1: Team (tim) - iz <a> taga unutar td.team_name
+        // Proveri da li postoji link sa team_id atributom (glavna tabela)
+        let teamName = '';
+        const teamCellHtml = cells[1]?.html || '';
+        // Prvo pokušaj da pronađeš link sa team_id atributom
+        const teamIdLinkMatch = teamCellHtml.match(/<a[^>]*team_id[^>]*>([\s\S]*?)<\/a>/i);
+        if (teamIdLinkMatch) {
+          teamName = teamIdLinkMatch[1]
+            .replace(/<[^>]*>/g, '')
+            .replace(/&nbsp;/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+        } else {
+          // Fallback na običan link
+          const teamLinkMatch = teamCellHtml.match(/<a[^>]*>([\s\S]*?)<\/a>/i);
+          if (teamLinkMatch) {
+            teamName = teamLinkMatch[1]
+              .replace(/<[^>]*>/g, '')
+              .replace(/&nbsp;/g, ' ')
+              .replace(/\s+/g, ' ')
+              .trim();
+            // Ako nema team_id, možda je ovo legend tabela - preskoči ako je prekratko
+            if (teamName.length < 3) {
+              continue; // Verovatno legend tabela
+            }
+          } else {
+            teamName = secondCell;
+          }
+        }
+        
+        // Ako nema ime tima ili je prekratko, preskoči (verovatno legend)
+        if (!teamName || teamName.length < 2) {
+          continue;
+        }
 
       // Kolona 2: W/L (format: "6/0" ili "6<span></span>/<span></span>0")
       let w = 0;
@@ -852,6 +1079,16 @@ export class WABAStandingsScraper {
           opts: 0,   // OPTS - nema u novoj strukturi
           diff: 0,   // +/- - nema u novoj strukturi
         });
+      }
+    }
+
+    console.log(`parseRowsDirectly: Parsirano ${standings.length} timova`);
+    if (standings.length === 0 && trMatches.length > 0) {
+      console.warn('parseRowsDirectly: Pronađeni redovi ali nijedan tim nije parsiran. Možda struktura nije očekivana.');
+      // Debug: loguj prvi red
+      if (trMatches.length > 0) {
+        const firstRow = trMatches[0][1]?.substring(0, 500);
+        console.warn('parseRowsDirectly: Prvi red:', firstRow);
       }
     }
 
@@ -1026,8 +1263,43 @@ export class WABAStandingsScraper {
         let standings: WabaTeamData[];
         try {
           standings = await page.evaluate(() => {
-          // Pokušaj prvo sa mbt-table, pa fallback na običnu tabelu
-          const table = document.querySelector('table.mbt-table') || document.querySelector('table');
+          // Pronađi sve tabele sa mbt-table klasom
+          const allTables = Array.from(document.querySelectorAll('table.mbt-table'));
+          
+          // Pronađi glavnu tabelu sa standings podacima (ona koja ima redove sa linkovima na timove)
+          let table: HTMLTableElement | null = null;
+          
+          for (const t of allTables) {
+            // Preskoči tabele koje su u legend div-u
+            const parentDiv = t.closest('div');
+            if (parentDiv && (parentDiv.id?.includes('legend') || parentDiv.classList.contains('mbt-subcontent'))) {
+              continue;
+            }
+            
+            // Proveri da li tabela ima redove sa linkovima na timove (team_id atribut)
+            const hasTeamLinks = t.querySelectorAll('a[team_id]').length > 0;
+            if (hasTeamLinks) {
+              table = t as HTMLTableElement;
+              break;
+            }
+          }
+          
+          // Ako nije pronađena sa team linkovima, uzmi prvu tabelu koja nije u legend div-u
+          if (!table) {
+            for (const t of allTables) {
+              const parentDiv = t.closest('div');
+              if (!parentDiv || (!parentDiv.id?.includes('legend') && !parentDiv.classList.contains('mbt-subcontent'))) {
+                table = t as HTMLTableElement;
+                break;
+              }
+            }
+          }
+          
+          // Fallback na bilo koju tabelu
+          if (!table) {
+            table = document.querySelector('table.mbt-table') as HTMLTableElement || document.querySelector('table') as HTMLTableElement;
+          }
+          
           if (!table) return [];
           
           const rows = table.querySelectorAll('tbody tr');
@@ -1070,15 +1342,25 @@ export class WABAStandingsScraper {
             }
             
             // Kolona 1: Team (tim) - iz <a> taga unutar td.team_name
+            // Proveri da li postoji link sa team_id atributom (glavna tabela)
             let teamName = '';
             const teamCell = cells[1];
             if (teamCell) {
-              const teamLink = teamCell.querySelector('a');
+              const teamLink = teamCell.querySelector('a[team_id]') || teamCell.querySelector('a');
               if (teamLink) {
                 teamName = teamLink.textContent?.trim() || '';
+                // Ako nema team_id, možda je ovo legend tabela - preskoči
+                if (!teamLink.hasAttribute('team_id') && teamName.length < 3) {
+                  return; // Verovatno legend tabela
+                }
               } else {
                 teamName = teamCell.textContent?.trim() || '';
               }
+            }
+            
+            // Ako nema ime tima ili je prekratko, preskoči (verovatno legend)
+            if (!teamName || teamName.length < 2) {
+              return;
             }
             
             // Kolona 2: W/L (format: "6/0" ili "6<span></span>/<span></span>0")
