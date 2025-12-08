@@ -65,7 +65,7 @@ export class WABAStandingsScraper {
           console.log('Pokušavam inicijalizaciju Puppeteer sa @sparticuz/chromium za Vercel...');
           
           // Konfiguriši Chromium za serverless okruženje
-          chromium.setGraphicsMode(false);
+          // Napomena: setGraphicsMode() je uklonjen u novijim verzijama @sparticuz/chromium
           
           const executablePath = await chromium.executablePath();
           console.log('Chromium executable path:', executablePath ? 'OK' : 'MISSING');
@@ -92,7 +92,7 @@ export class WABAStandingsScraper {
         try {
           if (chromium) {
             // Koristi puppeteer-core sa @sparticuz/chromium
-            chromium.setGraphicsMode(false);
+            // Napomena: setGraphicsMode() je uklonjen u novijim verzijama @sparticuz/chromium
             const executablePath = await chromium.executablePath();
             
             this.browser = await puppeteer.launch({
