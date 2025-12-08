@@ -81,6 +81,28 @@ Ovo je opciono, ali dobro je imati ako planiraš da koristiš NextAuth u budućn
 
 ---
 
+### 6. ScrapingBee API Key (opciono, preporučeno za produkciju)
+```env
+SCRAPINGBEE_API_KEY=your-scrapingbee-api-key
+```
+
+**Šta je ovo:**
+- API key za ScrapingBee servis koji se koristi za scraping JavaScript-renderovanih stranica
+- **Preporučeno za Vercel produkciju** jer browser automation (Puppeteer/Playwright) može imati problema sa shared libraries
+
+**Kako dobiti:**
+1. Registruj se na [ScrapingBee](https://www.scrapingbee.com/) (besplatno)
+2. Besplatni plan: 1000 zahteva/mesec (dovoljno za dnevne update-e)
+3. U Dashboard-u nađi svoj API key
+4. Dodaj ga u `.env` fajl i u Vercel Environment Variables
+
+**Za Vercel produkciju:**
+- Idite na Vercel Dashboard → Your Project → Settings → Environment Variables
+- Dodajte `SCRAPINGBEE_API_KEY` sa vašim API key-em
+- Redeploy projekat
+
+---
+
 ## Primer Kompletnog .env Fajla
 
 ```env
@@ -100,6 +122,9 @@ NEXT_PUBLIC_API_URL=http://localhost:3000
 
 # NextAuth (opciono)
 NEXTAUTH_SECRET=nextauth-secret-key
+
+# ScrapingBee (opciono, preporučeno za produkciju)
+SCRAPINGBEE_API_KEY=your-scrapingbee-api-key
 ```
 
 ---
