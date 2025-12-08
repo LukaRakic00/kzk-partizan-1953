@@ -70,7 +70,10 @@ export class WABAStandingsScraper {
     if (playwright) {
       try {
         console.log('Pokušavam inicijalizaciju Playwright...');
-        this.browser = await playwright.chromium.launch({
+        
+        // Za Windows, koristi drugačije opcije
+        const isWindows = process.platform === 'win32';
+        const launchOptions: any = {
           headless: true,
           args: [
             '--no-sandbox',
@@ -78,9 +81,19 @@ export class WABAStandingsScraper {
             '--disable-dev-shm-usage',
             '--disable-gpu',
             '--disable-software-rasterizer',
-            '--single-process',
           ],
-        });
+        };
+        
+        // --single-process može da pravi probleme na Windows-u
+        if (!isWindows) {
+          launchOptions.args.push('--single-process');
+        }
+        
+        this.browser = await playwright.chromium.launch(launchOptions);
+        
+        // Sačekaj malo da se browser potpuno inicijalizuje
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
         this.usePlaywright = true;
         console.log('✓ Playwright uspešno inicijalizovan');
         return true;
@@ -206,7 +219,20 @@ export class WABAStandingsScraper {
           console.warn('ScrapingBee vratio prazan rezultat, pokušavam sa browser automation...');
         }
       } catch (sbError: any) {
-        console.warn('✗ ScrapingBee API neuspešan, pokušavam sa browser automation...', sbError.message);
+        console.error('✗ ScrapingBee API neuspešan:', sbError.message);
+        console.error('ScrapingBee error details:', {
+          message: sbError.message,
+          stack: sbError.stack?.substring(0, 500),
+        });
+        
+        // Ako je greška vezana za invalid API key, loguj upozorenje ali nastavi sa fallback
+        if (sbError.message && sbError.message.includes('Invalid API key')) {
+          console.warn('⚠ ScrapingBee API key nije validan. Koristim browser automation fallback...');
+          console.warn('Za produkciju, proverite da li je ScrapingBee API key pravilno postavljen u Vercel Environment Variables.');
+          // Ne baci grešku, nastavi sa browser automation fallback
+        } else {
+          console.warn('Pokušavam sa browser automation fallback...');
+        }
         // Nastavi sa browser automation fallback
       }
     } else {
@@ -739,245 +765,378 @@ export class WABAStandingsScraper {
 
   private async scrapeWithPlaywright(): Promise<WabaTeamData[]> {
     let page = null;
-    try {
-      if (!this.browser) {
-        throw new Error('Browser nije inicijalizovan');
-      }
-
-      page = await this.browser.newPage();
-      await page.setViewportSize({ width: 1920, height: 1080 });
-      
-      // Postavi timeout za page operacije
-      page.setDefaultTimeout(CONFIG.TIMEOUT);
-      page.setDefaultNavigationTimeout(CONFIG.TIMEOUT);
-      
-      console.log(`Učitavanje stranice sa Playwright: ${CONFIG.URL}`);
-      
-      // Proveri da li je browser još uvek otvoren
-      if (!this.browser) {
-        throw new Error('Browser nije inicijalizovan');
-      }
-      
-      // Pokušaj sa 'domcontentloaded' prvo (brže)
-      // Proveri da li je browser još uvek otvoren pre navigacije
-      if (!this.browser) {
-        throw new Error('Browser se zatvorio pre navigacije');
-      }
-      
-      // Proveri da li browser ima isConnected metodu (Playwright)
-      if (this.browser.isConnected && !this.browser.isConnected()) {
-        throw new Error('Browser se zatvorio pre navigacije');
-      }
-      
+    let context = null;
+    let retryCount = 0;
+    const maxRetries = 2;
+    
+    while (retryCount <= maxRetries) {
       try {
-        await page.goto(CONFIG.URL, { 
-          waitUntil: 'domcontentloaded',
-          timeout: CONFIG.TIMEOUT 
-        });
-        console.log('✓ Stranica učitana (domcontentloaded)');
-      } catch (err: any) {
-        // Proveri da li je greška vezana za zatvoreni browser
-        if (err.message && (err.message.includes('closed') || err.message.includes('Target page') || err.message.includes('Target closed'))) {
-          throw new Error('Browser se zatvorio tokom navigacije');
-        }
-        
-        console.warn('domcontentloaded neuspešan, pokušavam sa load...', err.message);
-        
-        // Proveri ponovo da li je browser otvoren
         if (!this.browser) {
-          throw new Error('Browser se zatvorio tokom navigacije');
+          // Pokušaj da reinicijalizujemo browser
+          if (retryCount < maxRetries) {
+            console.log(`Browser nije inicijalizovan, pokušavam reinicijalizaciju (pokušaj ${retryCount + 1}/${maxRetries})...`);
+            await this.initialize();
+            if (!this.browser) {
+              throw new Error('Browser nije uspeo da se inicijalizuje');
+            }
+            // Sačekaj malo da se browser potpuno inicijalizuje
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          } else {
+            throw new Error('Browser nije inicijalizovan i reinicijalizacija nije uspela');
+          }
+        }
+
+        // Koristi browser context umesto direktnog newPage() za bolju kontrolu
+        try {
+          const contexts = this.browser.contexts ? this.browser.contexts() : [];
+          if (contexts.length === 0) {
+            // Kreiraj novi context
+            context = await this.browser.newContext({
+              viewport: { width: 1920, height: 1080 },
+            });
+            console.log('✓ Browser context kreiran');
+          } else {
+            // Koristi postojeći context
+            context = contexts[0];
+            console.log('✓ Koristim postojeći browser context');
+          }
+        } catch (ctxErr: any) {
+          const errorMsg = ctxErr?.message || String(ctxErr);
+          if (errorMsg.includes('closed') || errorMsg.includes('Target closed')) {
+            throw new Error('Browser se zatvorio pre kreiranja context-a');
+          }
+          throw ctxErr;
+        }
+
+        // Sačekaj malo da se context potpuno inicijalizuje
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        page = await context.newPage();
+        
+        // Sačekaj malo da se page potpuno inicijalizuje
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        await page.setViewportSize({ width: 1920, height: 1080 });
+        
+        // Postavi timeout za page operacije
+        page.setDefaultTimeout(CONFIG.TIMEOUT);
+        page.setDefaultNavigationTimeout(CONFIG.TIMEOUT);
+        
+        console.log(`Učitavanje stranice sa Playwright: ${CONFIG.URL}`);
+        
+        // Proveri da li je page još uvek otvoren pre navigacije
+        if (page.isClosed && page.isClosed()) {
+          throw new Error('Page se zatvorio odmah nakon kreiranja');
         }
         
-        if (this.browser.isConnected && !this.browser.isConnected()) {
-          throw new Error('Browser se zatvorio tokom navigacije');
-        }
-        
-        // Proveri da li je page još uvek validan
+        // Proveri da li je page još uvek otvoren pre navigacije
         if (page.isClosed && page.isClosed()) {
           throw new Error('Page se zatvorio pre navigacije');
         }
         
-        await page.goto(CONFIG.URL, { 
-          waitUntil: 'load',
-          timeout: CONFIG.TIMEOUT 
-        });
-        console.log('✓ Stranica učitana (load)');
-      }
-
-      // Proveri da li je browser i page još uvek validni
-      if (!this.browser) {
-        throw new Error('Browser se zatvorio pre čekanja tabele');
-      }
-      
-      if (this.browser.isConnected && !this.browser.isConnected()) {
-        throw new Error('Browser se zatvorio pre čekanja tabele');
-      }
-      
-      if (page.isClosed && page.isClosed()) {
-        throw new Error('Page se zatvorio pre čekanja tabele');
-      }
-      
-      // Čekaj da se tabela učita sa različitim strategijama
-      try {
-        await page.waitForSelector('table tbody tr', { timeout: 15000 });
-        console.log('✓ Tabela pronađena');
-      } catch (err) {
-        // Proveri da li je greška vezana za zatvoreni browser/page
-        if (err instanceof Error && (err.message.includes('closed') || err.message.includes('Target'))) {
+        // Proveri da li je context još uvek otvoren
+        try {
+          const contexts = this.browser.contexts ? this.browser.contexts() : [];
+          if (contexts.length === 0 || !contexts.includes(context)) {
+            throw new Error('Browser context se zatvorio pre navigacije');
+          }
+        } catch (checkErr: any) {
+          if (checkErr.message.includes('zatvorio')) {
+            throw checkErr;
+          }
+        }
+        
+        // Učitaj stranicu sa domcontentloaded (brže i pouzdanije)
+        try {
+          await page.goto(CONFIG.URL, { 
+            waitUntil: 'domcontentloaded',
+            timeout: CONFIG.TIMEOUT 
+          });
+          console.log('✓ Stranica učitana (domcontentloaded)');
+          
+          // Sačekaj malo da se JavaScript učita
+          await new Promise(resolve => setTimeout(resolve, 3000));
+        } catch (err: any) {
+          // Ako domcontentloaded ne uspe, proveri da li je browser zatvoren
+          const errorMsg = err?.message || String(err);
+          console.warn('domcontentloaded neuspešan:', errorMsg);
+          
+          if (errorMsg.includes('closed') || errorMsg.includes('Target page') || errorMsg.includes('Target closed') || errorMsg.includes('Browser closed')) {
+            // Proveri da li je browser još uvek otvoren
+            try {
+              const contexts = this.browser.contexts ? this.browser.contexts() : [];
+              if (contexts.length === 0) {
+                throw new Error('Browser se zatvorio tokom navigacije - nema aktivnih konteksta');
+              }
+            } catch (checkErr: any) {
+              throw new Error('Browser se zatvorio tokom navigacije');
+            }
+          }
+          
+          // Ako nije browser closure, baci originalnu grešku
           throw err;
         }
         
-        console.warn('Tabela nije pronađena odmah, pokušavam alternativne selektore...');
-        // Pokušaj sa drugim selektorima
-        try {
-          if (this.browser && (!page.isClosed || !page.isClosed()) && (!this.browser.isConnected || this.browser.isConnected())) {
-            await page.waitForSelector('table tr', { timeout: 5000 });
-          }
-        } catch (e) {
-          console.warn('Alternativni selektor takođe neuspešan, nastavljam...');
+        // Proveri da li je page još uvek otvoren nakon navigacije
+        if (page.isClosed && page.isClosed()) {
+          throw new Error('Page se zatvorio nakon navigacije');
         }
-      }
 
-      // Proveri da li je browser i page još uvek validni pre evaluate
-      if (!this.browser) {
-        throw new Error('Browser se zatvorio pre evaluate');
-      }
-      
-      if (this.browser.isConnected && !this.browser.isConnected()) {
-        throw new Error('Browser se zatvorio pre evaluate');
-      }
-      
-      if (page.isClosed && page.isClosed()) {
-        throw new Error('Page se zatvorio pre evaluate');
-      }
-      
-      // Sačekaj malo da se JavaScript izvrši (koristi setTimeout umesto waitForTimeout)
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      
-      // Finalna provera pre evaluate
-      if (!this.browser) {
-        throw new Error('Browser se zatvorio pre evaluate');
-      }
-      
-      if (this.browser.isConnected && !this.browser.isConnected()) {
-        throw new Error('Browser se zatvorio pre evaluate');
-      }
-      
-      if (page.isClosed && page.isClosed()) {
-        throw new Error('Page se zatvorio pre evaluate');
-      }
-
-      // Izvuci podatke iz stranice
-      const standings = await page.evaluate(() => {
-        const rows = document.querySelectorAll('table tbody tr');
-        const data: WabaTeamData[] = [];
-        
-        const skipHeaders = ['Games', 'Wins', 'Losses', 'Losses by forfeit', 'Team', 'G', 'W', 'L', 'P'];
-
-        rows.forEach((row, index) => {
-          const cells = Array.from(row.querySelectorAll('td')).map(c => c?.innerText?.trim() || '');
-          
-          if (cells.length < 5) return;
-          
-          const firstCell = cells[0] || '';
-          const secondCell = cells[1] || '';
-          if (skipHeaders.includes(firstCell) || skipHeaders.includes(secondCell)) {
-            return;
-          }
-          
-          if (!secondCell || secondCell.length === 0) return;
-          
-          let rank = 0;
-          const noCell = cells[0] || '';
-          if (!isNaN(parseInt(noCell)) && parseInt(noCell) > 0) {
-            rank = parseInt(noCell);
-          } else {
-            rank = index + 1;
-          }
-          
-          const teamName = cells[1] || '';
-          const gp = parseInt(cells[2] || '0') || 0;
-          const w = parseInt(cells[3] || '0') || 0;
-          const l = parseInt(cells[4] || '0') || 0;
-          const points = parseInt(cells[5] || '0') || 0;
-          
-          let pts = 0;
-          let opts = 0;
-          const ptsOptsCell = cells[6] || '';
-          if (ptsOptsCell.includes('/')) {
-            const parts = ptsOptsCell.split('/');
-            pts = parseInt(parts[0]?.trim() || '0') || 0;
-            opts = parseInt(parts[1]?.trim() || '0') || 0;
-          }
-          
-          const diffCell = cells[7] || '';
-          const diffValue = diffCell.replace(/\+/g, '').trim();
-          const diff = parseInt(diffValue || '0') || 0;
-            
-          if (teamName && teamName.length > 0 && rank > 0) {
-            data.push({
-              rank,
-              team: teamName.trim(),
-              gp: gp || (w + l),
-              w,
-              l,
-              points,
-              pts,
-              opts,
-              diff,
-            });
-          }
-        });
-
-        return data;
-      });
-
-      console.log(`Uspješno učitano ${standings.length} timova (Playwright)`);
-      
-      if (standings.length === 0) {
-        throw new Error('Nijedan tim nije pronađen');
-      }
-
-      return standings;
-
-    } catch (err: any) {
-      console.error('Greška pri scrapanju sa Playwright:', err.message);
-      console.error('Stack trace:', err.stack);
-      
-      // Proveri da li je greška vezana za zatvoreni browser
-      if (err.message && (err.message.includes('closed') || err.message.includes('Target page'))) {
-        console.error('Browser se zatvorio pre nego što je scraping završen. Pokušavam ponovo...');
-        // Ne zatvaraj browser, možda je problem sa timing-om
-      }
-      
-      // Fallback na fetch ako Playwright ne radi
-      console.log('Pokušavam sa fetch metodom...');
-      return this.scrapeWithFetch();
-    } finally {
-      if (page) {
+        // Čekaj da se tabela učita - ovo je važno jer tabela može biti renderovana nakon učitavanja stranice
+        let tableFound = false;
         try {
-          await page.close();
+          // Pokušaj sa različitim selektorima sa kraćim timeout-om da ne blokiramo
+          await page.waitForSelector('table tbody tr', { timeout: 10000, state: 'visible' });
+          console.log('✓ Tabela je pronađena');
+          tableFound = true;
         } catch (err: any) {
-          console.warn('Greška pri zatvaranju page-a:', err.message);
+          const errorMsg = err?.message || String(err);
+          if (errorMsg.includes('closed') || errorMsg.includes('Target page') || errorMsg.includes('Target closed')) {
+            throw new Error('Page se zatvorio tokom čekanja tabele');
+          }
+          
+          console.warn('Tabela nije pronađena sa waitForSelector, pokušavam alternativne selektore...', errorMsg);
+          
+          // Pokušaj sa alternativnim selektorima
+          try {
+            await page.waitForSelector('table tr', { timeout: 8000, state: 'visible' });
+            console.log('✓ Tabela je pronađena (alternativni selektor)');
+            tableFound = true;
+          } catch (err2: any) {
+            const errorMsg2 = err2?.message || String(err2);
+            if (errorMsg2.includes('closed') || errorMsg2.includes('Target page') || errorMsg2.includes('Target closed')) {
+              throw new Error('Page se zatvorio tokom čekanja tabele');
+            }
+            console.warn('Alternativni selektor takođe neuspešan, nastavljam...', errorMsg2);
+            // Nastavi dalje - možda je tabela već učitana
+          }
         }
+        
+        // Proveri da li je page još uvek otvoren pre čekanja
+        if (page.isClosed && page.isClosed()) {
+          throw new Error('Page se zatvorio pre čekanja JavaScript-a');
+        }
+        
+        // Sačekaj malo da se JavaScript potpuno izvrši (kraće čekanje)
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        // Proveri ponovo da li je page još uvek otvoren
+        if (page.isClosed && page.isClosed()) {
+          throw new Error('Page se zatvorio pre evaluate');
+        }
+
+        // Izvuci podatke iz stranice
+        // Koristimo try-catch unutar evaluate da bismo bolje rukovali greškama
+        // Važno: evaluate mora da se završi pre nego što se browser zatvori
+        let standings: WabaTeamData[];
+        try {
+          standings = await page.evaluate(() => {
+          const rows = document.querySelectorAll('table tbody tr');
+          const data: WabaTeamData[] = [];
+          
+          const skipHeaders = ['Games', 'Wins', 'Losses', 'Losses by forfeit', 'Team', 'G', 'W', 'L', 'P'];
+
+          rows.forEach((row, index) => {
+            const cells = Array.from(row.querySelectorAll('td')).map(c => c?.innerText?.trim() || '');
+            
+            if (cells.length < 5) return;
+            
+            const firstCell = cells[0] || '';
+            const secondCell = cells[1] || '';
+            if (skipHeaders.includes(firstCell) || skipHeaders.includes(secondCell)) {
+              return;
+            }
+            
+            if (!secondCell || secondCell.length === 0) return;
+            
+            let rank = 0;
+            const noCell = cells[0] || '';
+            if (!isNaN(parseInt(noCell)) && parseInt(noCell) > 0) {
+              rank = parseInt(noCell);
+            } else {
+              rank = index + 1;
+            }
+            
+            const teamName = cells[1] || '';
+            const gp = parseInt(cells[2] || '0') || 0;
+            const w = parseInt(cells[3] || '0') || 0;
+            const l = parseInt(cells[4] || '0') || 0;
+            const points = parseInt(cells[5] || '0') || 0;
+            
+            let pts = 0;
+            let opts = 0;
+            const ptsOptsCell = cells[6] || '';
+            if (ptsOptsCell.includes('/')) {
+              const parts = ptsOptsCell.split('/');
+              pts = parseInt(parts[0]?.trim() || '0') || 0;
+              opts = parseInt(parts[1]?.trim() || '0') || 0;
+            }
+            
+            const diffCell = cells[7] || '';
+            const diffValue = diffCell.replace(/\+/g, '').trim();
+            const diff = parseInt(diffValue || '0') || 0;
+              
+            if (teamName && teamName.length > 0 && rank > 0) {
+              data.push({
+                rank,
+                team: teamName.trim(),
+                gp: gp || (w + l),
+                w,
+                l,
+                points,
+                pts,
+                opts,
+                diff,
+              });
+            }
+          });
+
+          return data;
+          });
+        } catch (evalErr: any) {
+          const errorMsg = evalErr?.message || String(evalErr);
+          if (errorMsg.includes('closed') || errorMsg.includes('Target page') || errorMsg.includes('Target closed') || errorMsg.includes('Browser closed')) {
+            throw new Error('Page ili browser se zatvorio tokom evaluate operacije');
+          }
+          throw evalErr;
+        }
+
+        console.log(`Uspješno učitano ${standings.length} timova (Playwright)`);
+        
+        if (standings.length === 0) {
+          throw new Error('Nijedan tim nije pronađen');
+        }
+
+        // Uspešno završeno - zatvori page i vrati rezultat
+        if (page) {
+          try {
+            if (!page.isClosed || !page.isClosed()) {
+              await page.close();
+            }
+          } catch (closeErr: any) {
+            console.warn('Greška pri zatvaranju page-a:', closeErr.message);
+          }
+        }
+        
+        // Ne zatvaraj context - možda će biti korišćen ponovo
+        // Context će biti zatvoren kada se browser zatvori
+        
+        return standings;
+        
+      } catch (err: any) {
+        console.error(`Greška pri scrapanju sa Playwright (pokušaj ${retryCount + 1}/${maxRetries + 1}):`, err.message);
+        
+        // Proveri da li je greška vezana za zatvoreni browser
+        const isBrowserClosed = err.message && (
+          err.message.includes('closed') || 
+          err.message.includes('Target page') || 
+          err.message.includes('Target closed') || 
+          err.message.includes('Browser closed') ||
+          err.message.includes('Browser se zatvorio')
+        );
+        
+        if (isBrowserClosed && retryCount < maxRetries) {
+          console.error('Browser se zatvorio, pokušavam reinicijalizaciju...');
+          
+          // Zatvori page ako postoji
+          if (page) {
+            try {
+              if (!page.isClosed || !page.isClosed()) {
+                await page.close();
+              }
+            } catch (closeErr: any) {
+              // Ignoriši greške pri zatvaranju
+            }
+            page = null;
+          }
+          
+          // Zatvori context ako postoji
+          if (context) {
+            try {
+              await context.close();
+            } catch (ctxCloseErr: any) {
+              // Ignoriši greške pri zatvaranju context-a
+            }
+            context = null;
+          }
+          
+          // Zatvori browser i reinicijalizuj
+          try {
+            await this.close();
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Sačekaj malo pre reinicijalizacije
+            const reinitialized = await this.initialize();
+            if (reinitialized && this.browser) {
+              console.log('Browser reinicijalizovan, pokušavam ponovo...');
+              retryCount++;
+              continue; // Pokušaj ponovo
+            }
+          } catch (retryErr: any) {
+            console.error('Reinicijalizacija neuspešna:', retryErr.message);
+          }
+        }
+        
+        // Ako nije browser closure ili smo iscrpili retry-e, baci grešku
+        if (retryCount >= maxRetries || !isBrowserClosed) {
+          console.error('Stack trace:', err.stack);
+          throw err;
+        }
+        
+        retryCount++;
+      } finally {
+        if (page) {
+          try {
+            if (!page.isClosed || !page.isClosed()) {
+              await page.close();
+            }
+          } catch (err: any) {
+            console.warn('Greška pri zatvaranju page-a:', err.message);
+          }
+        }
+        // Ne zatvaraj context ovde - browser.close() će zatvoriti sve kontekste
+        // Context će biti zatvoren kada se browser zatvori u close() metodi
       }
     }
+    
+    // Ako smo izašli iz while loop-a bez uspeha, fallback na fetch
+    console.log('Svi pokušaji sa Playwright neuspešni, pokušavam sa fetch metodom...');
+    return this.scrapeWithFetch();
   }
 
   async close() {
     if (this.browser) {
       try {
-        // Proveri da li je browser još uvek otvoren
-        const pages = this.browser.pages ? await this.browser.pages() : [];
-        if (pages.length > 0) {
-          console.log(`Zatvaram ${pages.length} otvorenih stranica pre zatvaranja browser-a...`);
-          await Promise.all(pages.map((p: any) => p.close().catch(() => {})));
+        // Za Puppeteer, zatvori sve stranice pre zatvaranja browser-a
+        if (this.usePuppeteer && !this.usePlaywright) {
+          try {
+            const pages = this.browser.pages ? await this.browser.pages() : [];
+            if (pages.length > 0) {
+              console.log(`Zatvaram ${pages.length} otvorenih stranica pre zatvaranja browser-a...`);
+              await Promise.all(pages.map((p: any) => {
+                try {
+                  if (!p.isClosed || !p.isClosed()) {
+                    return p.close();
+                  }
+                } catch (e) {
+                  // Ignoriši greške pri zatvaranju stranica
+                }
+              }));
+            }
+          } catch (pagesErr: any) {
+            console.warn('Greška pri zatvaranju stranica:', pagesErr.message);
+          }
         }
+        
+        // Zatvori browser (Playwright automatski zatvara sve kontekste i stranice)
         await this.browser.close();
         this.browser = null;
         console.log('Browser uspešno zatvoren');
       } catch (err: any) {
-        console.warn('Greška pri zatvaranju browser-a:', err.message);
+        // Ako je browser već zatvoren, ignoriši grešku
+        if (err.message && (err.message.includes('closed') || err.message.includes('Target closed') || err.message.includes('Browser closed'))) {
+          console.log('Browser je već zatvoren');
+        } else {
+          console.warn('Greška pri zatvaranju browser-a:', err.message);
+        }
         this.browser = null;
       }
     }

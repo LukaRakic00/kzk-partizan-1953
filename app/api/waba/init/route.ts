@@ -17,6 +17,14 @@ export async function GET() {
 
     console.log('Pokretanje inicijalnog WABA scraping-a...');
     
+    // Proveri ScrapingBee API key status
+    const scrapingBeeApiKey = process.env.SCRAPINGBEE_API_KEY?.trim();
+    console.log('ScrapingBee API key status:', {
+      exists: !!scrapingBeeApiKey,
+      length: scrapingBeeApiKey?.length || 0,
+      preview: scrapingBeeApiKey ? `${scrapingBeeApiKey.substring(0, 10)}...` : 'N/A',
+    });
+    
     // Pokušaj da inicijalizujemo browser automation (Playwright ili Puppeteer)
     // Ovo je važno jer fetch metoda ne može da vidi JavaScript-renderovane tabele
     let browserInitialized = false;
@@ -26,6 +34,7 @@ export async function GET() {
         VERCEL: process.env.VERCEL,
         VERCEL_ENV: process.env.VERCEL_ENV,
         NODE_ENV: process.env.NODE_ENV,
+        SCRAPINGBEE_AVAILABLE: !!scrapingBeeApiKey,
       });
       
       browserInitialized = await scraper.initialize();
@@ -120,8 +129,10 @@ export async function GET() {
     let errorMessage = error.message || 'Nepoznata greška';
     let userMessage = 'Greška pri učitavanju podataka';
     
-    if (errorMessage.includes('Tabela nije pronađena')) {
-      userMessage = 'Tabela nije pronađena na stranici. Stranica verovatno koristi JavaScript za renderovanje, što zahteva browser automation (Playwright/Puppeteer). U produkciji (Vercel), proverite da li su instalirani puppeteer-core, @sparticuz/chromium ili playwright paketi.';
+    if (errorMessage.includes('ScrapingBee API key nije validan')) {
+      userMessage = 'ScrapingBee API key nije validan. Proverite da li je pravilno postavljen u Vercel Environment Variables. Idite na Vercel Dashboard → Settings → Environment Variables i proverite SCRAPINGBEE_API_KEY.';
+    } else if (errorMessage.includes('Tabela nije pronađena')) {
+      userMessage = 'Tabela nije pronađena na stranici. Stranica verovatno koristi JavaScript za renderovanje, što zahteva browser automation (Playwright/Puppeteer) ili ScrapingBee API. U produkciji (Vercel), proverite da li je ScrapingBee API key pravilno postavljen ili da li su instalirani puppeteer-core, @sparticuz/chromium paketi.';
     } else if (errorMessage.includes('Nijedan tim nije pronađen')) {
       userMessage = 'Nijedan tim nije pronađen. Proverite da li je URL ispravan i da li stranica sadrži tabelu sa timovima.';
     } else if (errorMessage.includes('timeout') || errorMessage.includes('Timeout')) {
