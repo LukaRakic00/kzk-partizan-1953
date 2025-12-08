@@ -531,7 +531,7 @@ export default function Home() {
               href="/vesti"
               className="text-white hover:text-gray-300 uppercase text-sm tracking-wider flex items-center group self-start sm:self-auto"
             >
-              Sve Novosti
+              Sve vesti
               <ArrowRight className="ml-2 group-hover:translate-x-1 transition-transform" size={20} />
             </Link>
           </div>

@@ -315,8 +315,8 @@ export class WABAStandingsScraper {
         }
       }
 
-      // Čekaj da se tabela učita
-      await page.waitForSelector('table tbody tr', { timeout: 10000 }).catch(() => {
+      // Čekaj da se tabela učita - nova struktura koristi mbt-table klasu
+      await page.waitForSelector('table.mbt-table tbody tr, table tbody tr', { timeout: 10000 }).catch(() => {
         console.log('Tabela nije pronađena odmah, nastavljam...');
       });
 
@@ -325,21 +325,30 @@ export class WABAStandingsScraper {
 
       // Izvuci podatke iz stranice
       const standings = await page.evaluate(() => {
-        const rows = document.querySelectorAll('table tbody tr');
+        // Pokušaj prvo sa mbt-table, pa fallback na običnu tabelu
+        const table = document.querySelector('table.mbt-table') || document.querySelector('table');
+        if (!table) return [];
+        
+        const rows = table.querySelectorAll('tbody tr');
         const data: WabaTeamData[] = [];
         
         // Lista header redova koje treba preskočiti
-        const skipHeaders = ['Games', 'Wins', 'Losses', 'Losses by forfeit', 'Team', 'G', 'W', 'L', 'P'];
+        const skipHeaders = ['Games', 'Wins', 'Losses', 'Losses by forfeit', 'Team', 'G', 'W', 'L', 'P', 'No', 'W/L', 'Points'];
 
         rows.forEach((row, index) => {
-          const cells = Array.from(row.querySelectorAll('td')).map(c => c?.innerText?.trim() || '');
+          // Preskoči header redove (th elementi ili redovi sa mbt-subheader klasom)
+          if (row.classList.contains('mbt-subheader') || row.querySelector('th')) {
+            return;
+          }
           
-          // Preskoči prazne redove ili redove sa manje od 5 kolona
-          if (cells.length < 5) return;
+          const cells = Array.from(row.querySelectorAll('td'));
+          
+          // Nova struktura: No | Team | W/L | Points (minimum 4 kolone)
+          if (cells.length < 4) return;
           
           // Preskoči header redove
-          const firstCell = cells[0] || '';
-          const secondCell = cells[1] || '';
+          const firstCell = cells[0]?.textContent?.trim() || '';
+          const secondCell = cells[1]?.textContent?.trim() || '';
           if (skipHeaders.includes(firstCell) || skipHeaders.includes(secondCell)) {
             return;
           }
@@ -347,68 +356,69 @@ export class WABAStandingsScraper {
           // Preskoči redove koji su samo brojevi bez imena tima
           if (!secondCell || secondCell.length === 0) return;
           
-          // Struktura tabele: No | Team | G | W | L | P | PTS/OPTS | +/-
+          // Struktura tabele: No | Team | W/L | Points
           let rank = 0;
-            let teamName = '';
-            let gp = 0;
-            let w = 0;
-            let l = 0;
-          let points = 0; // P (bodovi)
-          let pts = 0;    // PTS (iz PTS/OPTS)
-          let opts = 0;   // OPTS (iz PTS/OPTS)
-            let diff = 0;
-            
-            // Kolona 0: No (pozicija)
-            const noCell = cells[0] || '';
-            if (!isNaN(parseInt(noCell)) && parseInt(noCell) > 0) {
-              rank = parseInt(noCell);
+          let teamName = '';
+          let w = 0;
+          let l = 0;
+          let points = 0; // Points (bodovi)
+          let pts = 0;    // PTS (iz PTS/OPTS) - nema u novoj strukturi
+          let opts = 0;   // OPTS (iz PTS/OPTS) - nema u novoj strukturi
+          let diff = 0;   // +/- (razlika) - nema u novoj strukturi
+          
+          // Kolona 0: No (pozicija) - format "1." ili "1"
+          const noCell = cells[0]?.textContent?.trim() || '';
+          const rankMatch = noCell.match(/^(\d+)\.?/);
+          if (rankMatch) {
+            rank = parseInt(rankMatch[1]);
+          } else if (!isNaN(parseInt(noCell)) && parseInt(noCell) > 0) {
+            rank = parseInt(noCell);
           } else {
             rank = index + 1;
-            }
-            
-            // Kolona 1: Team (tim)
-            teamName = cells[1] || '';
-            
-          // Kolona 2: G (odigrano)
-          gp = parseInt(cells[2] || '0') || 0;
-          
-            // Kolona 3: W (pobede)
-            w = parseInt(cells[3] || '0') || 0;
-            
-            // Kolona 4: L (porazi)
-            l = parseInt(cells[4] || '0') || 0;
-            
-            // Kolona 5: P (bodovi)
-          points = parseInt(cells[5] || '0') || 0;
-            
-          // Kolona 6: PTS/OPTS (format: "100/80" ili slično)
-          const ptsOptsCell = cells[6] || '';
-          if (ptsOptsCell.includes('/')) {
-            const parts = ptsOptsCell.split('/');
-            pts = parseInt(parts[0]?.trim() || '0') || 0;
-            opts = parseInt(parts[1]?.trim() || '0') || 0;
           }
           
-          // Kolona 7: +/- (razlika)
-          const diffCell = cells[7] || '';
-          // Ukloni + ako postoji
-          const diffValue = diffCell.replace(/\+/g, '').trim();
-          diff = parseInt(diffValue || '0') || 0;
+          // Kolona 1: Team (tim) - iz <a> taga unutar td.team_name
+          const teamCell = cells[1];
+          if (teamCell) {
+            const teamLink = teamCell.querySelector('a');
+            if (teamLink) {
+              teamName = teamLink.textContent?.trim() || '';
+            } else {
+              teamName = teamCell.textContent?.trim() || '';
+            }
+          }
+          
+          // Kolona 2: W/L (format: "6/0" ili "6<span></span>/<span></span>0")
+          const wlCell = cells[2]?.textContent?.trim() || '';
+          // Ukloni sve HTML entitete i spanove, ostavi samo brojeve i /
+          const wlClean = wlCell.replace(/<[^>]*>/g, '').replace(/\s+/g, '').trim();
+          if (wlClean.includes('/')) {
+            const parts = wlClean.split('/');
+            w = parseInt(parts[0]?.trim() || '0') || 0;
+            l = parseInt(parts[1]?.trim() || '0') || 0;
+          }
+          
+          // Kolona 3: Points (bodovi)
+          const pointsCell = cells[3]?.textContent?.trim() || '';
+          points = parseInt(pointsCell || '0') || 0;
+          
+          // Izračunaj gp (odigrane utakmice) kao w + l
+          const gp = w + l;
             
           // Dodaj samo ako ima ime tima i validne podatke
           if (teamName && teamName.length > 0 && rank > 0) {
-              const team: WabaTeamData = {
-                rank,
-                team: teamName.trim(),
-              gp: gp || (w + l), // Koristi G ako postoji, inače W + L
-                w,
-                l,
-              points, // P (bodovi)
-              pts,    // PTS (iz PTS/OPTS)
-              opts,   // OPTS (iz PTS/OPTS)
-              diff,
-              };
-              data.push(team);
+            const team: WabaTeamData = {
+              rank,
+              team: teamName.trim(),
+              gp: gp,
+              w,
+              l,
+              points, // Points (bodovi)
+              pts,    // PTS - nema u novoj strukturi, ostaje 0
+              opts,   // OPTS - nema u novoj strukturi, ostaje 0
+              diff,   // +/- - nema u novoj strukturi, ostaje 0
+            };
+            data.push(team);
           }
         });
 
@@ -528,8 +538,13 @@ export class WABAStandingsScraper {
         throw new Error('Stranica je prazna ili nije učitana');
       }
 
-      // Pokušaj različite selektore za tabelu
-      let tableMatch = html.match(/<table[^>]*>([\s\S]*?)<\/table>/i);
+      // Pokušaj različite selektore za tabelu - prvo mbt-table
+      let tableMatch = html.match(/<table[^>]*class="[^"]*mbt-table[^"]*"[^>]*>([\s\S]*?)<\/table>/i);
+      
+      // Ako nije pronađena sa mbt-table, probaj sa standardnim selektorom
+      if (!tableMatch) {
+        tableMatch = html.match(/<table[^>]*>([\s\S]*?)<\/table>/i);
+      }
       
       // Ako nije pronađena sa standardnim selektorom, probaj sa različitim varijantama
       if (!tableMatch) {
@@ -577,27 +592,45 @@ export class WABAStandingsScraper {
       }
       
       const standings: WabaTeamData[] = [];
-      const skipHeaders = ['Games', 'Wins', 'Losses', 'Losses by forfeit', 'Team', 'G', 'W', 'L', 'P'];
+      const skipHeaders = ['Games', 'Wins', 'Losses', 'Losses by forfeit', 'Team', 'G', 'W', 'L', 'P', 'No', 'W/L', 'Points'];
 
       for (let index = 0; index < rowMatches.length; index++) {
         const rowMatch = rowMatches[index];
+        const rowFull = rowMatch[0]; // Ceo red sa atributima
         const row = rowMatch[1];
+        
+        // Preskoči header redove (mbt-subheader ili th elementi)
+        if (rowFull.includes('class="') && (rowFull.includes('mbt-subheader') || rowFull.includes('mbt-header'))) {
+          continue;
+        }
+        
         const cellMatches = Array.from(row.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/gi));
-        const cells: string[] = [];
+        
+        // Nova struktura: No | Team | W/L | Points (minimum 4 kolone)
+        if (cellMatches.length < 4) continue;
+        
+        // Parsiraj ćelije
+        const cells: Array<{ text: string; html: string }> = [];
         
         for (const cellMatch of cellMatches) {
-          const text = cellMatch[1]
+          const cellHtml = cellMatch[1];
+          let text = cellHtml
+            .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '') // Ukloni script tagove
             .replace(/<[^>]*>/g, '')
+            .replace(/&nbsp;/g, ' ')
+            .replace(/&amp;/g, '&')
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>')
+            .replace(/&quot;/g, '"')
             .replace(/\s+/g, ' ')
             .trim();
-          cells.push(text);
+          
+          cells.push({ text, html: cellHtml });
         }
-
-        if (cells.length < 5) continue;
         
         // Preskoči header redove
-        const firstCell = cells[0] || '';
-        const secondCell = cells[1] || '';
+        const firstCell = cells[0]?.text || '';
+        const secondCell = cells[1]?.text || '';
         if (skipHeaders.includes(firstCell) || skipHeaders.includes(secondCell)) {
           continue;
         }
@@ -605,48 +638,64 @@ export class WABAStandingsScraper {
         // Preskoči redove koji su samo brojevi bez imena tima
         if (!secondCell || secondCell.length === 0) continue;
 
-        // Struktura tabele: No | Team | G | W | L | P | PTS/OPTS | +/-
+        // Struktura tabele: No | Team | W/L | Points
         let rank = 0;
-        const noCell = cells[0] || '';
-        if (!isNaN(parseInt(noCell)) && parseInt(noCell) > 0) {
+        const noCell = cells[0]?.text || '';
+        // Format "1." ili "1"
+        const rankMatch = noCell.match(/^(\d+)\.?/);
+        if (rankMatch) {
+          rank = parseInt(rankMatch[1]);
+        } else if (!isNaN(parseInt(noCell)) && parseInt(noCell) > 0) {
           rank = parseInt(noCell);
         } else {
           rank = index + 1;
         }
 
-        const teamName = cells[1] || '';
-        const gp = parseInt(cells[2] || '0') || 0;
-        const w = parseInt(cells[3] || '0') || 0;
-        const l = parseInt(cells[4] || '0') || 0;
-        const points = parseInt(cells[5] || '0') || 0;
-
-        // PTS/OPTS (format: "100/80" ili slično)
-        let pts = 0;
-        let opts = 0;
-        const ptsOptsCell = cells[6] || '';
-        if (ptsOptsCell.includes('/')) {
-          const parts = ptsOptsCell.split('/');
-          pts = parseInt(parts[0]?.trim() || '0') || 0;
-          opts = parseInt(parts[1]?.trim() || '0') || 0;
+        // Kolona 1: Team (tim) - iz <a> taga unutar td.team_name
+        let teamName = '';
+        const teamCellHtml = cells[1]?.html || '';
+        const teamLinkMatch = teamCellHtml.match(/<a[^>]*>([\s\S]*?)<\/a>/i);
+        if (teamLinkMatch) {
+          teamName = teamLinkMatch[1]
+            .replace(/<[^>]*>/g, '')
+            .replace(/&nbsp;/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+        } else {
+          teamName = secondCell;
         }
 
-        // +/- (razlika)
-        const diffCell = cells[7] || '';
-        const diffValue = diffCell.replace(/\+/g, '').trim();
-        const diff = parseInt(diffValue || '0') || 0;
+        // Kolona 2: W/L (format: "6/0" ili "6<span></span>/<span></span>0")
+        let w = 0;
+        let l = 0;
+        const wlCell = cells[2]?.text || '';
+        // Ukloni sve HTML entitete i spanove, ostavi samo brojeve i /
+        const wlClean = wlCell.replace(/<[^>]*>/g, '').replace(/\s+/g, '').trim();
+        if (wlClean.includes('/')) {
+          const parts = wlClean.split('/');
+          w = parseInt(parts[0]?.trim() || '0') || 0;
+          l = parseInt(parts[1]?.trim() || '0') || 0;
+        }
+
+        // Kolona 3: Points (bodovi)
+        const pointsCell = cells[3]?.text || '';
+        const points = parseInt(pointsCell || '0') || 0;
+
+        // Izračunaj gp (odigrane utakmice) kao w + l
+        const gp = w + l;
 
         // Dodaj samo ako ima ime tima i validne podatke
         if (teamName && teamName.length > 0 && rank > 0) {
           standings.push({
             rank,
             team: teamName.trim(),
-            gp: gp || (w + l),
+            gp: gp,
             w,
             l,
             points,
-            pts,
-            opts,
-            diff,
+            pts: 0,    // PTS - nema u novoj strukturi
+            opts: 0,   // OPTS - nema u novoj strukturi
+            diff: 0,   // +/- - nema u novoj strukturi
           });
         }
       }
@@ -673,20 +722,26 @@ export class WABAStandingsScraper {
 
   private parseRowsDirectly(html: string): WabaTeamData[] {
     const standings: WabaTeamData[] = [];
-    const skipHeaders = ['Games', 'Wins', 'Losses', 'Losses by forfeit', 'Team', 'G', 'W', 'L', 'P', '#', 'No', 'Rank'];
+    const skipHeaders = ['Games', 'Wins', 'Losses', 'Losses by forfeit', 'Team', 'G', 'W', 'L', 'P', '#', 'No', 'Rank', 'W/L', 'Points'];
     
-    // Pokušaj da pronađeš tabelu na različite načine
+    // Pokušaj da pronađeš tabelu na različite načine - prvo mbt-table
     let tableContent = html;
     
-    // Pokušaj da pronađeš tbody
-    const tbodyMatch = html.match(/<tbody[^>]*>([\s\S]*?)<\/tbody>/i);
-    if (tbodyMatch) {
-      tableContent = tbodyMatch[1];
+    // Pokušaj da pronađeš mbt-table
+    const mbtTableMatch = html.match(/<table[^>]*class="[^"]*mbt-table[^"]*"[^>]*>([\s\S]*?)<\/table>/i);
+    if (mbtTableMatch) {
+      tableContent = mbtTableMatch[1];
     } else {
-      // Pokušaj da pronađeš tabelu
-      const tableMatch = html.match(/<table[^>]*>([\s\S]*?)<\/table>/i);
-      if (tableMatch) {
-        tableContent = tableMatch[1];
+      // Pokušaj da pronađeš tbody
+      const tbodyMatch = html.match(/<tbody[^>]*>([\s\S]*?)<\/tbody>/i);
+      if (tbodyMatch) {
+        tableContent = tbodyMatch[1];
+      } else {
+        // Pokušaj da pronađeš tabelu
+        const tableMatch = html.match(/<table[^>]*>([\s\S]*?)<\/table>/i);
+        if (tableMatch) {
+          tableContent = tableMatch[1];
+        }
       }
     }
     
@@ -695,14 +750,27 @@ export class WABAStandingsScraper {
     
     for (let index = 0; index < trMatches.length; index++) {
       const trMatch = trMatches[index];
-      const row = trMatch[1];
+      const row = trMatch[0]; // Uzmi ceo red sa atributima
+      const rowContent = trMatch[1];
+      
+      // Preskoči header redove (mbt-subheader ili th elementi)
+      if (row.includes('class="') && (row.includes('mbt-subheader') || row.includes('mbt-header'))) {
+        continue;
+      }
       
       // Pronađi sve td ćelije u redu
-      const tdMatches = Array.from(row.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/gi));
-      const cells: string[] = [];
+      const tdMatches = Array.from(rowContent.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/gi));
+      
+      // Nova struktura: No | Team | W/L | Points (minimum 4 kolone)
+      if (tdMatches.length < 4) continue;
+      
+      // Parsiraj ćelije
+      const cells: Array<{ text: string; html: string }> = [];
       
       for (const tdMatch of tdMatches) {
-        let text = tdMatch[1]
+        const cellHtml = tdMatch[1];
+        let text = cellHtml
+          .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '') // Ukloni script tagove
           .replace(/<[^>]*>/g, '')
           .replace(/&nbsp;/g, ' ')
           .replace(/&amp;/g, '&')
@@ -712,27 +780,12 @@ export class WABAStandingsScraper {
           .replace(/\s+/g, ' ')
           .trim();
         
-        // Ako je ćelija prazna, pokušaj da pronađeš tekst u span ili div elementima
-        if (!text && tdMatch[1]) {
-          const spanMatch = tdMatch[1].match(/<span[^>]*>([\s\S]*?)<\/span>/i);
-          if (spanMatch) {
-            text = spanMatch[1].replace(/<[^>]*>/g, '').trim();
-          } else {
-            const divMatch = tdMatch[1].match(/<div[^>]*>([\s\S]*?)<\/div>/i);
-            if (divMatch) {
-              text = divMatch[1].replace(/<[^>]*>/g, '').trim();
-            }
-          }
-        }
-        
-        cells.push(text);
+        cells.push({ text, html: cellHtml });
       }
 
-      if (cells.length < 5) continue;
-      
       // Preskoči header redove
-      const firstCell = cells[0] || '';
-      const secondCell = cells[1] || '';
+      const firstCell = cells[0]?.text || '';
+      const secondCell = cells[1]?.text || '';
       if (skipHeaders.includes(firstCell) || skipHeaders.includes(secondCell)) {
         continue;
       }
@@ -740,48 +793,64 @@ export class WABAStandingsScraper {
       // Preskoči redove koji su samo brojevi bez imena tima
       if (!secondCell || secondCell.length === 0) continue;
 
-      // Struktura tabele: No | Team | G | W | L | P | PTS/OPTS | +/-
+      // Struktura tabele: No | Team | W/L | Points
       let rank = 0;
-      const noCell = cells[0] || '';
-      if (!isNaN(parseInt(noCell)) && parseInt(noCell) > 0) {
+      const noCell = cells[0]?.text || '';
+      // Format "1." ili "1"
+      const rankMatch = noCell.match(/^(\d+)\.?/);
+      if (rankMatch) {
+        rank = parseInt(rankMatch[1]);
+      } else if (!isNaN(parseInt(noCell)) && parseInt(noCell) > 0) {
         rank = parseInt(noCell);
       } else {
         rank = index + 1;
       }
 
-      const teamName = cells[1] || '';
-      const gp = parseInt(cells[2] || '0') || 0;
-      const w = parseInt(cells[3] || '0') || 0;
-      const l = parseInt(cells[4] || '0') || 0;
-      const points = parseInt(cells[5] || '0') || 0;
-
-      // PTS/OPTS (format: "100/80" ili slično)
-      let pts = 0;
-      let opts = 0;
-      const ptsOptsCell = cells[6] || '';
-      if (ptsOptsCell.includes('/')) {
-        const parts = ptsOptsCell.split('/');
-        pts = parseInt(parts[0]?.trim() || '0') || 0;
-        opts = parseInt(parts[1]?.trim() || '0') || 0;
+      // Kolona 1: Team (tim) - iz <a> taga unutar td.team_name
+      let teamName = '';
+      const teamCellHtml = cells[1]?.html || '';
+      const teamLinkMatch = teamCellHtml.match(/<a[^>]*>([\s\S]*?)<\/a>/i);
+      if (teamLinkMatch) {
+        teamName = teamLinkMatch[1]
+          .replace(/<[^>]*>/g, '')
+          .replace(/&nbsp;/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+      } else {
+        teamName = secondCell;
       }
 
-      // +/- (razlika)
-      const diffCell = cells[7] || '';
-      const diffValue = diffCell.replace(/\+/g, '').trim();
-      const diff = parseInt(diffValue || '0') || 0;
+      // Kolona 2: W/L (format: "6/0" ili "6<span></span>/<span></span>0")
+      let w = 0;
+      let l = 0;
+      const wlCell = cells[2]?.text || '';
+      // Ukloni sve HTML entitete i spanove, ostavi samo brojeve i /
+      const wlClean = wlCell.replace(/<[^>]*>/g, '').replace(/\s+/g, '').trim();
+      if (wlClean.includes('/')) {
+        const parts = wlClean.split('/');
+        w = parseInt(parts[0]?.trim() || '0') || 0;
+        l = parseInt(parts[1]?.trim() || '0') || 0;
+      }
+
+      // Kolona 3: Points (bodovi)
+      const pointsCell = cells[3]?.text || '';
+      const points = parseInt(pointsCell || '0') || 0;
+
+      // Izračunaj gp (odigrane utakmice) kao w + l
+      const gp = w + l;
 
       // Dodaj samo ako ima ime tima i validne podatke
       if (teamName && teamName.length > 0 && rank > 0) {
         standings.push({
           rank,
           team: teamName.trim(),
-          gp: gp || (w + l),
+          gp: gp,
           w,
           l,
           points,
-          pts,
-          opts,
-          diff,
+          pts: 0,    // PTS - nema u novoj strukturi
+          opts: 0,   // OPTS - nema u novoj strukturi
+          diff: 0,   // +/- - nema u novoj strukturi
         });
       }
     }
@@ -908,11 +977,11 @@ export class WABAStandingsScraper {
           throw new Error('Page se zatvorio nakon navigacije');
         }
 
-        // Čekaj da se tabela učita - ovo je važno jer tabela može biti renderovana nakon učitavanja stranice
+        // Čekaj da se tabela učita - nova struktura koristi mbt-table klasu
         let tableFound = false;
         try {
           // Pokušaj sa različitim selektorima sa kraćim timeout-om da ne blokiramo
-          await page.waitForSelector('table tbody tr', { timeout: 10000, state: 'visible' });
+          await page.waitForSelector('table.mbt-table tbody tr, table tbody tr', { timeout: 10000, state: 'visible' });
           console.log('✓ Tabela je pronađena');
           tableFound = true;
         } catch (err: any) {
@@ -957,62 +1026,91 @@ export class WABAStandingsScraper {
         let standings: WabaTeamData[];
         try {
           standings = await page.evaluate(() => {
-          const rows = document.querySelectorAll('table tbody tr');
+          // Pokušaj prvo sa mbt-table, pa fallback na običnu tabelu
+          const table = document.querySelector('table.mbt-table') || document.querySelector('table');
+          if (!table) return [];
+          
+          const rows = table.querySelectorAll('tbody tr');
           const data: WabaTeamData[] = [];
           
-          const skipHeaders = ['Games', 'Wins', 'Losses', 'Losses by forfeit', 'Team', 'G', 'W', 'L', 'P'];
+          const skipHeaders = ['Games', 'Wins', 'Losses', 'Losses by forfeit', 'Team', 'G', 'W', 'L', 'P', 'No', 'W/L', 'Points'];
 
           rows.forEach((row, index) => {
-            const cells = Array.from(row.querySelectorAll('td')).map(c => c?.innerText?.trim() || '');
+            // Preskoči header redove (th elementi ili redovi sa mbt-subheader klasom)
+            if (row.classList.contains('mbt-subheader') || row.querySelector('th')) {
+              return;
+            }
             
-            if (cells.length < 5) return;
+            const cells = Array.from(row.querySelectorAll('td'));
             
-            const firstCell = cells[0] || '';
-            const secondCell = cells[1] || '';
+            // Nova struktura: No | Team | W/L | Points (minimum 4 kolone)
+            if (cells.length < 4) return;
+            
+            // Preskoči header redove
+            const firstCell = cells[0]?.textContent?.trim() || '';
+            const secondCell = cells[1]?.textContent?.trim() || '';
             if (skipHeaders.includes(firstCell) || skipHeaders.includes(secondCell)) {
               return;
             }
             
+            // Preskoči redove koji su samo brojevi bez imena tima
             if (!secondCell || secondCell.length === 0) return;
             
+            // Struktura tabele: No | Team | W/L | Points
             let rank = 0;
-            const noCell = cells[0] || '';
-            if (!isNaN(parseInt(noCell)) && parseInt(noCell) > 0) {
+            const noCell = cells[0]?.textContent?.trim() || '';
+            // Format "1." ili "1"
+            const rankMatch = noCell.match(/^(\d+)\.?/);
+            if (rankMatch) {
+              rank = parseInt(rankMatch[1]);
+            } else if (!isNaN(parseInt(noCell)) && parseInt(noCell) > 0) {
               rank = parseInt(noCell);
             } else {
               rank = index + 1;
             }
             
-            const teamName = cells[1] || '';
-            const gp = parseInt(cells[2] || '0') || 0;
-            const w = parseInt(cells[3] || '0') || 0;
-            const l = parseInt(cells[4] || '0') || 0;
-            const points = parseInt(cells[5] || '0') || 0;
-            
-            let pts = 0;
-            let opts = 0;
-            const ptsOptsCell = cells[6] || '';
-            if (ptsOptsCell.includes('/')) {
-              const parts = ptsOptsCell.split('/');
-              pts = parseInt(parts[0]?.trim() || '0') || 0;
-              opts = parseInt(parts[1]?.trim() || '0') || 0;
+            // Kolona 1: Team (tim) - iz <a> taga unutar td.team_name
+            let teamName = '';
+            const teamCell = cells[1];
+            if (teamCell) {
+              const teamLink = teamCell.querySelector('a');
+              if (teamLink) {
+                teamName = teamLink.textContent?.trim() || '';
+              } else {
+                teamName = teamCell.textContent?.trim() || '';
+              }
             }
             
-            const diffCell = cells[7] || '';
-            const diffValue = diffCell.replace(/\+/g, '').trim();
-            const diff = parseInt(diffValue || '0') || 0;
+            // Kolona 2: W/L (format: "6/0" ili "6<span></span>/<span></span>0")
+            let w = 0;
+            let l = 0;
+            const wlCell = cells[2]?.textContent?.trim() || '';
+            // Ukloni sve HTML entitete i spanove, ostavi samo brojeve i /
+            const wlClean = wlCell.replace(/<[^>]*>/g, '').replace(/\s+/g, '').trim();
+            if (wlClean.includes('/')) {
+              const parts = wlClean.split('/');
+              w = parseInt(parts[0]?.trim() || '0') || 0;
+              l = parseInt(parts[1]?.trim() || '0') || 0;
+            }
+            
+            // Kolona 3: Points (bodovi)
+            const pointsCell = cells[3]?.textContent?.trim() || '';
+            const points = parseInt(pointsCell || '0') || 0;
+            
+            // Izračunaj gp (odigrane utakmice) kao w + l
+            const gp = w + l;
               
             if (teamName && teamName.length > 0 && rank > 0) {
               data.push({
                 rank,
                 team: teamName.trim(),
-                gp: gp || (w + l),
+                gp: gp,
                 w,
                 l,
                 points,
-                pts,
-                opts,
-                diff,
+                pts: 0,    // PTS - nema u novoj strukturi
+                opts: 0,   // OPTS - nema u novoj strukturi
+                diff: 0,   // +/- - nema u novoj strukturi
               });
             }
           });
