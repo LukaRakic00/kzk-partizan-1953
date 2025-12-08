@@ -19,37 +19,49 @@ export async function GET() {
     
     // Proveri ScrapingBee API key status
     const scrapingBeeApiKey = process.env.SCRAPINGBEE_API_KEY?.trim();
-    console.log('ScrapingBee API key status:', {
-      exists: !!scrapingBeeApiKey,
-      length: scrapingBeeApiKey?.length || 0,
-      preview: scrapingBeeApiKey ? `${scrapingBeeApiKey.substring(0, 10)}...` : 'N/A',
-    });
+    const isVercel = process.env.VERCEL === '1' || process.env.VERCEL_ENV;
     
-    // Pokušaj da inicijalizujemo browser automation (Playwright ili Puppeteer)
-    // Ovo je važno jer fetch metoda ne može da vidi JavaScript-renderovane tabele
+    console.log('=== API ROUTE DEBUG ===');
+    console.log('Environment:', {
+      VERCEL: process.env.VERCEL,
+      VERCEL_ENV: process.env.VERCEL_ENV,
+      NODE_ENV: process.env.NODE_ENV,
+      isVercel: isVercel,
+    });
+    console.log('ScrapingBee API key status:', {
+      exists: !!process.env.SCRAPINGBEE_API_KEY,
+      trimmed: !!scrapingBeeApiKey,
+      length: scrapingBeeApiKey?.length || 0,
+      preview: scrapingBeeApiKey ? `${scrapingBeeApiKey.substring(0, 10)}...${scrapingBeeApiKey.substring(scrapingBeeApiKey.length - 5)}` : 'N/A',
+    });
+    console.log('=== END API ROUTE DEBUG ===');
+    
+    // Ako postoji ScrapingBee API key, preskoči browser automation inicijalizaciju
+    // ScrapingBee će biti korišćen direktno u scrapeStandings()
     let browserInitialized = false;
-    try {
-      console.log('Inicijalizacija browser automation-a...');
-      console.log('Environment:', {
-        VERCEL: process.env.VERCEL,
-        VERCEL_ENV: process.env.VERCEL_ENV,
-        NODE_ENV: process.env.NODE_ENV,
-        SCRAPINGBEE_AVAILABLE: !!scrapingBeeApiKey,
-      });
-      
-      browserInitialized = await scraper.initialize();
-      if (browserInitialized) {
-        console.log('✓ Browser automation uspešno inicijalizovan - koristiće se za scraping');
-      } else {
-        console.error('✗ Browser automation nije uspeo da se inicijalizuje');
-        console.error('Proverite da li su instalirani puppeteer-core i @sparticuz/chromium paketi.');
-        console.error('U Vercel produkciji, ovi paketi su obavezni za JavaScript-renderovane stranice.');
+    
+    if (!scrapingBeeApiKey) {
+      // Pokušaj da inicijalizujemo browser automation samo ako nema ScrapingBee API key
+      // Ovo je važno jer fetch metoda ne može da vidi JavaScript-renderovane tabele
+      try {
+        console.log('Inicijalizacija browser automation-a (ScrapingBee nije dostupan)...');
+        browserInitialized = await scraper.initialize();
+        if (browserInitialized) {
+          console.log('✓ Browser automation uspešno inicijalizovan - koristiće se za scraping');
+        } else {
+          console.error('✗ Browser automation nije uspeo da se inicijalizuje');
+          console.error('Proverite da li su instalirani puppeteer-core i @sparticuz/chromium paketi.');
+          console.error('U Vercel produkciji, ovi paketi su obavezni za JavaScript-renderovane stranice.');
+        }
+      } catch (initError: any) {
+        console.error('✗ Browser automation inicijalizacija neuspešna:', initError.message);
+        console.error('Stack trace:', initError.stack);
+        console.error('NAPOMENA: Fetch metoda neće moći da pronađe tabelu ako stranica koristi JavaScript za renderovanje.');
+        console.error('U produkciji (Vercel), proverite da li su instalirani puppeteer-core i @sparticuz/chromium paketi.');
       }
-    } catch (initError: any) {
-      console.error('✗ Browser automation inicijalizacija neuspešna:', initError.message);
-      console.error('Stack trace:', initError.stack);
-      console.error('NAPOMENA: Fetch metoda neće moći da pronađe tabelu ako stranica koristi JavaScript za renderovanje.');
-      console.error('U produkciji (Vercel), proverite da li su instalirani puppeteer-core i @sparticuz/chromium paketi.');
+    } else {
+      console.log('✓ ScrapingBee API key je dostupan - preskačem browser automation inicijalizaciju');
+      console.log('ScrapingBee će biti korišćen direktno u scrapeStandings()');
     }
     
     let scrapedData: any[] = [];

@@ -228,7 +228,24 @@ export class WABAStandingsScraper {
   async scrapeStandings(): Promise<WabaTeamData[]> {
     // Proveri prvo da li postoji ScrapingBee API key - koristi ga kao primarni način
     // ScrapingBee radi i u development i u production okruženju
+    const isVercel = process.env.VERCEL === '1' || process.env.VERCEL_ENV;
     const scrapingBeeApiKey = process.env.SCRAPINGBEE_API_KEY?.trim();
+    
+    // Debug: loguj sve environment variables koje se tiču ScrapingBee
+    console.log('=== SCRAPINGBEE DEBUG ===');
+    console.log('Environment check:', {
+      VERCEL: process.env.VERCEL,
+      VERCEL_ENV: process.env.VERCEL_ENV,
+      NODE_ENV: process.env.NODE_ENV,
+      isVercel: isVercel,
+    });
+    console.log('ScrapingBee API key check:', {
+      exists: !!process.env.SCRAPINGBEE_API_KEY,
+      trimmed: !!scrapingBeeApiKey,
+      length: scrapingBeeApiKey?.length || 0,
+      preview: scrapingBeeApiKey ? `${scrapingBeeApiKey.substring(0, 10)}...${scrapingBeeApiKey.substring(scrapingBeeApiKey.length - 5)}` : 'N/A',
+    });
+    console.log('=== END SCRAPINGBEE DEBUG ===');
     
     console.log('Provera ScrapingBee API key:', scrapingBeeApiKey ? `DOSTUPAN (${scrapingBeeApiKey.length} karaktera)` : 'NIJE DOSTUPAN');
     
