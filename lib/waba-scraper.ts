@@ -272,6 +272,11 @@ export class WABAStandingsScraper {
 
     // Ako Puppeteer nije dostupan ili nije uspeo da se inicijalizuje, koristi fetch
     if (!this.usePuppeteer || !this.browser) {
+      const isVercel = process.env.VERCEL === '1' || process.env.VERCEL_ENV;
+      if (isVercel) {
+        // U Vercel produkciji, fetch metoda neće raditi jer stranica koristi JavaScript
+        throw new Error('Browser automation nije dostupan u Vercel produkciji. Proverite da li su instalirani puppeteer-core i @sparticuz/chromium paketi, ili da li je ScrapingBee API key pravilno postavljen.');
+      }
       console.log('Koristim fetch metodu jer browser automation nije dostupan ili nije inicijalizovan');
       console.warn('NAPOMENA: Fetch metoda možda neće moći da pronađe tabelu ako stranica koristi JavaScript za renderovanje.');
       return this.scrapeWithFetch();
@@ -572,14 +577,19 @@ export class WABAStandingsScraper {
     try {
       // ScrapingBee API sa render_js=true za JavaScript-renderovane stranice
       // Povećaj wait vreme da se tabela potpuno učita (maksimum je 10000ms)
-      const scrapingBeeUrl = `https://app.scrapingbee.com/api/v1/?api_key=${encodeURIComponent(scrapingBeeApiKey)}&url=${encodeURIComponent(CONFIG.URL)}&render_js=true&wait=10000`;
+      // Dodaj premium=true za bolje renderovanje JavaScript-a
+      const scrapingBeeUrl = `https://app.scrapingbee.com/api/v1/?api_key=${encodeURIComponent(scrapingBeeApiKey)}&url=${encodeURIComponent(CONFIG.URL)}&render_js=true&wait=10000&premium=true`;
       
       console.log('Pozivam ScrapingBee API...');
+      console.log('ScrapingBee URL (bez API key):', `https://app.scrapingbee.com/api/v1/?url=${encodeURIComponent(CONFIG.URL)}&render_js=true&wait=10000&premium=true`);
+      
       const response = await fetch(scrapingBeeUrl, {
         method: 'GET',
         headers: {
           'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         },
+        // Povećaj timeout za produkciju
+        signal: AbortSignal.timeout(60000), // 60 sekundi timeout
       });
 
       if (!response.ok) {
@@ -609,10 +619,20 @@ export class WABAStandingsScraper {
       const hasMbtTable = html.includes('mbt-table') || html.includes('mbt-standings');
       console.log(`HTML sadrži mbt-table: ${hasMbtTable}`);
       
+      // Proveri da li HTML sadrži team_id linkove (glavna tabela)
+      const hasTeamIdLinks = html.includes('team_id') || html.includes('teamId');
+      console.log(`HTML sadrži team_id linkove: ${hasTeamIdLinks}`);
+      
       // Debug: loguj mali deo HTML-a da vidimo strukturu
       const tableMatch = html.match(/<table[^>]*class="[^"]*mbt[^"]*"[^>]*>[\s\S]{0,500}/i);
       if (tableMatch) {
         console.log('Pronađena mbt tabela u HTML-u:', tableMatch[0].substring(0, 200));
+      }
+      
+      // Ako nema mbt-table u HTML-u, možda ScrapingBee nije dovoljno čekao
+      if (!hasMbtTable && !hasTeamIdLinks) {
+        console.warn('⚠ ScrapingBee HTML ne sadrži mbt-table ili team_id linkove - možda JavaScript nije renderovan');
+        console.warn('Pokušavam parsiranje ipak...');
       }
       
       const standings = this.parseRowsDirectly(html);
@@ -627,7 +647,49 @@ export class WABAStandingsScraper {
           console.log('Debug - pronađena tabela u HTML-u:', debugTableMatch[0].substring(0, 500));
         }
         
-        // Možda treba da sačekamo malo duže ili koristimo drugačije parametre
+        // Proveri da li možda postoji problem sa renderovanjem
+        const hasScriptTags = html.includes('<script') && html.includes('</script>');
+        const hasBodyTag = html.includes('<body');
+        console.log(`HTML struktura: hasScriptTags=${hasScriptTags}, hasBodyTag=${hasBodyTag}`);
+        
+        // Ako nema mbt-table, pokušaj ponovo sa dužim čekanjem
+        if (!hasMbtTable) {
+          console.warn('⚠ Prvi ScrapingBee poziv nije vratio mbt-table, pokušavam ponovo sa dužim čekanjem...');
+          
+          // Pokušaj ponovo sa još dužim čekanjem (maksimum 10 sekundi)
+          const retryUrl = `https://app.scrapingbee.com/api/v1/?api_key=${encodeURIComponent(scrapingBeeApiKey)}&url=${encodeURIComponent(CONFIG.URL)}&render_js=true&wait=10000&premium=true&block_resources=image,media,font`;
+          
+          try {
+            const retryResponse = await fetch(retryUrl, {
+              method: 'GET',
+              headers: {
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+              },
+              signal: AbortSignal.timeout(60000),
+            });
+            
+            if (retryResponse.ok) {
+              const retryHtml = await retryResponse.text();
+              console.log(`ScrapingBee retry vratio ${retryHtml.length} karaktera HTML-a`);
+              
+              const retryHasMbtTable = retryHtml.includes('mbt-table') || retryHtml.includes('mbt-standings');
+              const retryHasTeamIdLinks = retryHtml.includes('team_id') || retryHtml.includes('teamId');
+              
+              if (retryHasMbtTable || retryHasTeamIdLinks) {
+                const retryStandings = this.parseRowsDirectly(retryHtml);
+                if (retryStandings.length > 0) {
+                  console.log(`✓ Retry uspešan: pronađeno ${retryStandings.length} timova`);
+                  return retryStandings;
+                }
+              }
+            }
+          } catch (retryErr: any) {
+            console.warn('Retry ScrapingBee poziv neuspešan:', retryErr.message);
+          }
+          
+          throw new Error('ScrapingBee vratio HTML ali tabela (mbt-table) nije pronađena. JavaScript možda nije renderovan. Pokušajte sa browser automation fallback.');
+        }
+        
         throw new Error('ScrapingBee vratio HTML ali tabela nije pronađena ili nema podataka');
       }
 
