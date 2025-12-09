@@ -66,6 +66,23 @@ body {
   display: none;
 }
 
+/* Optimizacije za smooth scrolling na mobilnim uređajima */
+@media (max-width: 768px) {
+  .scrollbar-hide {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x proximity;
+  }
+  
+  /* Hardware acceleration za slajdere */
+  [class*="slider"],
+  [class*="carousel"] {
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    perspective: 1000px;
+  }
+}
+
 /* Partneri slider animation */
 @keyframes scroll {
   0% {

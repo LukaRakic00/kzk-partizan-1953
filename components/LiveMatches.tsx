@@ -125,26 +125,45 @@ export default function LiveMatches() {
   const [isVisible, setIsVisible] = useState(true);
   const lastScrollY = useRef(0);
 
-  // Auto-scroll kontinuirano u desno za predstojeće mečeve
+  // Auto-scroll kontinuirano u desno za predstojeće mečeve - optimizovano za mobilne uređaje
   useEffect(() => {
     if (!upcomingSliderRef.current || upcomingMatches.length === 0) return;
 
     const container = upcomingSliderRef.current;
-    const scrollSpeed = 1; // px per frame
+    const isMobile = window.innerWidth < 768;
+    // Smanji brzinu na mobilnim uređajima za bolje performanse
+    const scrollSpeed = isMobile ? 0.5 : 1; // px per frame
+    let lastTime = performance.now();
+    const targetFPS = isMobile ? 30 : 60; // Smanji FPS na mobilnim uređajima
+    const frameInterval = 1000 / targetFPS;
 
-    const autoScroll = () => {
+    const autoScroll = (currentTime: number) => {
       if (isUserInteracting.current) {
         upcomingAutoScrollRef.current = requestAnimationFrame(autoScroll);
         return;
       }
 
+      // Throttle na mobilnim uređajima
+      const deltaTime = currentTime - lastTime;
+      if (deltaTime < frameInterval) {
+        upcomingAutoScrollRef.current = requestAnimationFrame(autoScroll);
+        return;
+      }
+      lastTime = currentTime - (deltaTime % frameInterval);
+
       const maxScroll = container.scrollWidth - container.clientWidth;
       const currentScroll = container.scrollLeft;
+
+      if (maxScroll <= 0) {
+        upcomingAutoScrollRef.current = requestAnimationFrame(autoScroll);
+        return;
+      }
 
       if (currentScroll >= maxScroll - 1) {
         // Reset na početak bez animacije za kontinuirani efekat
         container.scrollLeft = 0;
       } else {
+        // Koristi requestAnimationFrame za smooth scroll
         container.scrollLeft = currentScroll + scrollSpeed;
       }
 
@@ -160,7 +179,7 @@ export default function LiveMatches() {
     };
   }, [upcomingMatches]);
 
-  // Auto-scroll kontinuirano u desno za protekle mečeve - samo kada je vidljiv
+  // Auto-scroll kontinuirano u desno za protekle mečeve - optimizovano za mobilne uređaje
   useEffect(() => {
     if (!pastSliderRef.current || pastMatches.length === 0 || !isVisible) {
       // Zaustavi auto-scroll ako nije vidljiv
@@ -172,22 +191,41 @@ export default function LiveMatches() {
     }
 
     const container = pastSliderRef.current;
-    const scrollSpeed = 1; // px per frame
+    const isMobile = window.innerWidth < 768;
+    // Smanji brzinu na mobilnim uređajima za bolje performanse
+    const scrollSpeed = isMobile ? 0.5 : 1; // px per frame
+    let lastTime = performance.now();
+    const targetFPS = isMobile ? 30 : 60; // Smanji FPS na mobilnim uređajima
+    const frameInterval = 1000 / targetFPS;
 
-    const autoScroll = () => {
+    const autoScroll = (currentTime: number) => {
       // Zaustavi ako nije više vidljiv
       if (!isVisible || isUserInteracting.current) {
         pastAutoScrollRef.current = requestAnimationFrame(autoScroll);
         return;
       }
 
+      // Throttle na mobilnim uređajima
+      const deltaTime = currentTime - lastTime;
+      if (deltaTime < frameInterval) {
+        pastAutoScrollRef.current = requestAnimationFrame(autoScroll);
+        return;
+      }
+      lastTime = currentTime - (deltaTime % frameInterval);
+
       const maxScroll = container.scrollWidth - container.clientWidth;
       const currentScroll = container.scrollLeft;
+
+      if (maxScroll <= 0) {
+        pastAutoScrollRef.current = requestAnimationFrame(autoScroll);
+        return;
+      }
 
       if (currentScroll >= maxScroll - 1) {
         // Reset na početak bez animacije za kontinuirani efekat
         container.scrollLeft = 0;
       } else {
+        // Koristi requestAnimationFrame za smooth scroll
         container.scrollLeft = currentScroll + scrollSpeed;
       }
 
@@ -203,12 +241,19 @@ export default function LiveMatches() {
     };
   }, [pastMatches, isVisible]);
 
-  // Pause auto-scroll kada korisnik interaguje
+  // Pause auto-scroll kada korisnik interaguje - optimizovano
   const handleUserInteraction = () => {
+    if (isUserInteracting.current) return; // Izbegni višestruke pozive
+    
     isUserInteracting.current = true;
-    setTimeout(() => {
+    
+    // Koristi requestAnimationFrame za bolje performanse
+    const timeoutId = setTimeout(() => {
       isUserInteracting.current = false;
     }, 3000); // Pauziraj 3 sekunde nakon interakcije
+    
+    // Cleanup timeout ako komponenta unmount-uje
+    return () => clearTimeout(timeoutId);
   };
 
   // Detektuj scroll direction i sakrij/prikaži slajder
@@ -274,11 +319,22 @@ export default function LiveMatches() {
                 scrollbarWidth: 'none', 
                 msOverflowStyle: 'none',
                 WebkitOverflowScrolling: 'touch',
-                touchAction: 'pan-x'
+                touchAction: 'pan-x',
+                willChange: 'scroll-position',
+                contain: 'layout style paint',
+                scrollBehavior: 'auto'
               }}
             >
               {upcomingMatches.map((match, index) => (
-                <div key={match.id} className="flex-shrink-0 w-full md:w-96">
+                <div 
+                  key={match.id} 
+                  className="flex-shrink-0 w-full md:w-96"
+                  style={{ 
+                    transform: 'translateZ(0)',
+                    backfaceVisibility: 'hidden',
+                    willChange: 'transform'
+                  }}
+                >
                   <MatchCard match={match} index={index} />
                 </div>
               ))}
@@ -309,7 +365,10 @@ export default function LiveMatches() {
                     scrollbarWidth: 'none', 
                     msOverflowStyle: 'none',
                     WebkitOverflowScrolling: 'touch',
-                    touchAction: 'pan-x'
+                    touchAction: 'pan-x',
+                    willChange: 'scroll-position',
+                    contain: 'layout style paint',
+                    scrollBehavior: 'auto'
                   }}
             >
               {pastMatches.slice(0, 20).map((match, index) => (
@@ -319,6 +378,11 @@ export default function LiveMatches() {
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: index * 0.05 }}
                       className="flex-shrink-0 bg-white/5 border border-white/10 rounded-lg p-1.5 sm:p-2 md:p-3 hover:bg-white/10 transition-all w-[70vw] sm:w-56 md:min-w-[240px]"
+                      style={{ 
+                        transform: 'translateZ(0)',
+                        backfaceVisibility: 'hidden',
+                        willChange: 'transform'
+                      }}
             >
                       {/* Date and Time - Još kompaktnije */}
                       <div className="flex items-center justify-between mb-1.5 sm:mb-2 pb-1.5 sm:pb-2 border-b border-white/10">
