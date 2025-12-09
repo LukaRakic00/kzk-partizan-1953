@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import { Menu, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiClient } from '@/lib/api-client';
-import Image from 'next/image';
+import CloudinaryImage from './CloudinaryImage';
 
 const navItems = [
   { href: '/', label: 'POČETNA' },
@@ -27,6 +27,8 @@ export default function Navbar() {
   const [showMobileTimDropdown, setShowMobileTimDropdown] = useState(false);
   const [showIgraciDropdown, setShowIgraciDropdown] = useState(false);
   const [showMobileIgraciDropdown, setShowMobileIgraciDropdown] = useState(false);
+  const [showKontaktDropdown, setShowKontaktDropdown] = useState(false);
+  const [showMobileKontaktDropdown, setShowMobileKontaktDropdown] = useState(false);
   const pathname = usePathname();
 
   useEffect(() => {
@@ -238,6 +240,53 @@ export default function Navbar() {
                   </div>
                 );
               }
+              if (item.href === '/kontakt') {
+                return (
+                  <div
+                    key={item.href}
+                    className="relative"
+                    onMouseEnter={() => setShowKontaktDropdown(true)}
+                    onMouseLeave={() => setShowKontaktDropdown(false)}
+                  >
+                    <Link
+                      href={item.href}
+                      className={`text-sm lg:text-base font-bold font-montserrat tracking-wider uppercase transition-colors relative group px-2 py-1 ${
+                        pathname === item.href
+                          ? 'text-white'
+                          : 'text-gray-300 hover:text-white'
+                      }`}
+                    >
+                      {item.label}
+                      {pathname === item.href && (
+                        <motion.div
+                          className="absolute -bottom-1 left-0 right-0 h-0.5 bg-white"
+                          layoutId="underline"
+                        />
+                      )}
+                    </Link>
+                    {/* Dropdown Menu */}
+                    <AnimatePresence>
+                      {showKontaktDropdown && (
+                        <motion.div
+                          initial={{ opacity: 0, y: -10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -10 }}
+                          transition={{ duration: 0.2 }}
+                          className="absolute top-full right-0 mt-2 bg-black/95 backdrop-blur-sm border border-white/10 rounded-lg shadow-xl min-w-[200px] py-2"
+                        >
+                          <Link
+                            href="/kontakt#skola-kosarke"
+                            className="block px-4 py-2 text-sm font-montserrat tracking-wider uppercase text-gray-300 hover:text-white hover:bg-white/10 transition-colors"
+                            onClick={() => setShowKontaktDropdown(false)}
+                          >
+                            Škola Košarke
+                          </Link>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                );
+              }
               return (
               <Link
                 key={item.href}
@@ -279,12 +328,14 @@ export default function Navbar() {
           >
             {logoUrl && (
               <div className="relative w-28 h-28 md:w-36 md:h-36 lg:w-40 lg:h-40 flex-shrink-0">
-                <Image
+                <CloudinaryImage
                   src={logoUrl}
                   alt="KŽK Partizan 1953 Logo"
                   fill
                   className="object-contain transition-transform duration-300 group-hover:scale-110"
                   priority
+                  placeholder="blur"
+                  objectFit="contain"
                 />
               </div>
             )}
@@ -311,12 +362,14 @@ export default function Navbar() {
         <Link href="/" className="flex items-center justify-center group">
           {logoUrl && (
             <div className="relative w-24 h-24 flex-shrink-0">
-              <Image
+              <CloudinaryImage
                 src={logoUrl}
                 alt="KŽK Partizan 1953 Logo"
                 fill
                 className="object-contain transition-transform duration-300 group-hover:scale-110"
                 priority
+                placeholder="blur"
+                objectFit="contain"
               />
             </div>
           )}
@@ -491,6 +544,41 @@ export default function Navbar() {
                             className="block text-sm font-montserrat tracking-wider uppercase text-gray-400 hover:text-white transition-colors"
                           >
                             Stručni Štab
+                          </Link>
+                        </motion.div>
+                      )}
+                    </div>
+                  );
+                }
+                if (item.href === '/kontakt') {
+                  return (
+                    <div key={item.href}>
+                      <button
+                        onClick={() => setShowMobileKontaktDropdown(!showMobileKontaktDropdown)}
+                        className={`w-full text-left text-sm font-bold tracking-wider uppercase transition-colors ${
+                          pathname === item.href
+                            ? 'text-white border-l-2 border-white pl-4'
+                            : 'text-gray-300 hover:text-white pl-4'
+                        }`}
+                      >
+                        {item.label}
+                      </button>
+                      {showMobileKontaktDropdown && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          className="pl-6 mt-2 space-y-2"
+                        >
+                          <Link
+                            href="/kontakt#skola-kosarke"
+                            onClick={() => {
+                              setIsOpen(false);
+                              setShowMobileKontaktDropdown(false);
+                            }}
+                            className="block text-sm font-montserrat tracking-wider uppercase text-gray-400 hover:text-white transition-colors"
+                          >
+                            Škola Košarke
                           </Link>
                         </motion.div>
                       )}

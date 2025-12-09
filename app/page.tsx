@@ -12,6 +12,7 @@ import Link from 'next/link';
 import { ArrowRight, Trophy, Users, Calendar, Newspaper, Clock, MapPin, Radio, Send, Mail, Phone } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
+import CloudinaryImage from '@/components/CloudinaryImage';
 import toast from 'react-hot-toast';
 
 export default function Home() {
@@ -34,6 +35,7 @@ export default function Home() {
     message: '',
   });
   const [submittingContact, setSubmittingContact] = useState(false);
+  const [showScrollIndicator, setShowScrollIndicator] = useState(true);
   
   // Pripremi mečeve za carousel (prioritet: live > next > prethodni mečevi po datumu)
   const matchesForCarousel = [];
@@ -63,6 +65,33 @@ export default function Home() {
   useEffect(() => {
     loadData();
   }, []);
+
+  // Praćenje scroll pozicije za sakrivanje indikatora
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollPosition = window.scrollY || window.pageYOffset;
+      const heroHeight = window.innerHeight;
+      // Sakrij indikator kada korisnik scrolluje dole
+      setShowScrollIndicator(scrollPosition < heroHeight * 0.8);
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Funkcija za scroll do sledeće sekcije
+  const scrollToNextSection = () => {
+    const heroSection = document.querySelector('section:first-of-type');
+    if (heroSection) {
+      const nextSection = heroSection.nextElementSibling as HTMLElement;
+      if (nextSection) {
+        nextSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } else {
+        // Ako nema sledeće sekcije, scrolluj malo dole
+        window.scrollBy({ top: window.innerHeight * 0.8, behavior: 'smooth' });
+      }
+    }
+  };
 
   const loadData = async () => {
     try {
@@ -150,37 +179,43 @@ export default function Home() {
           <>
             {/* Desktop Hero Image */}
             <div className="hidden md:block absolute inset-0 z-0">
-              <Image
+              <CloudinaryImage
                 src={heroImage}
                 alt="Hero"
                 fill
                 className="object-cover opacity-70"
                 priority
+                placeholder="skeleton"
+                objectFit="cover"
               />
             </div>
             {/* Mobile Hero Image */}
             {heroImageMobile && (
               <div className="md:hidden absolute inset-0 z-0">
-                <Image
+                <CloudinaryImage
                   src={heroImageMobile}
                   alt="Hero Mobile"
                   fill
                   className="object-cover opacity-70"
                   priority
+                  placeholder="skeleton"
+                  objectFit="cover"
                 />
               </div>
             )}
             {/* Fallback ako nema mobilne slike */}
             {!heroImageMobile && (
               <div className="md:hidden absolute inset-0 z-0">
-            <Image
-              src={heroImage}
-              alt="Hero"
-              fill
-              className="object-cover opacity-70"
-              priority
-            />
-          </div>
+                <CloudinaryImage
+                  src={heroImage}
+                  alt="Hero"
+                  fill
+                  className="object-cover opacity-70"
+                  priority
+                  placeholder="skeleton"
+                  objectFit="cover"
+                />
+              </div>
             )}
           </>
         ) : (
@@ -373,11 +408,44 @@ export default function Home() {
         </div>
 
         {/* Scroll Indicator */}
-        <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-10 animate-bounce">
-          <div className="w-6 h-10 border-2 border-white rounded-full flex items-start justify-center p-2">
-            <div className="w-1 h-3 bg-white rounded-full"></div>
-          </div>
-        </div>
+        {showScrollIndicator && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-10 cursor-pointer select-none"
+            style={{ touchAction: 'manipulation' }}
+            onClick={scrollToNextSection}
+            onTouchEnd={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              scrollToNextSection();
+            }}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                scrollToNextSection();
+              }
+            }}
+            aria-label="Scroll to next section"
+          >
+            <div className="w-6 h-10 border-2 border-white rounded-full flex items-start justify-center p-2 hover:border-gray-300 active:scale-95 transition-all">
+              <motion.div
+                className="w-1 h-3 bg-white rounded-full"
+                animate={{
+                  y: [0, 8, 0],
+                }}
+                transition={{
+                  duration: 1.5,
+                  repeat: Infinity,
+                  ease: 'easeInOut',
+                }}
+              />
+            </div>
+          </motion.div>
+        )}
       </section>
 
       {/* Background Image Section */}

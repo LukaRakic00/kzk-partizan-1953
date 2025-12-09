@@ -141,8 +141,12 @@ export default function VestiPage() {
         </div>
       </section>
 
-        <LeagueTable />
-        <LiveMatches />
+        <div className="pt-12">
+          <LeagueTable />
+        </div>
+        <div className="pt-12">
+          <LiveMatches />
+        </div>
         <Footer />
       </div>
     </main>

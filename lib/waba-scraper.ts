@@ -37,7 +37,7 @@ try {
 
 const CONFIG = {
   LEAGUE_ID: '31913',
-  URL: 'https://waba-league.com/season/standings/?leagueId=31913',
+  URL: 'https://waba-league.com/season/standings/',
   TIMEOUT: 30000,
 };
 
@@ -212,10 +212,16 @@ export class WABAStandingsScraper {
       playwright: !!playwright,
       vercel: isVercel,
       production: isProduction,
+      scrapeDoToken: !!(process.env.SCRAPE_DO_TOKEN || process.env.SCRAPEDO_TOKEN),
       scrapingBeeApiKey: !!process.env.SCRAPINGBEE_API_KEY,
     });
     
-    // Ako postoji ScrapingBee API key, to je OK - koristićemo ga umesto browser automation
+    // Ako postoji Scrape.do token ili ScrapingBee API key, to je OK - koristićemo ga umesto browser automation
+    const scrapeDoToken = process.env.SCRAPE_DO_TOKEN?.trim() || process.env.SCRAPEDO_TOKEN?.trim();
+    if (scrapeDoToken) {
+      console.log('ℹ Scrape.do token je dostupan - koristiće se umesto browser automation');
+      return false; // Vraćamo false ali će Scrape.do biti korišćen u scrapeStandings
+    }
     if (process.env.SCRAPINGBEE_API_KEY) {
       console.log('ℹ ScrapingBee API key je dostupan - koristiće se umesto browser automation');
       return false; // Vraćamo false ali će ScrapingBee biti korišćen u scrapeStandings
@@ -226,9 +232,50 @@ export class WABAStandingsScraper {
   }
 
   async scrapeStandings(): Promise<WabaTeamData[]> {
-    // Proveri prvo da li postoji ScrapingBee API key - koristi ga kao primarni način
-    // ScrapingBee radi i u development i u production okruženju
+    // Proveri prvo da li postoji Scrape.do API token - koristi ga kao primarni način
+    // Scrape.do radi i u development i u production okruženju
     const isVercel = process.env.VERCEL === '1' || process.env.VERCEL_ENV;
+    const scrapeDoToken = process.env.SCRAPE_DO_TOKEN?.trim() || process.env.SCRAPEDO_TOKEN?.trim();
+    
+    // Ako postoji Scrape.do token, koristi ga prvo
+    if (scrapeDoToken) {
+      console.log(`✓ Koristim Scrape.do API (preporučeno za ${isVercel ? 'produkciji (Vercel)' : 'development'})...`);
+      try {
+        const standings = await this.scrapeWithScrapeDo();
+        if (standings && standings.length > 0) {
+          console.log(`✓ Scrape.do uspešan: pronađeno ${standings.length} timova`);
+          return standings;
+        } else {
+          console.warn('Scrape.do vratio prazan rezultat, pokušavam sa ScrapingBee...');
+        }
+      } catch (sdError: any) {
+        const errorMsg = sdError?.message || String(sdError);
+        console.error('✗ Scrape.do API neuspešan:', errorMsg);
+        
+        // Ako je greška vezana za JavaScript renderovanje, brzo pređi na browser automation
+        if (errorMsg.includes('JavaScript nije renderovan') || errorMsg.includes('mbt-table') || errorMsg.includes('nije pronađena')) {
+          console.warn('⚠ Scrape.do ne renderuje JavaScript - prebacujem se direktno na browser automation');
+          // Inicijalizuj browser automation ako nije već inicijalizovan
+          if (!this.browser) {
+            console.log('Inicijalizujem browser automation za fallback...');
+            await this.initialize();
+          }
+          // Preskoči ScrapingBee i idi direktno na browser automation
+          if (this.usePlaywright && this.browser) {
+            return this.scrapeWithPlaywright();
+          }
+          if (this.usePuppeteer && this.browser) {
+            // Fallback na Puppeteer će se desiti u nastavku
+          }
+        } else {
+          console.warn('Pokušavam sa ScrapingBee fallback...');
+          // Nastavi sa ScrapingBee fallback samo ako nije greška vezana za renderovanje
+        }
+      }
+    }
+    
+    // Proveri da li postoji ScrapingBee API key - koristi ga kao sekundarni način
+    // ScrapingBee radi i u development i u production okruženju
     const scrapingBeeApiKey = process.env.SCRAPINGBEE_API_KEY?.trim();
     
     // Debug: loguj sve environment variables koje se tiču ScrapingBee
@@ -239,11 +286,28 @@ export class WABAStandingsScraper {
       NODE_ENV: process.env.NODE_ENV,
       isVercel: isVercel,
     });
+    
+    // Proveri sve moguće varijante imena environment variable
+    const envVars = {
+      'SCRAPINGBEE_API_KEY': process.env.SCRAPINGBEE_API_KEY,
+      'NEXT_PUBLIC_SCRAPINGBEE_API_KEY': process.env.NEXT_PUBLIC_SCRAPINGBEE_API_KEY,
+      'scrapingbee_api_key': process.env.scrapingbee_api_key,
+    };
+    
+    console.log('All ScrapingBee env vars:', Object.keys(envVars).map(key => ({
+      key,
+      exists: !!envVars[key as keyof typeof envVars],
+      length: envVars[key as keyof typeof envVars]?.length || 0,
+    })));
+    
     console.log('ScrapingBee API key check:', {
       exists: !!process.env.SCRAPINGBEE_API_KEY,
       trimmed: !!scrapingBeeApiKey,
       length: scrapingBeeApiKey?.length || 0,
       preview: scrapingBeeApiKey ? `${scrapingBeeApiKey.substring(0, 10)}...${scrapingBeeApiKey.substring(scrapingBeeApiKey.length - 5)}` : 'N/A',
+      isEmpty: scrapingBeeApiKey === '',
+      isUndefined: scrapingBeeApiKey === undefined,
+      isNull: scrapingBeeApiKey === null,
     });
     console.log('=== END SCRAPINGBEE DEBUG ===');
     
@@ -268,18 +332,40 @@ export class WABAStandingsScraper {
           stack: sbError.stack?.substring(0, 500),
         });
         
-        // Ako je greška vezana za invalid API key, loguj upozorenje ali nastavi sa fallback
+        // Ako je greška vezana za invalid API key ili u Vercel-u, baci jasnu grešku
         if (sbError.message && sbError.message.includes('Invalid API key')) {
+          if (isVercel) {
+            throw new Error('ScrapingBee API key nije validan. Proverite da li je SCRAPINGBEE_API_KEY pravilno postavljen u Vercel Environment Variables (Settings → Environment Variables → Production) i da li je validan na ScrapingBee dashboard-u.');
+          }
           console.warn('⚠ ScrapingBee API key nije validan. Koristim browser automation fallback...');
           console.warn('Za produkciju, proverite da li je ScrapingBee API key pravilno postavljen u Vercel Environment Variables.');
-          // Ne baci grešku, nastavi sa browser automation fallback
+        } else if (isVercel) {
+          // U Vercel-u, ako ScrapingBee ne radi, baci grešku umesto da pokušava browser automation
+          throw new Error(`ScrapingBee API neuspešan u Vercel produkciji: ${sbError.message}. Proverite da li je SCRAPINGBEE_API_KEY pravilno postavljen i da li imate dovoljno kredita na ScrapingBee nalogu.`);
         } else {
           console.warn('Pokušavam sa browser automation fallback...');
         }
-        // Nastavi sa browser automation fallback
+        // Nastavi sa browser automation fallback samo ako nismo u Vercel-u
+        if (!isVercel) {
+          // Nastavi sa browser automation fallback
+        } else {
+          throw sbError; // U Vercel-u, baci grešku
+        }
       }
     } else {
+      // Ako nema ScrapingBee API key u Vercel produkciji, proveri da li postoji Scrape.do token
+      if (isVercel) {
+        if (!scrapeDoToken) {
+          throw new Error('Nijedan scraping API nije dostupan u Vercel produkciji. Proverite da li je SCRAPE_DO_TOKEN ili SCRAPINGBEE_API_KEY pravilno postavljen u Vercel Environment Variables (Settings → Environment Variables → Production).');
+        }
+      }
       console.log('ScrapingBee API key nije dostupan, koristim browser automation ili fetch');
+    }
+
+    // Ako browser automation nije inicijalizovan, pokušaj da ga inicijalizuješ
+    if (!this.browser) {
+      console.log('Browser automation nije inicijalizovan, pokušavam inicijalizaciju...');
+      await this.initialize();
     }
 
     // Ako Playwright je dostupan, koristi ga
@@ -287,12 +373,17 @@ export class WABAStandingsScraper {
       return this.scrapeWithPlaywright();
     }
 
-    // Ako Puppeteer nije dostupan ili nije uspeo da se inicijalizuje, koristi fetch
+    // Ako Puppeteer je dostupan, koristi ga
+    if (this.usePuppeteer && this.browser) {
+      // Puppeteer će se koristiti u nastavku koda
+    }
+
+    // Ako browser automation nije dostupan ili nije uspeo da se inicijalizuje, koristi fetch
     if (!this.usePuppeteer || !this.browser) {
-      const isVercel = process.env.VERCEL === '1' || process.env.VERCEL_ENV;
       if (isVercel) {
         // U Vercel produkciji, fetch metoda neće raditi jer stranica koristi JavaScript
-        throw new Error('Browser automation nije dostupan u Vercel produkciji. Proverite da li su instalirani puppeteer-core i @sparticuz/chromium paketi, ili da li je ScrapingBee API key pravilno postavljen.');
+        // Ako smo došli ovde, znači da Scrape.do i ScrapingBee nisu radili i browser automation nije dostupan
+        throw new Error('Browser automation nije dostupan u Vercel produkciji. Proverite da li su instalirani puppeteer-core i @sparticuz/chromium paketi, ili da li je SCRAPE_DO_TOKEN ili SCRAPINGBEE_API_KEY pravilno postavljen u Vercel Environment Variables.');
       }
       console.log('Koristim fetch metodu jer browser automation nije dostupan ili nije inicijalizovan');
       console.warn('NAPOMENA: Fetch metoda možda neće moći da pronađe tabelu ako stranica koristi JavaScript za renderovanje.');
@@ -439,7 +530,7 @@ export class WABAStandingsScraper {
         const data: WabaTeamData[] = [];
         
         // Lista header redova koje treba preskočiti
-        const skipHeaders = ['Games', 'Wins', 'Losses', 'Losses by forfeit', 'Team', 'G', 'W', 'L', 'P', 'No', 'W/L', 'Points'];
+        const skipHeaders = ['Games', 'Wins', 'Losses', 'Losses by forfeit', 'Team', 'G', 'W', 'L', 'P', 'No', 'W/L', 'Points', '#', 'Rank'];
 
         rows.forEach((row, index) => {
           // Preskoči header redove (th elementi ili redovi sa mbt-subheader klasom)
@@ -449,8 +540,9 @@ export class WABAStandingsScraper {
           
           const cells = Array.from(row.querySelectorAll('td'));
           
-          // Nova struktura: No | Team | W/L | Points (minimum 4 kolone)
-          if (cells.length < 4) return;
+          // Kompleksna struktura: No | Team | G | W | L | P | PTS/OPTS | +/- | ...
+          // Minimum 6 kolona za kompleksnu tabelu
+          if (cells.length < 6) return;
           
           // Preskoči header redove
           const firstCell = cells[0]?.textContent?.trim() || '';
@@ -462,15 +554,16 @@ export class WABAStandingsScraper {
           // Preskoči redove koji su samo brojevi bez imena tima
           if (!secondCell || secondCell.length === 0) return;
           
-          // Struktura tabele: No | Team | W/L | Points
+          // Struktura kompleksne tabele: No | Team | G | W | L | P | PTS/OPTS | +/- | ...
           let rank = 0;
           let teamName = '';
-          let w = 0;
-          let l = 0;
-          let points = 0; // Points (bodovi)
-          let pts = 0;    // PTS (iz PTS/OPTS) - nema u novoj strukturi
-          let opts = 0;   // OPTS (iz PTS/OPTS) - nema u novoj strukturi
-          let diff = 0;   // +/- (razlika) - nema u novoj strukturi
+          let gp = 0;    // G - Games (odigrane utakmice)
+          let w = 0;     // W - Wins (pobede)
+          let l = 0;     // L - Losses (porazi)
+          let points = 0; // P - Points (bodovi)
+          let pts = 0;    // PTS (iz PTS/OPTS)
+          let opts = 0;   // OPTS (iz PTS/OPTS)
+          let diff = 0;   // +/- (razlika)
           
           // Kolona 0: No (pozicija) - format "1." ili "1"
           const noCell = cells[0]?.textContent?.trim() || '';
@@ -483,7 +576,7 @@ export class WABAStandingsScraper {
             rank = index + 1;
           }
           
-          // Kolona 1: Team (tim) - iz <a> taga unutar td.team_name
+          // Kolona 1: Team (tim) - iz <a> taga unutar td
           // Proveri da li postoji link sa team_id atributom (glavna tabela)
           const teamCell = cells[1];
           if (teamCell) {
@@ -504,22 +597,40 @@ export class WABAStandingsScraper {
             return;
           }
           
-          // Kolona 2: W/L (format: "6/0" ili "6<span></span>/<span></span>0")
-          const wlCell = cells[2]?.textContent?.trim() || '';
-          // Ukloni sve HTML entitete i spanove, ostavi samo brojeve i /
-          const wlClean = wlCell.replace(/<[^>]*>/g, '').replace(/\s+/g, '').trim();
-          if (wlClean.includes('/')) {
-            const parts = wlClean.split('/');
-            w = parseInt(parts[0]?.trim() || '0') || 0;
-            l = parseInt(parts[1]?.trim() || '0') || 0;
-          }
+          // Kolona 2: G (Games - odigrane utakmice)
+          const gCell = cells[2]?.textContent?.trim() || '';
+          gp = parseInt(gCell || '0') || 0;
           
-          // Kolona 3: Points (bodovi)
-          const pointsCell = cells[3]?.textContent?.trim() || '';
+          // Kolona 3: W (Wins - pobede)
+          const wCell = cells[3]?.textContent?.trim() || '';
+          w = parseInt(wCell || '0') || 0;
+          
+          // Kolona 4: L (Losses - porazi)
+          const lCell = cells[4]?.textContent?.trim() || '';
+          l = parseInt(lCell || '0') || 0;
+          
+          // Kolona 5: P (Points - bodovi)
+          const pointsCell = cells[5]?.textContent?.trim() || '';
           points = parseInt(pointsCell || '0') || 0;
           
-          // Izračunaj gp (odigrane utakmice) kao w + l
-          const gp = w + l;
+          // Kolona 6: PTS/OPTS (Points/Opponent Points) - format "514/424" ili "514<span></span>/<span></span>424"
+          if (cells.length > 6) {
+            const ptsOptsCell = cells[6]?.textContent?.trim() || '';
+            // Ukloni sve HTML entitete i spanove, ostavi samo brojeve i /
+            const ptsOptsClean = ptsOptsCell.replace(/<[^>]*>/g, '').replace(/\s+/g, '').trim();
+            if (ptsOptsClean.includes('/')) {
+              const parts = ptsOptsClean.split('/');
+              pts = parseInt(parts[0]?.trim() || '0') || 0;
+              opts = parseInt(parts[1]?.trim() || '0') || 0;
+            }
+          }
+          
+          // Kolona 7: +/- (razlika)
+          if (cells.length > 7) {
+            const diffCell = cells[7]?.textContent?.trim() || '';
+            // Može biti pozitivan ili negativan broj
+            diff = parseInt(diffCell || '0') || 0;
+          }
             
           // Dodaj samo ako ima ime tima i validne podatke
           if (teamName && teamName.length > 0 && rank > 0) {
@@ -529,10 +640,10 @@ export class WABAStandingsScraper {
               gp: gp,
               w,
               l,
-              points, // Points (bodovi)
-              pts,    // PTS - nema u novoj strukturi, ostaje 0
-              opts,   // OPTS - nema u novoj strukturi, ostaje 0
-              diff,   // +/- - nema u novoj strukturi, ostaje 0
+              points, // P - Points (bodovi)
+              pts,    // PTS (iz PTS/OPTS)
+              opts,   // OPTS (iz PTS/OPTS)
+              diff,   // +/- (razlika)
             };
             data.push(team);
           }
@@ -718,6 +829,118 @@ export class WABAStandingsScraper {
     }
   }
 
+  private async scrapeWithScrapeDo(): Promise<WabaTeamData[]> {
+    const scrapeDoToken = process.env.SCRAPE_DO_TOKEN?.trim() || process.env.SCRAPEDO_TOKEN?.trim();
+    if (!scrapeDoToken) {
+      throw new Error('SCRAPE_DO_TOKEN nije postavljen');
+    }
+
+    // Proveri da li token izgleda validno
+    if (scrapeDoToken.length < 10) {
+      throw new Error(`SCRAPE_DO_TOKEN izgleda nevalidno (prekratak: ${scrapeDoToken.length} karaktera). Proverite da li je pravilno postavljen u .env fajlu.`);
+    }
+
+    console.log('Koristim Scrape.do API za scraping...');
+    console.log(`Token dužina: ${scrapeDoToken.length} karaktera`);
+    
+    try {
+      // Scrape.do API format: https://api.scrape.do/?url=...&token=...
+      // Pokušavamo sa i bez JavaScript renderovanja parametara
+      // Prvo bez parametara, pa ako ne radi, sa render=true
+      let scrapeDoUrl = `https://api.scrape.do/?url=${encodeURIComponent(CONFIG.URL)}&token=${encodeURIComponent(scrapeDoToken)}`;
+      
+      console.log('Pozivam Scrape.do API...');
+      console.log('Scrape.do URL (bez token):', `https://api.scrape.do/?url=${encodeURIComponent(CONFIG.URL)}&token=***`);
+      
+      const response = await fetch(scrapeDoUrl, {
+        method: 'GET',
+        headers: {
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        },
+        // Povećaj timeout za produkciju
+        signal: AbortSignal.timeout(60000), // 60 sekundi timeout
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorMessage = `Scrape.do API error: ${response.status}`;
+        
+        if (response.status === 401 || response.status === 403) {
+          errorMessage += ' - Invalid token. Proverite da li je token pravilno postavljen u .env fajlu i da li je validan na Scrape.do dashboard-u.';
+        } else if (response.status === 402 || response.status === 429) {
+          errorMessage += ' - Payment required or rate limit exceeded. Proverite da li imate dovoljno kredita na Scrape.do nalogu.';
+        } else {
+          errorMessage += ` - ${errorText.substring(0, 200)}`;
+        }
+        
+        throw new Error(errorMessage);
+      }
+
+      const html = await response.text();
+      
+      if (!html || html.length < 100) {
+        throw new Error('Scrape.do vratio prazan HTML');
+      }
+
+      console.log(`Scrape.do vratio ${html.length} karaktera HTML-a`);
+      
+      // DEBUG: Sačuvaj HTML u development okruženju za analizu
+      if (process.env.NODE_ENV === 'development') {
+        try {
+          const fs = require('fs');
+          const path = require('path');
+          const outputPath = path.join(process.cwd(), 'scrape-do-output.html');
+          fs.writeFileSync(outputPath, html);
+          console.log(`📄 HTML sačuvan u: ${outputPath}`);
+        } catch (fsError) {
+          // Ignoriši greške pri pisanju fajla
+        }
+      }
+      
+      // Proveri da li HTML sadrži mbt-table
+      const hasMbtTable = html.includes('mbt-table') || html.includes('mbt-standings');
+      console.log(`HTML sadrži mbt-table: ${hasMbtTable}`);
+      
+      // Proveri da li HTML sadrži team_id linkove (glavna tabela)
+      const hasTeamIdLinks = html.includes('team_id') || html.includes('teamId');
+      console.log(`HTML sadrži team_id linkove: ${hasTeamIdLinks}`);
+      
+      // Dodatne provere za debug
+      const hasTable = html.includes('<table');
+      const hasScript = html.includes('<script');
+      const hasBody = html.includes('<body');
+      console.log(`HTML struktura: hasTable=${hasTable}, hasScript=${hasScript}, hasBody=${hasBody}`);
+      
+      // Debug: loguj mali deo HTML-a da vidimo strukturu
+      const tableMatch = html.match(/<table[^>]*class="[^"]*mbt[^"]*"[^>]*>[\s\S]{0,500}/i);
+      if (tableMatch) {
+        console.log('Pronađena mbt tabela u HTML-u:', tableMatch[0].substring(0, 200));
+      }
+      
+      // Ako nema mbt-table u HTML-u, Scrape.do verovatno ne renderuje JavaScript
+      // Brzo pređi na fallback umesto da pokušavaš parsiranje
+      if (!hasMbtTable && !hasTeamIdLinks) {
+        console.warn('⚠ Scrape.do HTML ne sadrži mbt-table ili team_id linkove - JavaScript nije renderovan');
+        console.warn('Scrape.do možda ne podržava JavaScript renderovanje za ovu stranicu');
+        throw new Error('Scrape.do vratio HTML ali tabela (mbt-table) nije pronađena. JavaScript nije renderovan. Prebacujem se na browser automation fallback.');
+      }
+      
+      const standings = this.parseRowsDirectly(html);
+      
+      if (standings.length === 0) {
+        // Ako nema podataka nakon parsiranja, baci grešku da bi se prešlo na fallback
+        console.warn('⚠ Scrape.do vratio HTML ali nema podataka u tabeli');
+        throw new Error('Scrape.do vratio HTML ali tabela nije pronađena ili nema podataka. Prebacujem se na browser automation fallback.');
+      }
+
+      console.log(`✓ Uspešno učitano ${standings.length} timova (Scrape.do)`);
+      return standings;
+    } catch (error: any) {
+      console.error('✗ Greška pri scrapanju sa Scrape.do:', error.message);
+      throw error;
+    }
+  }
+
   private async scrapeWithFetch(): Promise<WabaTeamData[]> {
     try {
       console.log('Koristim fetch metodu za scraping...');
@@ -799,7 +1022,7 @@ export class WABAStandingsScraper {
       }
       
       const standings: WabaTeamData[] = [];
-      const skipHeaders = ['Games', 'Wins', 'Losses', 'Losses by forfeit', 'Team', 'G', 'W', 'L', 'P', 'No', 'W/L', 'Points'];
+      const skipHeaders = ['Games', 'Wins', 'Losses', 'Losses by forfeit', 'Team', 'G', 'W', 'L', 'P', 'No', 'W/L', 'Points', '#', 'Rank'];
 
       for (let index = 0; index < rowMatches.length; index++) {
         const rowMatch = rowMatches[index];
@@ -813,8 +1036,9 @@ export class WABAStandingsScraper {
         
         const cellMatches = Array.from(row.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/gi));
         
-        // Nova struktura: No | Team | W/L | Points (minimum 4 kolone)
-        if (cellMatches.length < 4) continue;
+        // Kompleksna struktura: No | Team | G | W | L | P | PTS/OPTS | +/- | ...
+        // Minimum 6 kolona za kompleksnu tabelu
+        if (cellMatches.length < 6) continue;
         
         // Parsiraj ćelije
         const cells: Array<{ text: string; html: string }> = [];
@@ -845,8 +1069,17 @@ export class WABAStandingsScraper {
         // Preskoči redove koji su samo brojevi bez imena tima
         if (!secondCell || secondCell.length === 0) continue;
 
-        // Struktura tabele: No | Team | W/L | Points
+        // Struktura kompleksne tabele: No | Team | G | W | L | P | PTS/OPTS | +/- | ...
         let rank = 0;
+        let teamName = '';
+        let gp = 0;    // G - Games (odigrane utakmice)
+        let w = 0;     // W - Wins (pobede)
+        let l = 0;     // L - Losses (porazi)
+        let points = 0; // P - Points (bodovi)
+        let pts = 0;    // PTS (iz PTS/OPTS)
+        let opts = 0;   // OPTS (iz PTS/OPTS)
+        let diff = 0;   // +/- (razlika)
+        
         const noCell = cells[0]?.text || '';
         // Format "1." ili "1"
         const rankMatch = noCell.match(/^(\d+)\.?/);
@@ -858,9 +1091,8 @@ export class WABAStandingsScraper {
           rank = index + 1;
         }
 
-        // Kolona 1: Team (tim) - iz <a> taga unutar td.team_name
+        // Kolona 1: Team (tim) - iz <a> taga unutar td
         // Proveri da li postoji link sa team_id atributom (glavna tabela)
-        let teamName = '';
         const teamCellHtml = cells[1]?.html || '';
         // Prvo pokušaj da pronađeš link sa team_id atributom
         const teamIdLinkMatch = teamCellHtml.match(/<a[^>]*team_id[^>]*>([\s\S]*?)<\/a>/i);
@@ -893,24 +1125,40 @@ export class WABAStandingsScraper {
           continue;
         }
 
-        // Kolona 2: W/L (format: "6/0" ili "6<span></span>/<span></span>0")
-        let w = 0;
-        let l = 0;
-        const wlCell = cells[2]?.text || '';
-        // Ukloni sve HTML entitete i spanove, ostavi samo brojeve i /
-        const wlClean = wlCell.replace(/<[^>]*>/g, '').replace(/\s+/g, '').trim();
-        if (wlClean.includes('/')) {
-          const parts = wlClean.split('/');
-          w = parseInt(parts[0]?.trim() || '0') || 0;
-          l = parseInt(parts[1]?.trim() || '0') || 0;
+        // Kolona 2: G (Games - odigrane utakmice)
+        const gCell = cells[2]?.text || '';
+        gp = parseInt(gCell || '0') || 0;
+        
+        // Kolona 3: W (Wins - pobede)
+        const wCell = cells[3]?.text || '';
+        w = parseInt(wCell || '0') || 0;
+        
+        // Kolona 4: L (Losses - porazi)
+        const lCell = cells[4]?.text || '';
+        l = parseInt(lCell || '0') || 0;
+        
+        // Kolona 5: P (Points - bodovi)
+        const pointsCell = cells[5]?.text || '';
+        points = parseInt(pointsCell || '0') || 0;
+        
+        // Kolona 6: PTS/OPTS (Points/Opponent Points) - format "514/424" ili "514<span></span>/<span></span>424"
+        if (cells.length > 6) {
+          const ptsOptsCell = cells[6]?.text || '';
+          // Ukloni sve HTML entitete i spanove, ostavi samo brojeve i /
+          const ptsOptsClean = ptsOptsCell.replace(/<[^>]*>/g, '').replace(/\s+/g, '').trim();
+          if (ptsOptsClean.includes('/')) {
+            const parts = ptsOptsClean.split('/');
+            pts = parseInt(parts[0]?.trim() || '0') || 0;
+            opts = parseInt(parts[1]?.trim() || '0') || 0;
+          }
         }
-
-        // Kolona 3: Points (bodovi)
-        const pointsCell = cells[3]?.text || '';
-        const points = parseInt(pointsCell || '0') || 0;
-
-        // Izračunaj gp (odigrane utakmice) kao w + l
-        const gp = w + l;
+        
+        // Kolona 7: +/- (razlika)
+        if (cells.length > 7) {
+          const diffCell = cells[7]?.text || '';
+          // Može biti pozitivan ili negativan broj
+          diff = parseInt(diffCell || '0') || 0;
+        }
 
         // Dodaj samo ako ima ime tima i validne podatke
         if (teamName && teamName.length > 0 && rank > 0) {
@@ -920,10 +1168,10 @@ export class WABAStandingsScraper {
             gp: gp,
             w,
             l,
-            points,
-            pts: 0,    // PTS - nema u novoj strukturi
-            opts: 0,   // OPTS - nema u novoj strukturi
-            diff: 0,   // +/- - nema u novoj strukturi
+            points, // P - Points (bodovi)
+            pts,    // PTS (iz PTS/OPTS)
+            opts,   // OPTS (iz PTS/OPTS)
+            diff,   // +/- (razlika)
           });
         }
       }
@@ -1046,8 +1294,9 @@ export class WABAStandingsScraper {
       // Pronađi sve td ćelije u redu
       const tdMatches = Array.from(rowContent.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/gi));
       
-      // Nova struktura: No | Team | W/L | Points (minimum 4 kolone)
-      if (tdMatches.length < 4) continue;
+      // Kompleksna struktura: No | Team | G | W | L | P | PTS/OPTS | +/- | ...
+      // Minimum 6 kolona za kompleksnu tabelu
+      if (tdMatches.length < 6) continue;
       
       // Parsiraj ćelije
       const cells: Array<{ text: string; html: string }> = [];
@@ -1078,8 +1327,17 @@ export class WABAStandingsScraper {
       // Preskoči redove koji su samo brojevi bez imena tima
       if (!secondCell || secondCell.length === 0) continue;
 
-      // Struktura tabele: No | Team | W/L | Points
+      // Struktura kompleksne tabele: No | Team | G | W | L | P | PTS/OPTS | +/- | ...
       let rank = 0;
+      let teamName = '';
+      let gp = 0;    // G - Games (odigrane utakmice)
+      let w = 0;     // W - Wins (pobede)
+      let l = 0;     // L - Losses (porazi)
+      let points = 0; // P - Points (bodovi)
+      let pts = 0;    // PTS (iz PTS/OPTS)
+      let opts = 0;   // OPTS (iz PTS/OPTS)
+      let diff = 0;   // +/- (razlika)
+      
       const noCell = cells[0]?.text || '';
       // Format "1." ili "1"
       const rankMatch = noCell.match(/^(\d+)\.?/);
@@ -1091,59 +1349,74 @@ export class WABAStandingsScraper {
         rank = index + 1;
       }
 
-        // Kolona 1: Team (tim) - iz <a> taga unutar td.team_name
-        // Proveri da li postoji link sa team_id atributom (glavna tabela)
-        let teamName = '';
-        const teamCellHtml = cells[1]?.html || '';
-        // Prvo pokušaj da pronađeš link sa team_id atributom
-        const teamIdLinkMatch = teamCellHtml.match(/<a[^>]*team_id[^>]*>([\s\S]*?)<\/a>/i);
-        if (teamIdLinkMatch) {
-          teamName = teamIdLinkMatch[1]
+      // Kolona 1: Team (tim) - iz <a> taga unutar td
+      // Proveri da li postoji link sa team_id atributom (glavna tabela)
+      const teamCellHtml = cells[1]?.html || '';
+      // Prvo pokušaj da pronađeš link sa team_id atributom
+      const teamIdLinkMatch = teamCellHtml.match(/<a[^>]*team_id[^>]*>([\s\S]*?)<\/a>/i);
+      if (teamIdLinkMatch) {
+        teamName = teamIdLinkMatch[1]
+          .replace(/<[^>]*>/g, '')
+          .replace(/&nbsp;/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+      } else {
+        // Fallback na običan link
+        const teamLinkMatch = teamCellHtml.match(/<a[^>]*>([\s\S]*?)<\/a>/i);
+        if (teamLinkMatch) {
+          teamName = teamLinkMatch[1]
             .replace(/<[^>]*>/g, '')
             .replace(/&nbsp;/g, ' ')
             .replace(/\s+/g, ' ')
             .trim();
-        } else {
-          // Fallback na običan link
-          const teamLinkMatch = teamCellHtml.match(/<a[^>]*>([\s\S]*?)<\/a>/i);
-          if (teamLinkMatch) {
-            teamName = teamLinkMatch[1]
-              .replace(/<[^>]*>/g, '')
-              .replace(/&nbsp;/g, ' ')
-              .replace(/\s+/g, ' ')
-              .trim();
-            // Ako nema team_id, možda je ovo legend tabela - preskoči ako je prekratko
-            if (teamName.length < 3) {
-              continue; // Verovatno legend tabela
-            }
-          } else {
-            teamName = secondCell;
+          // Ako nema team_id, možda je ovo legend tabela - preskoči ako je prekratko
+          if (teamName.length < 3) {
+            continue; // Verovatno legend tabela
           }
+        } else {
+          teamName = secondCell;
         }
-        
-        // Ako nema ime tima ili je prekratko, preskoči (verovatno legend)
-        if (!teamName || teamName.length < 2) {
-          continue;
-        }
-
-      // Kolona 2: W/L (format: "6/0" ili "6<span></span>/<span></span>0")
-      let w = 0;
-      let l = 0;
-      const wlCell = cells[2]?.text || '';
-      // Ukloni sve HTML entitete i spanove, ostavi samo brojeve i /
-      const wlClean = wlCell.replace(/<[^>]*>/g, '').replace(/\s+/g, '').trim();
-      if (wlClean.includes('/')) {
-        const parts = wlClean.split('/');
-        w = parseInt(parts[0]?.trim() || '0') || 0;
-        l = parseInt(parts[1]?.trim() || '0') || 0;
+      }
+      
+      // Ako nema ime tima ili je prekratko, preskoči (verovatno legend)
+      if (!teamName || teamName.length < 2) {
+        continue;
       }
 
-      // Kolona 3: Points (bodovi)
-      const pointsCell = cells[3]?.text || '';
-      const points = parseInt(pointsCell || '0') || 0;
-
-      // Izračunaj gp (odigrane utakmice) kao w + l
-      const gp = w + l;
+      // Kolona 2: G (Games - odigrane utakmice)
+      const gCell = cells[2]?.text || '';
+      gp = parseInt(gCell || '0') || 0;
+      
+      // Kolona 3: W (Wins - pobede)
+      const wCell = cells[3]?.text || '';
+      w = parseInt(wCell || '0') || 0;
+      
+      // Kolona 4: L (Losses - porazi)
+      const lCell = cells[4]?.text || '';
+      l = parseInt(lCell || '0') || 0;
+      
+      // Kolona 5: P (Points - bodovi)
+      const pointsCell = cells[5]?.text || '';
+      points = parseInt(pointsCell || '0') || 0;
+      
+      // Kolona 6: PTS/OPTS (Points/Opponent Points) - format "514/424" ili "514<span></span>/<span></span>424"
+      if (cells.length > 6) {
+        const ptsOptsCell = cells[6]?.text || '';
+        // Ukloni sve HTML entitete i spanove, ostavi samo brojeve i /
+        const ptsOptsClean = ptsOptsCell.replace(/<[^>]*>/g, '').replace(/\s+/g, '').trim();
+        if (ptsOptsClean.includes('/')) {
+          const parts = ptsOptsClean.split('/');
+          pts = parseInt(parts[0]?.trim() || '0') || 0;
+          opts = parseInt(parts[1]?.trim() || '0') || 0;
+        }
+      }
+      
+      // Kolona 7: +/- (razlika)
+      if (cells.length > 7) {
+        const diffCell = cells[7]?.text || '';
+        // Može biti pozitivan ili negativan broj
+        diff = parseInt(diffCell || '0') || 0;
+      }
 
       // Dodaj samo ako ima ime tima i validne podatke
       if (teamName && teamName.length > 0 && rank > 0) {
@@ -1153,10 +1426,10 @@ export class WABAStandingsScraper {
           gp: gp,
           w,
           l,
-          points,
-          pts: 0,    // PTS - nema u novoj strukturi
-          opts: 0,   // OPTS - nema u novoj strukturi
-          diff: 0,   // +/- - nema u novoj strukturi
+          points, // P - Points (bodovi)
+          pts,    // PTS (iz PTS/OPTS)
+          opts,   // OPTS (iz PTS/OPTS)
+          diff,   // +/- (razlika)
         });
       }
     }
@@ -1384,7 +1657,7 @@ export class WABAStandingsScraper {
           const rows = table.querySelectorAll('tbody tr');
           const data: WabaTeamData[] = [];
           
-          const skipHeaders = ['Games', 'Wins', 'Losses', 'Losses by forfeit', 'Team', 'G', 'W', 'L', 'P', 'No', 'W/L', 'Points'];
+          const skipHeaders = ['Games', 'Wins', 'Losses', 'Losses by forfeit', 'Team', 'G', 'W', 'L', 'P', 'No', 'W/L', 'Points', '#', 'Rank'];
 
           rows.forEach((row, index) => {
             // Preskoči header redove (th elementi ili redovi sa mbt-subheader klasom)
@@ -1394,8 +1667,9 @@ export class WABAStandingsScraper {
             
             const cells = Array.from(row.querySelectorAll('td'));
             
-            // Nova struktura: No | Team | W/L | Points (minimum 4 kolone)
-            if (cells.length < 4) return;
+            // Kompleksna struktura: No | Team | G | W | L | P | PTS/OPTS | +/- | ...
+            // Minimum 6 kolona za kompleksnu tabelu
+            if (cells.length < 6) return;
             
             // Preskoči header redove
             const firstCell = cells[0]?.textContent?.trim() || '';
@@ -1407,8 +1681,17 @@ export class WABAStandingsScraper {
             // Preskoči redove koji su samo brojevi bez imena tima
             if (!secondCell || secondCell.length === 0) return;
             
-            // Struktura tabele: No | Team | W/L | Points
+            // Struktura kompleksne tabele: No | Team | G | W | L | P | PTS/OPTS | +/- | ...
             let rank = 0;
+            let teamName = '';
+            let gp = 0;    // G - Games (odigrane utakmice)
+            let w = 0;     // W - Wins (pobede)
+            let l = 0;     // L - Losses (porazi)
+            let points = 0; // P - Points (bodovi)
+            let pts = 0;    // PTS (iz PTS/OPTS)
+            let opts = 0;   // OPTS (iz PTS/OPTS)
+            let diff = 0;   // +/- (razlika)
+            
             const noCell = cells[0]?.textContent?.trim() || '';
             // Format "1." ili "1"
             const rankMatch = noCell.match(/^(\d+)\.?/);
@@ -1420,9 +1703,8 @@ export class WABAStandingsScraper {
               rank = index + 1;
             }
             
-            // Kolona 1: Team (tim) - iz <a> taga unutar td.team_name
+            // Kolona 1: Team (tim) - iz <a> taga unutar td
             // Proveri da li postoji link sa team_id atributom (glavna tabela)
-            let teamName = '';
             const teamCell = cells[1];
             if (teamCell) {
               const teamLink = teamCell.querySelector('a[team_id]') || teamCell.querySelector('a');
@@ -1442,24 +1724,40 @@ export class WABAStandingsScraper {
               return;
             }
             
-            // Kolona 2: W/L (format: "6/0" ili "6<span></span>/<span></span>0")
-            let w = 0;
-            let l = 0;
-            const wlCell = cells[2]?.textContent?.trim() || '';
-            // Ukloni sve HTML entitete i spanove, ostavi samo brojeve i /
-            const wlClean = wlCell.replace(/<[^>]*>/g, '').replace(/\s+/g, '').trim();
-            if (wlClean.includes('/')) {
-              const parts = wlClean.split('/');
-              w = parseInt(parts[0]?.trim() || '0') || 0;
-              l = parseInt(parts[1]?.trim() || '0') || 0;
+            // Kolona 2: G (Games - odigrane utakmice)
+            const gCell = cells[2]?.textContent?.trim() || '';
+            gp = parseInt(gCell || '0') || 0;
+            
+            // Kolona 3: W (Wins - pobede)
+            const wCell = cells[3]?.textContent?.trim() || '';
+            w = parseInt(wCell || '0') || 0;
+            
+            // Kolona 4: L (Losses - porazi)
+            const lCell = cells[4]?.textContent?.trim() || '';
+            l = parseInt(lCell || '0') || 0;
+            
+            // Kolona 5: P (Points - bodovi)
+            const pointsCell = cells[5]?.textContent?.trim() || '';
+            points = parseInt(pointsCell || '0') || 0;
+            
+            // Kolona 6: PTS/OPTS (Points/Opponent Points) - format "514/424" ili "514<span></span>/<span></span>424"
+            if (cells.length > 6) {
+              const ptsOptsCell = cells[6]?.textContent?.trim() || '';
+              // Ukloni sve HTML entitete i spanove, ostavi samo brojeve i /
+              const ptsOptsClean = ptsOptsCell.replace(/<[^>]*>/g, '').replace(/\s+/g, '').trim();
+              if (ptsOptsClean.includes('/')) {
+                const parts = ptsOptsClean.split('/');
+                pts = parseInt(parts[0]?.trim() || '0') || 0;
+                opts = parseInt(parts[1]?.trim() || '0') || 0;
+              }
             }
             
-            // Kolona 3: Points (bodovi)
-            const pointsCell = cells[3]?.textContent?.trim() || '';
-            const points = parseInt(pointsCell || '0') || 0;
-            
-            // Izračunaj gp (odigrane utakmice) kao w + l
-            const gp = w + l;
+            // Kolona 7: +/- (razlika)
+            if (cells.length > 7) {
+              const diffCell = cells[7]?.textContent?.trim() || '';
+              // Može biti pozitivan ili negativan broj
+              diff = parseInt(diffCell || '0') || 0;
+            }
               
             if (teamName && teamName.length > 0 && rank > 0) {
               data.push({
@@ -1468,10 +1766,10 @@ export class WABAStandingsScraper {
                 gp: gp,
                 w,
                 l,
-                points,
-                pts: 0,    // PTS - nema u novoj strukturi
-                opts: 0,   // OPTS - nema u novoj strukturi
-                diff: 0,   // +/- - nema u novoj strukturi
+                points, // P - Points (bodovi)
+                pts,    // PTS (iz PTS/OPTS)
+                opts,   // OPTS (iz PTS/OPTS)
+                diff,   // +/- (razlika)
               });
             }
           });

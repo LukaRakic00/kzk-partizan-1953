@@ -77,7 +77,7 @@ export default function KontaktPage() {
               animate={{ opacity: 1, y: 0 }}
               className="text-center mb-16"
             >
-              <h1 className="text-5xl md:text-6xl font-bold font-playfair mb-4 uppercase tracking-wider text-white">
+              <h1 className="text-[36px] font-bold font-playfair mb-4 uppercase tracking-wider text-white">
                 Kontakt
               </h1>
               <p className="text-xl text-gray-400 max-w-2xl mx-auto">
@@ -221,7 +221,7 @@ export default function KontaktPage() {
               transition={{ delay: 0.3 }}
               className="mt-12"
             >
-              <h2 className="text-2xl font-bold font-playfair mb-6 text-white text-center">Lokacija</h2>
+              <h2 className="text-[30px] font-bold font-playfair mb-6 text-white text-center">LOKACIJA</h2>
               <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-lg overflow-hidden">
                 <iframe
                   src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2830.1234567890123!2d20.456789!3d44.789012!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x475a7014cebc1e11%3A0x5a174bda07fc78ac!2sHumska%201%2C%20Beograd!5e0!3m2!1ssr!2srs!4v1234567890123!5m2!1ssr!2srs"
@@ -239,8 +239,13 @@ export default function KontaktPage() {
           </div>
         </section>
 
+        {/* Predstojeći Mečevi */}
+        <div className="pt-12">
+          <LiveMatches />
+        </div>
+
         {/* Škola Košarke Sekcija */}
-        <section className="py-20 bg-black/50 border-t border-white/10">
+        <section id="skola-kosarke" className="pt-12 py-20 bg-black/50 border-t border-white/10">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -248,7 +253,7 @@ export default function KontaktPage() {
               className="max-w-4xl mx-auto"
             >
               <div className="text-center mb-12">
-                <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold font-playfair uppercase tracking-wider mb-4 text-white">
+                <h2 className="text-[30px] font-bold font-playfair uppercase tracking-wider mb-4 text-white">
                   Škola Košarke
                 </h2>
                 <div className="w-24 h-1 bg-white mx-auto mb-8"></div>
@@ -292,7 +297,6 @@ export default function KontaktPage() {
           </div>
         </section>
 
-        <LiveMatches />
         <Footer />
       </div>
     </main>
