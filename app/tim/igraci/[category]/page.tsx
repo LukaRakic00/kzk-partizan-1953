@@ -80,7 +80,7 @@ export default function IgraciCategoryPage() {
                 Kategorija nije pronađena
               </h1>
               <Link
-                href="/tim/igraci"
+                href="/igraci"
                 className="inline-flex items-center gap-2 text-white/70 hover:text-white transition-colors"
               >
                 <ArrowLeft size={20} />

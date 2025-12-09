@@ -125,61 +125,70 @@ export default function LiveMatches() {
   const [isVisible, setIsVisible] = useState(true);
   const lastScrollY = useRef(0);
 
-  // Auto-scroll kontinuirano u desno za predstojeće mečeve - optimizovano za mobilne uređaje
+  // Auto-scroll kontinuirano u desno za predstojeće mečeve - optimizovano za glatko pomeranje
   useEffect(() => {
     if (!upcomingSliderRef.current || upcomingMatches.length === 0) return;
 
     const container = upcomingSliderRef.current;
     const isMobile = window.innerWidth < 768;
-    // Smanji brzinu na mobilnim uređajima za bolje performanse
-    const scrollSpeed = isMobile ? 0.5 : 1; // px per frame
-    let lastTime = performance.now();
-    const targetFPS = isMobile ? 30 : 60; // Smanji FPS na mobilnim uređajima
+    // Brzina scroll-a (px per frame) - manja na mobilnim za bolje performanse
+    const scrollSpeed = isMobile ? 0.8 : 1.2;
+    let animationId: number | null = null;
+    let lastScrollTime = performance.now();
+    const targetFPS = isMobile ? 30 : 60;
     const frameInterval = 1000 / targetFPS;
 
     const autoScroll = (currentTime: number) => {
+      // Pauziraj ako korisnik interaguje
       if (isUserInteracting.current) {
-        upcomingAutoScrollRef.current = requestAnimationFrame(autoScroll);
+        animationId = requestAnimationFrame(autoScroll);
         return;
       }
 
-      // Throttle na mobilnim uređajima
-      const deltaTime = currentTime - lastTime;
+      // Throttle za stabilne performanse
+      const deltaTime = currentTime - lastScrollTime;
       if (deltaTime < frameInterval) {
-        upcomingAutoScrollRef.current = requestAnimationFrame(autoScroll);
+        animationId = requestAnimationFrame(autoScroll);
         return;
       }
-      lastTime = currentTime - (deltaTime % frameInterval);
+      lastScrollTime = currentTime - (deltaTime % frameInterval);
 
       const maxScroll = container.scrollWidth - container.clientWidth;
       const currentScroll = container.scrollLeft;
 
+      // Proveri da li ima dovoljno sadržaja za scroll
       if (maxScroll <= 0) {
-        upcomingAutoScrollRef.current = requestAnimationFrame(autoScroll);
+        animationId = requestAnimationFrame(autoScroll);
         return;
       }
 
-      if (currentScroll >= maxScroll - 1) {
-        // Reset na početak bez animacije za kontinuirani efekat
+      // Reset na početak kada dođeš do kraja
+      if (currentScroll >= maxScroll - 2) {
+        // Instant reset bez animacije za kontinuirani efekat
         container.scrollLeft = 0;
       } else {
-        // Koristi requestAnimationFrame za smooth scroll
+        // Glatko pomeranje - direktna manipulacija scrollLeft za bolje performanse
         container.scrollLeft = currentScroll + scrollSpeed;
       }
 
-      upcomingAutoScrollRef.current = requestAnimationFrame(autoScroll);
+      animationId = requestAnimationFrame(autoScroll);
     };
 
-    upcomingAutoScrollRef.current = requestAnimationFrame(autoScroll);
+    // Pokreni auto-scroll
+    animationId = requestAnimationFrame(autoScroll);
+    upcomingAutoScrollRef.current = animationId;
 
     return () => {
+      if (animationId !== null) {
+        cancelAnimationFrame(animationId);
+      }
       if (upcomingAutoScrollRef.current) {
         cancelAnimationFrame(upcomingAutoScrollRef.current);
       }
     };
   }, [upcomingMatches]);
 
-  // Auto-scroll kontinuirano u desno za protekle mečeve - optimizovano za mobilne uređaje
+  // Auto-scroll kontinuirano u desno za protekle mečeve - optimizovano za glatko pomeranje
   useEffect(() => {
     if (!pastSliderRef.current || pastMatches.length === 0 || !isVisible) {
       // Zaustavi auto-scroll ako nije vidljiv
@@ -192,49 +201,57 @@ export default function LiveMatches() {
 
     const container = pastSliderRef.current;
     const isMobile = window.innerWidth < 768;
-    // Smanji brzinu na mobilnim uređajima za bolje performanse
-    const scrollSpeed = isMobile ? 0.5 : 1; // px per frame
-    let lastTime = performance.now();
-    const targetFPS = isMobile ? 30 : 60; // Smanji FPS na mobilnim uređajima
+    // Brzina scroll-a (px per frame) - manja na mobilnim za bolje performanse
+    const scrollSpeed = isMobile ? 0.8 : 1.2;
+    let animationId: number | null = null;
+    let lastScrollTime = performance.now();
+    const targetFPS = isMobile ? 30 : 60;
     const frameInterval = 1000 / targetFPS;
 
     const autoScroll = (currentTime: number) => {
-      // Zaustavi ako nije više vidljiv
+      // Zaustavi ako nije više vidljiv ili korisnik interaguje
       if (!isVisible || isUserInteracting.current) {
-        pastAutoScrollRef.current = requestAnimationFrame(autoScroll);
+        animationId = requestAnimationFrame(autoScroll);
         return;
       }
 
-      // Throttle na mobilnim uređajima
-      const deltaTime = currentTime - lastTime;
+      // Throttle za stabilne performanse
+      const deltaTime = currentTime - lastScrollTime;
       if (deltaTime < frameInterval) {
-        pastAutoScrollRef.current = requestAnimationFrame(autoScroll);
+        animationId = requestAnimationFrame(autoScroll);
         return;
       }
-      lastTime = currentTime - (deltaTime % frameInterval);
+      lastScrollTime = currentTime - (deltaTime % frameInterval);
 
       const maxScroll = container.scrollWidth - container.clientWidth;
       const currentScroll = container.scrollLeft;
 
+      // Proveri da li ima dovoljno sadržaja za scroll
       if (maxScroll <= 0) {
-        pastAutoScrollRef.current = requestAnimationFrame(autoScroll);
+        animationId = requestAnimationFrame(autoScroll);
         return;
       }
 
-      if (currentScroll >= maxScroll - 1) {
-        // Reset na početak bez animacije za kontinuirani efekat
+      // Reset na početak kada dođeš do kraja
+      if (currentScroll >= maxScroll - 2) {
+        // Instant reset bez animacije za kontinuirani efekat
         container.scrollLeft = 0;
       } else {
-        // Koristi requestAnimationFrame za smooth scroll
+        // Glatko pomeranje - direktna manipulacija scrollLeft za bolje performanse
         container.scrollLeft = currentScroll + scrollSpeed;
       }
 
-      pastAutoScrollRef.current = requestAnimationFrame(autoScroll);
+      animationId = requestAnimationFrame(autoScroll);
     };
 
-    pastAutoScrollRef.current = requestAnimationFrame(autoScroll);
+    // Pokreni auto-scroll
+    animationId = requestAnimationFrame(autoScroll);
+    pastAutoScrollRef.current = animationId;
 
     return () => {
+      if (animationId !== null) {
+        cancelAnimationFrame(animationId);
+      }
       if (pastAutoScrollRef.current) {
         cancelAnimationFrame(pastAutoScrollRef.current);
       }

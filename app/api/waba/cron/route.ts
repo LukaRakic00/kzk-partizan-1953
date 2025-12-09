@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 
+// Označi route kao dinamički jer koristi headers()
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 // Cron job endpoint koji se poziva jednom dnevno (u 12:00)
 // Zahteva secret token za bezbednost
 export async function GET(request: Request) {

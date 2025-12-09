@@ -114,15 +114,6 @@ export default function IgraciPage() {
 
         <section className="pt-32 md:pt-40 pb-20 px-4 sm:px-6 lg:px-8">
           <div className="max-w-7xl mx-auto">
-            {/* Back Button */}
-            <Link
-              href="/tim"
-              className="inline-flex items-center gap-2 text-white/70 hover:text-white mb-8 transition-colors"
-            >
-              <ArrowLeft size={20} />
-              <span>Nazad na Tim</span>
-            </Link>
-
             {/* Header */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}

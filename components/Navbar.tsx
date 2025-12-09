@@ -10,6 +10,7 @@ import CloudinaryImage from './CloudinaryImage';
 
 const navItems = [
   { href: '/', label: 'POČETNA' },
+  { href: '/klub', label: 'KLUB' },
   { href: '/tim', label: 'TIM' },
   { href: '/o-nama', label: 'O NAMA' },
   { href: '/galerija', label: 'GALERIJA' },
@@ -21,9 +22,11 @@ export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [showKlubDropdown, setShowKlubDropdown] = useState(false);
   const [showTimDropdown, setShowTimDropdown] = useState(false);
   const [showONamaDropdown, setShowONamaDropdown] = useState(false);
   const [showMobileONamaDropdown, setShowMobileONamaDropdown] = useState(false);
+  const [showMobileKlubDropdown, setShowMobileKlubDropdown] = useState(false);
   const [showMobileTimDropdown, setShowMobileTimDropdown] = useState(false);
   const [showIgraciDropdown, setShowIgraciDropdown] = useState(false);
   const [showMobileIgraciDropdown, setShowMobileIgraciDropdown] = useState(false);
@@ -60,125 +63,165 @@ export default function Navbar() {
   };
 
   // Split nav items into left and right
-  const leftNavItems = navItems.slice(0, 3); // POČETNA, TIM, O NAMA
-  const rightNavItems = navItems.slice(3); // GALERIJA, NOVOSTI, KONTAKT
+  const leftNavItems = navItems.slice(0, 3); // POČETNA, KLUB, TIM
+  const rightNavItems = navItems.slice(3); // O NAMA, GALERIJA, VESTI, KONTAKT
 
   const renderNavItem = (item: typeof navItems[0]) => {
+    if (item.href === '/klub') {
+      return (
+        <div
+          key={item.href}
+          className="relative"
+          onMouseEnter={() => setShowKlubDropdown(true)}
+          onMouseLeave={() => setShowKlubDropdown(false)}
+        >
+          <Link
+            href={item.href}
+            className={`text-sm lg:text-base font-bold font-montserrat tracking-wider uppercase transition-colors relative group px-2 py-1 ${
+              pathname === item.href || pathname.startsWith('/klub')
+                ? 'text-white'
+                : 'text-gray-300 hover:text-white'
+            }`}
+          >
+            {item.label}
+            {(pathname === item.href || pathname.startsWith('/klub')) && (
+              <motion.div
+                className="absolute -bottom-1 left-0 right-0 h-0.5 bg-white"
+                layoutId="underline"
+              />
+            )}
+          </Link>
+          {/* Dropdown Menu */}
+          <AnimatePresence>
+            {showKlubDropdown && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+                className="absolute top-full left-0 mt-2 bg-black/95 backdrop-blur-sm border border-white/10 rounded-lg shadow-xl min-w-[200px] py-2"
+              >
+                <Link
+                  href="/klub#upravni-odbor"
+                  className="block px-4 py-2 text-sm font-montserrat tracking-wider uppercase text-gray-300 hover:text-white hover:bg-white/10 transition-colors"
+                  onClick={() => setShowKlubDropdown(false)}
+                >
+                  Upravni Odbor
+                </Link>
+                <Link
+                  href="/klub#menadzment"
+                  className="block px-4 py-2 text-sm font-montserrat tracking-wider uppercase text-gray-300 hover:text-white hover:bg-white/10 transition-colors"
+                  onClick={() => setShowKlubDropdown(false)}
+                >
+                  Menadžment
+                </Link>
+                <Link
+                  href="/klub#rukovodstvo"
+                  className="block px-4 py-2 text-sm font-montserrat tracking-wider uppercase text-gray-300 hover:text-white hover:bg-white/10 transition-colors"
+                  onClick={() => setShowKlubDropdown(false)}
+                >
+                  Rukovodstvo
+                </Link>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      );
+    }
     if (item.href === '/tim') {
-                return (
-                  <div
-                    key={item.href}
-                    className="relative"
-                    onMouseEnter={() => setShowTimDropdown(true)}
-                    onMouseLeave={() => setShowTimDropdown(false)}
-                  >
-                    <Link
-                      href={item.href}
-                      className={`text-sm lg:text-base font-bold font-montserrat tracking-wider uppercase transition-colors relative group px-2 py-1 ${
-                        pathname === item.href || pathname.startsWith('/tim/')
-                          ? 'text-white'
-                          : 'text-gray-300 hover:text-white'
-                      }`}
-                    >
-                      {item.label}
-                      {(pathname === item.href || pathname.startsWith('/tim/')) && (
-                        <motion.div
-                          className="absolute -bottom-1 left-0 right-0 h-0.5 bg-white"
-                          layoutId="underline"
-                        />
-                      )}
-                    </Link>
-                    {/* Dropdown Menu */}
-                    <AnimatePresence>
-                      {showTimDropdown && (
-                        <motion.div
-                          initial={{ opacity: 0, y: -10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -10 }}
-                          transition={{ duration: 0.2 }}
-                          className="absolute top-full left-0 mt-2 bg-black/95 backdrop-blur-sm border border-white/10 rounded-lg shadow-xl min-w-[200px] py-2"
-                        >
-                          <Link
-                            href="/tim#rukovodstvo"
-                            className="block px-4 py-2 text-sm font-montserrat tracking-wider uppercase text-gray-300 hover:text-white hover:bg-white/10 transition-colors"
-                            onClick={() => setShowTimDropdown(false)}
-                          >
-                            Upravni Odbor
-                          </Link>
-                          <Link
-                            href="/tim#menadzment"
-                            className="block px-4 py-2 text-sm font-montserrat tracking-wider uppercase text-gray-300 hover:text-white hover:bg-white/10 transition-colors"
-                            onClick={() => setShowTimDropdown(false)}
-                          >
-                            Menadžment
-                          </Link>
-                          <div
-                            className="relative"
-                            onMouseEnter={() => setShowIgraciDropdown(true)}
-                            onMouseLeave={() => setShowIgraciDropdown(false)}
-                          >
-                            <div className="block px-4 py-2 text-sm font-montserrat tracking-wider uppercase text-gray-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer">
-                              Igrači
-                              <span className="ml-2">›</span>
-                            </div>
-                            <AnimatePresence>
-                              {showIgraciDropdown && (
-                                <motion.div
-                                  initial={{ opacity: 0, x: -10 }}
-                                  animate={{ opacity: 1, x: 0 }}
-                                  exit={{ opacity: 0, x: -10 }}
-                                  transition={{ duration: 0.2 }}
-                                  className="absolute left-full top-0 ml-2 bg-black/95 backdrop-blur-sm border border-white/10 rounded-lg shadow-xl min-w-[180px] py-2"
-                                  onMouseEnter={() => setShowIgraciDropdown(true)}
-                                  onMouseLeave={() => setShowIgraciDropdown(false)}
-                                >
-                                  <Link
-                                    href="/tim/igraci/seniori"
-                                    className="block px-4 py-2 text-sm font-montserrat tracking-wider uppercase text-gray-300 hover:text-white hover:bg-white/10 transition-colors"
-                                    onClick={() => {
-                                      setShowTimDropdown(false);
-                                      setShowIgraciDropdown(false);
-                                    }}
-                                  >
-                                    Seniori
-                                  </Link>
-                                  <Link
-                                    href="/tim/igraci/pionirke"
-                                    className="block px-4 py-2 text-sm font-montserrat tracking-wider uppercase text-gray-300 hover:text-white hover:bg-white/10 transition-colors"
-                                    onClick={() => {
-                                      setShowTimDropdown(false);
-                                      setShowIgraciDropdown(false);
-                                    }}
-                                  >
-                                    Pionirke
-                                  </Link>
-                                  <Link
-                                    href="/tim/igraci/juniori"
-                                    className="block px-4 py-2 text-sm font-montserrat tracking-wider uppercase text-gray-300 hover:text-white hover:bg-white/10 transition-colors"
-                                    onClick={() => {
-                                      setShowTimDropdown(false);
-                                      setShowIgraciDropdown(false);
-                                    }}
-                                  >
-                                    Juniori
-                                  </Link>
-                                </motion.div>
-                              )}
-                            </AnimatePresence>
-                          </div>
-                          <Link
-                            href="/tim/strucni-stab"
-                            className="block px-4 py-2 text-sm font-montserrat tracking-wider uppercase text-gray-300 hover:text-white hover:bg-white/10 transition-colors"
-                            onClick={() => setShowTimDropdown(false)}
-                          >
-                            Stručni Štab
-                          </Link>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
+      return (
+        <div
+          key={item.href}
+          className="relative"
+          onMouseEnter={() => setShowTimDropdown(true)}
+          onMouseLeave={() => setShowTimDropdown(false)}
+        >
+          <Link
+            href={item.href}
+            className={`text-sm lg:text-base font-bold font-montserrat tracking-wider uppercase transition-colors relative group px-2 py-1 ${
+              pathname === item.href || pathname.startsWith('/tim/') || pathname.startsWith('/igraci')
+                ? 'text-white'
+                : 'text-gray-300 hover:text-white'
+            }`}
+          >
+            {item.label}
+            {(pathname === item.href || pathname.startsWith('/tim/') || pathname.startsWith('/igraci')) && (
+              <motion.div
+                className="absolute -bottom-1 left-0 right-0 h-0.5 bg-white"
+                layoutId="underline"
+              />
+            )}
+          </Link>
+          {/* Dropdown Menu */}
+          <AnimatePresence>
+            {showTimDropdown && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+                className="absolute top-full left-0 mt-2 bg-black/95 backdrop-blur-sm border border-white/10 rounded-lg shadow-xl min-w-[200px] py-2"
+              >
+                <div
+                  className="relative"
+                  onMouseEnter={() => setShowIgraciDropdown(true)}
+                  onMouseLeave={() => setShowIgraciDropdown(false)}
+                >
+                  <div className="block px-4 py-2 text-sm font-montserrat tracking-wider uppercase text-gray-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer">
+                    Igrači
+                    <span className="ml-2">›</span>
                   </div>
-                );
-              }
+                  <AnimatePresence>
+                    {showIgraciDropdown && (
+                      <motion.div
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -10 }}
+                        transition={{ duration: 0.2 }}
+                        className="absolute left-full top-0 ml-2 bg-black/95 backdrop-blur-sm border border-white/10 rounded-lg shadow-xl min-w-[180px] py-2"
+                        onMouseEnter={() => setShowIgraciDropdown(true)}
+                        onMouseLeave={() => setShowIgraciDropdown(false)}
+                      >
+                        <Link
+                          href="/igraci#seniori"
+                          className="block px-4 py-2 text-sm font-montserrat tracking-wider uppercase text-gray-300 hover:text-white hover:bg-white/10 transition-colors"
+                          onClick={() => {
+                            setShowTimDropdown(false);
+                            setShowIgraciDropdown(false);
+                          }}
+                        >
+                          Seniori
+                        </Link>
+                        <Link
+                          href="/igraci#juniori"
+                          className="block px-4 py-2 text-sm font-montserrat tracking-wider uppercase text-gray-300 hover:text-white hover:bg-white/10 transition-colors"
+                          onClick={() => {
+                            setShowTimDropdown(false);
+                            setShowIgraciDropdown(false);
+                          }}
+                        >
+                          Juniori
+                        </Link>
+                        <Link
+                          href="/igraci#pionirke"
+                          className="block px-4 py-2 text-sm font-montserrat tracking-wider uppercase text-gray-300 hover:text-white hover:bg-white/10 transition-colors"
+                          onClick={() => {
+                            setShowTimDropdown(false);
+                            setShowIgraciDropdown(false);
+                          }}
+                        >
+                          Pionirke
+                        </Link>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      );
+    }
               if (item.href === '/o-nama') {
                 return (
                   <div
@@ -387,6 +430,61 @@ export default function Navbar() {
           >
             <div className="px-4 py-4 space-y-4">
               {navItems.map((item) => {
+                if (item.href === '/klub') {
+                  return (
+                    <div key={item.href}>
+                      <button
+                        onClick={() => setShowMobileKlubDropdown(!showMobileKlubDropdown)}
+                        className={`w-full text-left text-sm font-bold tracking-wider uppercase transition-colors ${
+                          pathname === item.href || pathname.startsWith('/klub')
+                            ? 'text-white border-l-2 border-white pl-4'
+                            : 'text-gray-300 hover:text-white pl-4'
+                        }`}
+                      >
+                        {item.label}
+                      </button>
+                      {showMobileKlubDropdown && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          className="pl-6 mt-2 space-y-2"
+                        >
+                          <Link
+                            href="/klub#upravni-odbor"
+                            onClick={() => {
+                              setIsOpen(false);
+                              setShowMobileKlubDropdown(false);
+                            }}
+                            className="block text-sm font-montserrat tracking-wider uppercase text-gray-400 hover:text-white transition-colors"
+                          >
+                            Upravni Odbor
+                          </Link>
+                          <Link
+                            href="/klub#menadzment"
+                            onClick={() => {
+                              setIsOpen(false);
+                              setShowMobileKlubDropdown(false);
+                            }}
+                            className="block text-sm font-montserrat tracking-wider uppercase text-gray-400 hover:text-white transition-colors"
+                          >
+                            Menadžment
+                          </Link>
+                          <Link
+                            href="/klub#rukovodstvo"
+                            onClick={() => {
+                              setIsOpen(false);
+                              setShowMobileKlubDropdown(false);
+                            }}
+                            className="block text-sm font-montserrat tracking-wider uppercase text-gray-400 hover:text-white transition-colors"
+                          >
+                            Rukovodstvo
+                          </Link>
+                        </motion.div>
+                      )}
+                    </div>
+                  );
+                }
                 if (item.href === '/o-nama') {
                   return (
                     <div key={item.href}>
@@ -448,7 +546,7 @@ export default function Navbar() {
                       <button
                         onClick={() => setShowMobileTimDropdown(!showMobileTimDropdown)}
                         className={`w-full text-left text-sm font-bold tracking-wider uppercase transition-colors ${
-                          pathname === item.href || pathname.startsWith('/tim/')
+                          pathname === item.href || pathname.startsWith('/tim/') || pathname.startsWith('/igraci')
                             ? 'text-white border-l-2 border-white pl-4'
                             : 'text-gray-300 hover:text-white pl-4'
                         }`}
@@ -462,26 +560,6 @@ export default function Navbar() {
                           exit={{ opacity: 0, height: 0 }}
                           className="pl-6 mt-2 space-y-2"
                         >
-                          <Link
-                            href="/tim#rukovodstvo"
-                            onClick={() => {
-                              setIsOpen(false);
-                              setShowMobileTimDropdown(false);
-                            }}
-                            className="block text-sm font-montserrat tracking-wider uppercase text-gray-400 hover:text-white transition-colors"
-                          >
-                            Upravni Odbor
-                          </Link>
-                          <Link
-                            href="/tim#menadzment"
-                            onClick={() => {
-                              setIsOpen(false);
-                              setShowMobileTimDropdown(false);
-                            }}
-                            className="block text-sm font-montserrat tracking-wider uppercase text-gray-400 hover:text-white transition-colors"
-                          >
-                            Menadžment
-                          </Link>
                           <div>
                             <button
                               onClick={() => setShowMobileIgraciDropdown(!showMobileIgraciDropdown)}
@@ -499,7 +577,7 @@ export default function Navbar() {
                                   className="pl-4 mt-2 space-y-2"
                                 >
                                   <Link
-                                    href="/tim/igraci/seniori"
+                                    href="/igraci#seniori"
                                     onClick={() => {
                                       setIsOpen(false);
                                       setShowMobileTimDropdown(false);
@@ -510,18 +588,7 @@ export default function Navbar() {
                                     Seniori
                                   </Link>
                                   <Link
-                                    href="/tim/igraci/pionirke"
-                                    onClick={() => {
-                                      setIsOpen(false);
-                                      setShowMobileTimDropdown(false);
-                                      setShowMobileIgraciDropdown(false);
-                                    }}
-                                    className="block text-sm font-montserrat tracking-wider uppercase text-gray-400 hover:text-white transition-colors"
-                                  >
-                                    Pionirke
-                                  </Link>
-                                  <Link
-                                    href="/tim/igraci/juniori"
+                                    href="/igraci#juniori"
                                     onClick={() => {
                                       setIsOpen(false);
                                       setShowMobileTimDropdown(false);
@@ -531,20 +598,21 @@ export default function Navbar() {
                                   >
                                     Juniori
                                   </Link>
+                                  <Link
+                                    href="/igraci#pionirke"
+                                    onClick={() => {
+                                      setIsOpen(false);
+                                      setShowMobileTimDropdown(false);
+                                      setShowMobileIgraciDropdown(false);
+                                    }}
+                                    className="block text-sm font-montserrat tracking-wider uppercase text-gray-400 hover:text-white transition-colors"
+                                  >
+                                    Pionirke
+                                  </Link>
                                 </motion.div>
                               )}
                             </AnimatePresence>
                           </div>
-                          <Link
-                            href="/tim/strucni-stab"
-                            onClick={() => {
-                              setIsOpen(false);
-                              setShowMobileTimDropdown(false);
-                            }}
-                            className="block text-sm font-montserrat tracking-wider uppercase text-gray-400 hover:text-white transition-colors"
-                          >
-                            Stručni Štab
-                          </Link>
                         </motion.div>
                       )}
                     </div>
