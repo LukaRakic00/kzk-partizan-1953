@@ -144,7 +144,7 @@ export async function GET() {
     if (errorMessage.includes('ScrapingBee API key nije validan')) {
       userMessage = 'ScrapingBee API key nije validan. Pokušavam browser automation (Puppeteer) kao fallback. Ako se greška nastavi, proverite da li su instalirani puppeteer-core i @sparticuz/chromium paketi u Vercel Environment Variables.';
     } else if (errorMessage.includes('Browser automation nije dostupan')) {
-      userMessage = 'Browser automation nije dostupan u Vercel produkciji. Proverite da li su instalirani puppeteer-core i @sparticuz/chromium paketi, ili postavite validan SCRAPINGBEE_API_KEY ili SCRAPE_DO_TOKEN u Vercel Environment Variables.';
+      userMessage = 'Browser automation nije dostupan u Vercel produkciji. Proverite da li su instalirani puppeteer-core i @sparticuz/chromium paketi, ili postavite validan SCRAPINGBEE_API_KEY u Vercel Environment Variables.';
     } else if (errorMessage.includes('Tabela nije pronađena')) {
       userMessage = 'Tabela nije pronađena na stranici. Stranica verovatno koristi JavaScript za renderovanje, što zahteva browser automation (Playwright/Puppeteer) ili ScrapingBee API. U produkciji (Vercel), proverite da li je ScrapingBee API key pravilno postavljen ili da li su instalirani puppeteer-core, @sparticuz/chromium paketi.';
     } else if (errorMessage.includes('Nijedan tim nije pronađen')) {

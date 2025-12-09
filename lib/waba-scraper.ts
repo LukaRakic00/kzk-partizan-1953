@@ -212,16 +212,10 @@ export class WABAStandingsScraper {
       playwright: !!playwright,
       vercel: isVercel,
       production: isProduction,
-      scrapeDoToken: !!(process.env.SCRAPE_DO_TOKEN || process.env.SCRAPEDO_TOKEN),
       scrapingBeeApiKey: !!process.env.SCRAPINGBEE_API_KEY,
     });
     
-    // Ako postoji Scrape.do token ili ScrapingBee API key, to je OK - koristićemo ga umesto browser automation
-    const scrapeDoToken = process.env.SCRAPE_DO_TOKEN?.trim() || process.env.SCRAPEDO_TOKEN?.trim();
-    if (scrapeDoToken) {
-      console.log('ℹ Scrape.do token je dostupan - koristiće se umesto browser automation');
-      return false; // Vraćamo false ali će Scrape.do biti korišćen u scrapeStandings
-    }
+    // Ako postoji ScrapingBee API key, to je OK - koristićemo ga umesto browser automation
     if (process.env.SCRAPINGBEE_API_KEY) {
       console.log('ℹ ScrapingBee API key je dostupan - koristiće se umesto browser automation');
       return false; // Vraćamo false ali će ScrapingBee biti korišćen u scrapeStandings
@@ -232,50 +226,9 @@ export class WABAStandingsScraper {
   }
 
   async scrapeStandings(): Promise<WabaTeamData[]> {
-    // Proveri prvo da li postoji Scrape.do API token - koristi ga kao primarni način
-    // Scrape.do radi i u development i u production okruženju
-    const isVercel = process.env.VERCEL === '1' || process.env.VERCEL_ENV;
-    const scrapeDoToken = process.env.SCRAPE_DO_TOKEN?.trim() || process.env.SCRAPEDO_TOKEN?.trim();
-    
-    // Ako postoji Scrape.do token, koristi ga prvo
-    if (scrapeDoToken) {
-      console.log(`✓ Koristim Scrape.do API (preporučeno za ${isVercel ? 'produkciji (Vercel)' : 'development'})...`);
-      try {
-        const standings = await this.scrapeWithScrapeDo();
-        if (standings && standings.length > 0) {
-          console.log(`✓ Scrape.do uspešan: pronađeno ${standings.length} timova`);
-          return standings;
-        } else {
-          console.warn('Scrape.do vratio prazan rezultat, pokušavam sa ScrapingBee...');
-        }
-      } catch (sdError: any) {
-        const errorMsg = sdError?.message || String(sdError);
-        console.error('✗ Scrape.do API neuspešan:', errorMsg);
-        
-        // Ako je greška vezana za JavaScript renderovanje, brzo pređi na browser automation
-        if (errorMsg.includes('JavaScript nije renderovan') || errorMsg.includes('mbt-table') || errorMsg.includes('nije pronađena')) {
-          console.warn('⚠ Scrape.do ne renderuje JavaScript - prebacujem se direktno na browser automation');
-          // Inicijalizuj browser automation ako nije već inicijalizovan
-          if (!this.browser) {
-            console.log('Inicijalizujem browser automation za fallback...');
-            await this.initialize();
-          }
-          // Preskoči ScrapingBee i idi direktno na browser automation
-          if (this.usePlaywright && this.browser) {
-            return this.scrapeWithPlaywright();
-          }
-          if (this.usePuppeteer && this.browser) {
-            // Fallback na Puppeteer će se desiti u nastavku
-          }
-        } else {
-          console.warn('Pokušavam sa ScrapingBee fallback...');
-          // Nastavi sa ScrapingBee fallback samo ako nije greška vezana za renderovanje
-        }
-      }
-    }
-    
-    // Proveri da li postoji ScrapingBee API key - koristi ga kao sekundarni način
+    // Proveri da li postoji ScrapingBee API key - koristi ga kao primarni način
     // ScrapingBee radi i u development i u production okruženju
+    const isVercel = process.env.VERCEL === '1' || process.env.VERCEL_ENV;
     const scrapingBeeApiKey = process.env.SCRAPINGBEE_API_KEY?.trim();
     
     // Debug: loguj sve environment variables koje se tiču ScrapingBee
@@ -346,11 +299,9 @@ export class WABAStandingsScraper {
         // Ne baci grešku odmah - pokušaj prvo browser automation
       }
     } else {
-      // Ako nema ScrapingBee API key u Vercel produkciji, proveri da li postoji Scrape.do token
+      // Ako nema ScrapingBee API key u Vercel produkciji, baci jasnu grešku
       if (isVercel) {
-        if (!scrapeDoToken) {
-          throw new Error('Nijedan scraping API nije dostupan u Vercel produkciji. Proverite da li je SCRAPE_DO_TOKEN ili SCRAPINGBEE_API_KEY pravilno postavljen u Vercel Environment Variables (Settings → Environment Variables → Production).');
-        }
+        throw new Error('ScrapingBee API key nije dostupan u Vercel produkciji. Proverite da li je SCRAPINGBEE_API_KEY pravilno postavljen u Vercel Environment Variables (Settings → Environment Variables → Production).');
       }
       console.log('ScrapingBee API key nije dostupan, koristim browser automation ili fetch');
     }
@@ -375,8 +326,8 @@ export class WABAStandingsScraper {
     if (!this.usePuppeteer || !this.browser) {
       if (isVercel) {
         // U Vercel produkciji, fetch metoda neće raditi jer stranica koristi JavaScript
-        // Ako smo došli ovde, znači da Scrape.do i ScrapingBee nisu radili i browser automation nije dostupan
-        throw new Error('Browser automation nije dostupan u Vercel produkciji. Proverite da li su instalirani puppeteer-core i @sparticuz/chromium paketi, ili da li je SCRAPE_DO_TOKEN ili SCRAPINGBEE_API_KEY pravilno postavljen u Vercel Environment Variables.');
+        // Ako smo došli ovde, znači da ScrapingBee nije radio i browser automation nije dostupan
+        throw new Error('Browser automation nije dostupan u Vercel produkciji. Proverite da li su instalirani puppeteer-core i @sparticuz/chromium paketi, ili da li je SCRAPINGBEE_API_KEY pravilno postavljen u Vercel Environment Variables.');
       }
       console.log('Koristim fetch metodu jer browser automation nije dostupan ili nije inicijalizovan');
       console.warn('NAPOMENA: Fetch metoda možda neće moći da pronađe tabelu ako stranica koristi JavaScript za renderovanje.');
@@ -698,11 +649,10 @@ export class WABAStandingsScraper {
     try {
       // ScrapingBee API sa render_js=true za JavaScript-renderovane stranice
       // Povećaj wait vreme da se tabela potpuno učita (maksimum je 10000ms)
-      // Dodaj premium=true za bolje renderovanje JavaScript-a
-      const scrapingBeeUrl = `https://app.scrapingbee.com/api/v1/?api_key=${encodeURIComponent(scrapingBeeApiKey)}&url=${encodeURIComponent(CONFIG.URL)}&render_js=true&wait=10000&premium=true`;
+      const scrapingBeeUrl = `https://app.scrapingbee.com/api/v1/?api_key=${encodeURIComponent(scrapingBeeApiKey)}&url=${encodeURIComponent(CONFIG.URL)}&render_js=true&wait=10000`;
       
       console.log('Pozivam ScrapingBee API...');
-      console.log('ScrapingBee URL (bez API key):', `https://app.scrapingbee.com/api/v1/?url=${encodeURIComponent(CONFIG.URL)}&render_js=true&wait=10000&premium=true`);
+      console.log('ScrapingBee URL (bez API key):', `https://app.scrapingbee.com/api/v1/?url=${encodeURIComponent(CONFIG.URL)}&render_js=true&wait=10000`);
       
       const response = await fetch(scrapingBeeUrl, {
         method: 'GET',
@@ -778,7 +728,7 @@ export class WABAStandingsScraper {
           console.warn('⚠ Prvi ScrapingBee poziv nije vratio mbt-table, pokušavam ponovo sa dužim čekanjem...');
           
           // Pokušaj ponovo sa još dužim čekanjem (maksimum 10 sekundi)
-          const retryUrl = `https://app.scrapingbee.com/api/v1/?api_key=${encodeURIComponent(scrapingBeeApiKey)}&url=${encodeURIComponent(CONFIG.URL)}&render_js=true&wait=10000&premium=true&block_resources=image,media,font`;
+          const retryUrl = `https://app.scrapingbee.com/api/v1/?api_key=${encodeURIComponent(scrapingBeeApiKey)}&url=${encodeURIComponent(CONFIG.URL)}&render_js=true&wait=10000&block_resources=image,media,font`;
           
           try {
             const retryResponse = await fetch(retryUrl, {
@@ -818,118 +768,6 @@ export class WABAStandingsScraper {
       return standings;
     } catch (error: any) {
       console.error('✗ Greška pri scrapanju sa ScrapingBee:', error.message);
-      throw error;
-    }
-  }
-
-  private async scrapeWithScrapeDo(): Promise<WabaTeamData[]> {
-    const scrapeDoToken = process.env.SCRAPE_DO_TOKEN?.trim() || process.env.SCRAPEDO_TOKEN?.trim();
-    if (!scrapeDoToken) {
-      throw new Error('SCRAPE_DO_TOKEN nije postavljen');
-    }
-
-    // Proveri da li token izgleda validno
-    if (scrapeDoToken.length < 10) {
-      throw new Error(`SCRAPE_DO_TOKEN izgleda nevalidno (prekratak: ${scrapeDoToken.length} karaktera). Proverite da li je pravilno postavljen u .env fajlu.`);
-    }
-
-    console.log('Koristim Scrape.do API za scraping...');
-    console.log(`Token dužina: ${scrapeDoToken.length} karaktera`);
-    
-    try {
-      // Scrape.do API format: https://api.scrape.do/?url=...&token=...
-      // Pokušavamo sa i bez JavaScript renderovanja parametara
-      // Prvo bez parametara, pa ako ne radi, sa render=true
-      let scrapeDoUrl = `https://api.scrape.do/?url=${encodeURIComponent(CONFIG.URL)}&token=${encodeURIComponent(scrapeDoToken)}`;
-      
-      console.log('Pozivam Scrape.do API...');
-      console.log('Scrape.do URL (bez token):', `https://api.scrape.do/?url=${encodeURIComponent(CONFIG.URL)}&token=***`);
-      
-      const response = await fetch(scrapeDoUrl, {
-        method: 'GET',
-        headers: {
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        },
-        // Povećaj timeout za produkciju
-        signal: AbortSignal.timeout(60000), // 60 sekundi timeout
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        let errorMessage = `Scrape.do API error: ${response.status}`;
-        
-        if (response.status === 401 || response.status === 403) {
-          errorMessage += ' - Invalid token. Proverite da li je token pravilno postavljen u .env fajlu i da li je validan na Scrape.do dashboard-u.';
-        } else if (response.status === 402 || response.status === 429) {
-          errorMessage += ' - Payment required or rate limit exceeded. Proverite da li imate dovoljno kredita na Scrape.do nalogu.';
-        } else {
-          errorMessage += ` - ${errorText.substring(0, 200)}`;
-        }
-        
-        throw new Error(errorMessage);
-      }
-
-      const html = await response.text();
-      
-      if (!html || html.length < 100) {
-        throw new Error('Scrape.do vratio prazan HTML');
-      }
-
-      console.log(`Scrape.do vratio ${html.length} karaktera HTML-a`);
-      
-      // DEBUG: Sačuvaj HTML u development okruženju za analizu
-      if (process.env.NODE_ENV === 'development') {
-        try {
-          const fs = require('fs');
-          const path = require('path');
-          const outputPath = path.join(process.cwd(), 'scrape-do-output.html');
-          fs.writeFileSync(outputPath, html);
-          console.log(`📄 HTML sačuvan u: ${outputPath}`);
-        } catch (fsError) {
-          // Ignoriši greške pri pisanju fajla
-        }
-      }
-      
-      // Proveri da li HTML sadrži mbt-table
-      const hasMbtTable = html.includes('mbt-table') || html.includes('mbt-standings');
-      console.log(`HTML sadrži mbt-table: ${hasMbtTable}`);
-      
-      // Proveri da li HTML sadrži team_id linkove (glavna tabela)
-      const hasTeamIdLinks = html.includes('team_id') || html.includes('teamId');
-      console.log(`HTML sadrži team_id linkove: ${hasTeamIdLinks}`);
-      
-      // Dodatne provere za debug
-      const hasTable = html.includes('<table');
-      const hasScript = html.includes('<script');
-      const hasBody = html.includes('<body');
-      console.log(`HTML struktura: hasTable=${hasTable}, hasScript=${hasScript}, hasBody=${hasBody}`);
-      
-      // Debug: loguj mali deo HTML-a da vidimo strukturu
-      const tableMatch = html.match(/<table[^>]*class="[^"]*mbt[^"]*"[^>]*>[\s\S]{0,500}/i);
-      if (tableMatch) {
-        console.log('Pronađena mbt tabela u HTML-u:', tableMatch[0].substring(0, 200));
-      }
-      
-      // Ako nema mbt-table u HTML-u, Scrape.do verovatno ne renderuje JavaScript
-      // Brzo pređi na fallback umesto da pokušavaš parsiranje
-      if (!hasMbtTable && !hasTeamIdLinks) {
-        console.warn('⚠ Scrape.do HTML ne sadrži mbt-table ili team_id linkove - JavaScript nije renderovan');
-        console.warn('Scrape.do možda ne podržava JavaScript renderovanje za ovu stranicu');
-        throw new Error('Scrape.do vratio HTML ali tabela (mbt-table) nije pronađena. JavaScript nije renderovan. Prebacujem se na browser automation fallback.');
-      }
-      
-      const standings = this.parseRowsDirectly(html);
-      
-      if (standings.length === 0) {
-        // Ako nema podataka nakon parsiranja, baci grešku da bi se prešlo na fallback
-        console.warn('⚠ Scrape.do vratio HTML ali nema podataka u tabeli');
-        throw new Error('Scrape.do vratio HTML ali tabela nije pronađena ili nema podataka. Prebacujem se na browser automation fallback.');
-      }
-
-      console.log(`✓ Uspešno učitano ${standings.length} timova (Scrape.do)`);
-      return standings;
-    } catch (error: any) {
-      console.error('✗ Greška pri scrapanju sa Scrape.do:', error.message);
       throw error;
     }
   }
