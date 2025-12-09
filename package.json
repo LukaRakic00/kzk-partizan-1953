@@ -24,7 +24,6 @@
     "next-cloudinary": "^5.11.0",
     "next-seo": "^6.5.0",
     "playwright": "^1.57.0",
-    "puppeteer": "^24.31.0",
     "puppeteer-core": "^24.32.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",

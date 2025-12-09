@@ -332,25 +332,18 @@ export class WABAStandingsScraper {
           stack: sbError.stack?.substring(0, 500),
         });
         
-        // Ako je greška vezana za invalid API key ili u Vercel-u, baci jasnu grešku
+        // Ako je greška vezana za invalid API key, pokušaj browser automation fallback
         if (sbError.message && sbError.message.includes('Invalid API key')) {
+          console.warn('⚠ ScrapingBee API key nije validan. Pokušavam browser automation fallback...');
           if (isVercel) {
-            throw new Error('ScrapingBee API key nije validan. Proverite da li je SCRAPINGBEE_API_KEY pravilno postavljen u Vercel Environment Variables (Settings → Environment Variables → Production) i da li je validan na ScrapingBee dashboard-u.');
+            console.warn('U Vercel produkciji, pokušavam Puppeteer + @sparticuz/chromium kao fallback...');
           }
-          console.warn('⚠ ScrapingBee API key nije validan. Koristim browser automation fallback...');
-          console.warn('Za produkciju, proverite da li je ScrapingBee API key pravilno postavljen u Vercel Environment Variables.');
-        } else if (isVercel) {
-          // U Vercel-u, ako ScrapingBee ne radi, baci grešku umesto da pokušava browser automation
-          throw new Error(`ScrapingBee API neuspešan u Vercel produkciji: ${sbError.message}. Proverite da li je SCRAPINGBEE_API_KEY pravilno postavljen i da li imate dovoljno kredita na ScrapingBee nalogu.`);
+          // Nastavi sa browser automation fallback
         } else {
           console.warn('Pokušavam sa browser automation fallback...');
         }
-        // Nastavi sa browser automation fallback samo ako nismo u Vercel-u
-        if (!isVercel) {
-          // Nastavi sa browser automation fallback
-        } else {
-          throw sbError; // U Vercel-u, baci grešku
-        }
+        // Nastavi sa browser automation fallback (i u Vercel-u)
+        // Ne baci grešku odmah - pokušaj prvo browser automation
       }
     } else {
       // Ako nema ScrapingBee API key u Vercel produkciji, proveri da li postoji Scrape.do token
