@@ -76,3 +76,13 @@ export const uploadImage = async (
   });
 };
 
+// Funkcija za brisanje slike sa Cloudinary
+export const deleteImageFromCloudinary = async (publicId: string): Promise<void> => {
+  try {
+    await cloudinary.uploader.destroy(publicId);
+  } catch (error) {
+    console.error('Error deleting image from Cloudinary:', error);
+    throw error;
+  }
+};
+

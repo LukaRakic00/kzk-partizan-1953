@@ -65,58 +65,90 @@ export default function AdminImages() {
 
     setUploading(true);
     try {
-      const uploadFormData = new FormData();
-      uploadFormData.append('file', file);
-      uploadFormData.append('folder', formData.folder);
+      // Ako editovanje postojeće slike
+      if (editingImage) {
+        const updateFormData = new FormData();
+        updateFormData.append('file', file);
+        updateFormData.append('folder', formData.folder);
+        updateFormData.append('order', formData.order.toString());
+        if (formData.category) {
+          updateFormData.append('category', formData.category);
+        }
 
-      const token = localStorage.getItem('auth-token');
-      const response = await fetch('/api/upload', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: uploadFormData,
-      });
+        const token = localStorage.getItem('auth-token');
+        const response = await fetch(`/api/images/${editingImage._id}`, {
+          method: 'PUT',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: updateFormData,
+        });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Greška pri upload-u');
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Greška pri ažuriranju slike');
+        }
+
+        toast.success('Slika je uspešno ažurirana');
+        loadImages();
+        setShowModal(false);
+        setEditingImage(null);
+        setFormData({ folder: selectedFolder === 'all' ? 'baneri' : selectedFolder, category: '', order: 0 });
+      } else {
+        // Nova slika
+        const uploadFormData = new FormData();
+        uploadFormData.append('file', file);
+        uploadFormData.append('folder', formData.folder);
+
+        const token = localStorage.getItem('auth-token');
+        const response = await fetch('/api/upload', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: uploadFormData,
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Greška pri upload-u');
+        }
+
+        const data = await response.json();
+        console.log('Upload response:', data); // Debug
+        
+        if (!data.url) {
+          throw new Error('URL slike nije vraćen iz Cloudinary');
+        }
+        
+        // Kreiraj Image dokument u bazi
+        const imageData: any = {
+          publicId: data.publicId || '',
+          url: data.url,
+          folder: formData.folder,
+          order: formData.order,
+          width: data.width,
+          height: data.height,
+          format: data.format || file.name.split('.').pop(),
+        };
+        
+        // Dodaj category samo ako je unet
+        if (formData.category && formData.category.trim() !== '') {
+          imageData.category = formData.category;
+        }
+
+        console.log('Creating image in DB:', imageData); // Debug
+        const createdImage = await apiClient.createImage(imageData);
+        console.log('Created image:', createdImage); // Debug
+        
+        toast.success('Slika je uspešno upload-ovana i sačuvana');
+        loadImages();
+        setShowModal(false);
+        setFormData({ folder: selectedFolder === 'all' ? 'baneri' : selectedFolder, category: '', order: 0 });
       }
-
-      const data = await response.json();
-      console.log('Upload response:', data); // Debug
-      
-      if (!data.url) {
-        throw new Error('URL slike nije vraćen iz Cloudinary');
-      }
-      
-      // Kreiraj Image dokument u bazi
-      const imageData: any = {
-        publicId: data.publicId || '',
-        url: data.url,
-        folder: formData.folder,
-        order: formData.order,
-        width: data.width,
-        height: data.height,
-        format: data.format || file.name.split('.').pop(),
-      };
-      
-      // Dodaj category samo ako je unet
-      if (formData.category && formData.category.trim() !== '') {
-        imageData.category = formData.category;
-      }
-
-      console.log('Creating image in DB:', imageData); // Debug
-      const createdImage = await apiClient.createImage(imageData);
-      console.log('Created image:', createdImage); // Debug
-      
-      toast.success('Slika je uspešno upload-ovana i sačuvana');
-      loadImages();
-      setShowModal(false);
-      setFormData({ folder: 'baneri', category: '', order: 0 });
     } catch (error: any) {
       console.error('Upload error:', error);
-      toast.error(`Greška pri upload-u slike: ${error.message || 'Nepoznata greška'}`);
+      toast.error(`Greška: ${error.message || 'Nepoznata greška'}`);
     } finally {
       setUploading(false);
     }
@@ -287,20 +319,38 @@ export default function AdminImages() {
               </div>
               <div className="flex space-x-2">
                 <button
+                  onClick={() => {
+                    setEditingImage(image);
+                    setFormData({
+                      folder: image.folder,
+                      category: image.category || '',
+                      order: image.order,
+                    });
+                    setShowModal(true);
+                  }}
+                  className="flex-1 bg-blue-500/20 text-blue-400 px-3 py-2 hover:bg-blue-500/30 transition-all flex items-center justify-center"
+                  title="Izmeni sliku"
+                >
+                  <Edit size={16} />
+                </button>
+                <button
                   onClick={() => handleOrderChange(image._id, 'up')}
                   className="flex-1 bg-white/10 text-white px-3 py-2 hover:bg-white/20 transition-all flex items-center justify-center"
+                  title="Pomeri gore"
                 >
                   <ArrowUp size={16} />
                 </button>
                 <button
                   onClick={() => handleOrderChange(image._id, 'down')}
                   className="flex-1 bg-white/10 text-white px-3 py-2 hover:bg-white/20 transition-all flex items-center justify-center"
+                  title="Pomeri dole"
                 >
                   <ArrowDown size={16} />
                 </button>
                 <button
                   onClick={() => handleDelete(image._id)}
                   className="flex-1 bg-red-500/20 text-red-400 px-3 py-2 hover:bg-red-500/30 transition-all flex items-center justify-center"
+                  title="Obriši"
                 >
                   <Trash2 size={16} />
                 </button>
@@ -313,8 +363,23 @@ export default function AdminImages() {
       {/* Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4">
-          <div className="bg-black border border-white/10 p-4 sm:p-6 md:p-8 max-w-md w-full">
-            <h2 className="text-2xl font-bold font-playfair mb-6">Dodaj Sliku</h2>
+          <div className="bg-black border border-white/10 p-4 sm:p-6 md:p-8 max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <h2 className="text-2xl font-bold font-playfair mb-6">
+              {editingImage ? 'Izmeni Sliku' : 'Dodaj Sliku'}
+            </h2>
+            {editingImage && (
+              <div className="mb-4 p-3 bg-white/5 border border-white/10 rounded">
+                <p className="text-sm text-gray-400 mb-2">Trenutna slika:</p>
+                <div className="relative aspect-video">
+                  <Image
+                    src={editingImage.url}
+                    alt="Current"
+                    fill
+                    className="object-contain"
+                  />
+                </div>
+              </div>
+            )}
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium mb-2">Folder (Gde se koristi na sajtu)</label>
@@ -359,28 +424,99 @@ export default function AdminImages() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-2">Slika</label>
+                <label className="block text-sm font-medium mb-2">
+                  {editingImage ? 'Nova slika (zamenjuje staru)' : 'Slika'}
+                </label>
                 <input
                   type="file"
                   accept="image/*"
                   onChange={handleImageUpload}
                   className="w-full bg-white/5 border border-white/10 px-4 py-3 text-white focus:outline-none focus:border-white"
+                  disabled={uploading}
                 />
-                {uploading && <p className="text-sm text-gray-400 mt-2">Upload u toku...</p>}
+                {uploading && <p className="text-sm text-gray-400 mt-2">
+                  {editingImage ? 'Ažuriranje u toku...' : 'Upload u toku...'}
+                </p>}
+                {editingImage && (
+                  <p className="text-xs text-yellow-400 mt-2">
+                    ⚠️ Stara slika će biti obrisana sa Cloudinary kada uploadujete novu
+                  </p>
+                )}
               </div>
 
-              <div className="flex space-x-4">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowModal(false);
-                    setEditingImage(null);
-                  }}
-                  className="flex-1 bg-white/10 text-white px-6 py-3 font-semibold uppercase tracking-wider hover:bg-white/20 transition-all"
-                >
-                  Otkaži
-                </button>
-              </div>
+              {!editingImage && (
+                <div className="flex space-x-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowModal(false);
+                      setEditingImage(null);
+                    }}
+                    className="flex-1 bg-white/10 text-white px-6 py-3 font-semibold uppercase tracking-wider hover:bg-white/20 transition-all"
+                  >
+                    Otkaži
+                  </button>
+                </div>
+              )}
+              {editingImage && (
+                <div className="flex space-x-4">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      // Ažuriraj samo metapodatke bez upload-a nove slike
+                      try {
+                        setUploading(true);
+                        const updateFormData = new FormData();
+                        updateFormData.append('folder', formData.folder);
+                        updateFormData.append('order', formData.order.toString());
+                        if (formData.category) {
+                          updateFormData.append('category', formData.category);
+                        }
+
+                        const token = localStorage.getItem('auth-token');
+                        const response = await fetch(`/api/images/${editingImage._id}`, {
+                          method: 'PUT',
+                          headers: {
+                            Authorization: `Bearer ${token}`,
+                          },
+                          body: updateFormData,
+                        });
+
+                        if (!response.ok) {
+                          const errorData = await response.json();
+                          throw new Error(errorData.error || 'Greška pri ažuriranju');
+                        }
+
+                        toast.success('Metapodaci su ažurirani');
+                        loadImages();
+                        setShowModal(false);
+                        setEditingImage(null);
+                        setFormData({ folder: selectedFolder === 'all' ? 'baneri' : selectedFolder, category: '', order: 0 });
+                      } catch (error: any) {
+                        toast.error(`Greška: ${error.message}`);
+                      } finally {
+                        setUploading(false);
+                      }
+                    }}
+                    className="flex-1 bg-blue-500 text-white px-6 py-3 font-semibold uppercase tracking-wider hover:bg-blue-600 transition-all"
+                    disabled={uploading}
+                  >
+                    Sačuvaj izmene
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowModal(false);
+                      setEditingImage(null);
+                      setFormData({ folder: selectedFolder === 'all' ? 'baneri' : selectedFolder, category: '', order: 0 });
+                    }}
+                    className="flex-1 bg-white/10 text-white px-6 py-3 font-semibold uppercase tracking-wider hover:bg-white/20 transition-all"
+                    disabled={uploading}
+                  >
+                    Otkaži
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>

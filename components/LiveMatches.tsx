@@ -125,20 +125,49 @@ export default function LiveMatches() {
   const [isVisible, setIsVisible] = useState(true);
   const lastScrollY = useRef(0);
 
-  // Auto-scroll kontinuirano u desno za predstojeće mečeve - optimizovano za glatko pomeranje
+  // Auto-scroll kontinuirano u desno za predstojeće mečeve - optimizovano za glatko pomeranje i mobilne
   useEffect(() => {
-    if (!upcomingSliderRef.current || upcomingMatches.length === 0) return;
+    if (!upcomingSliderRef.current || upcomingMatches.length === 0) {
+      // Cleanup ako nema sadržaja
+      if (upcomingAutoScrollRef.current) {
+        cancelAnimationFrame(upcomingAutoScrollRef.current);
+        upcomingAutoScrollRef.current = null;
+      }
+      return;
+    }
 
     const container = upcomingSliderRef.current;
-    const isMobile = window.innerWidth < 768;
-    // Brzina scroll-a (px per frame) - manja na mobilnim za bolje performanse
-    const scrollSpeed = isMobile ? 0.8 : 1.2;
+    
+    // Funkcija za određivanje da li je mobilni
+    const checkIsMobile = () => {
+      if (typeof window === 'undefined') return false;
+      return window.innerWidth < 768;
+    };
+    
+    let isMobile = checkIsMobile();
+    let scrollSpeed = isMobile ? 0.8 : 1.2;
     let animationId: number | null = null;
     let lastScrollTime = performance.now();
-    const targetFPS = isMobile ? 30 : 60;
-    const frameInterval = 1000 / targetFPS;
+    let targetFPS = isMobile ? 30 : 60;
+    let frameInterval = 1000 / targetFPS;
 
     const autoScroll = (currentTime: number) => {
+      // Proveri da li je container još uvek dostupan
+      if (!upcomingSliderRef.current || !container) {
+        if (animationId !== null) {
+          cancelAnimationFrame(animationId);
+        }
+        return;
+      }
+
+      // Ažuriraj mobilni status na svakih nekoliko frameova (ne na svakom frameu)
+      if (Math.random() < 0.01) { // 1% šansa za update
+        isMobile = checkIsMobile();
+        scrollSpeed = isMobile ? 0.8 : 1.2;
+        targetFPS = isMobile ? 30 : 60;
+        frameInterval = 1000 / targetFPS;
+      }
+
       // Pauziraj ako korisnik interaguje
       if (isUserInteracting.current) {
         animationId = requestAnimationFrame(autoScroll);
@@ -156,8 +185,8 @@ export default function LiveMatches() {
       const maxScroll = container.scrollWidth - container.clientWidth;
       const currentScroll = container.scrollLeft;
 
-      // Proveri da li ima dovoljno sadržaja za scroll
-      if (maxScroll <= 0) {
+      // Proveri da li ima dovoljno sadržaja za scroll - sa dodatnom proverom
+      if (maxScroll <= 0 || container.scrollWidth <= container.clientWidth) {
         animationId = requestAnimationFrame(autoScroll);
         return;
       }
@@ -174,21 +203,25 @@ export default function LiveMatches() {
       animationId = requestAnimationFrame(autoScroll);
     };
 
-    // Pokreni auto-scroll
-    animationId = requestAnimationFrame(autoScroll);
-    upcomingAutoScrollRef.current = animationId;
+    // Sačekaj malo da se DOM osveži i da container bude spreman
+    const startDelay = setTimeout(() => {
+      animationId = requestAnimationFrame(autoScroll);
+      upcomingAutoScrollRef.current = animationId;
+    }, 100);
 
     return () => {
+      clearTimeout(startDelay);
       if (animationId !== null) {
         cancelAnimationFrame(animationId);
       }
       if (upcomingAutoScrollRef.current) {
         cancelAnimationFrame(upcomingAutoScrollRef.current);
+        upcomingAutoScrollRef.current = null;
       }
     };
   }, [upcomingMatches]);
 
-  // Auto-scroll kontinuirano u desno za protekle mečeve - optimizovano za glatko pomeranje
+  // Auto-scroll kontinuirano u desno za protekle mečeve - optimizovano za glatko pomeranje i mobilne
   useEffect(() => {
     if (!pastSliderRef.current || pastMatches.length === 0 || !isVisible) {
       // Zaustavi auto-scroll ako nije vidljiv
@@ -200,15 +233,37 @@ export default function LiveMatches() {
     }
 
     const container = pastSliderRef.current;
-    const isMobile = window.innerWidth < 768;
-    // Brzina scroll-a (px per frame) - manja na mobilnim za bolje performanse
-    const scrollSpeed = isMobile ? 0.8 : 1.2;
+    
+    // Funkcija za određivanje da li je mobilni
+    const checkIsMobile = () => {
+      if (typeof window === 'undefined') return false;
+      return window.innerWidth < 768;
+    };
+    
+    let isMobile = checkIsMobile();
+    let scrollSpeed = isMobile ? 0.8 : 1.2;
     let animationId: number | null = null;
     let lastScrollTime = performance.now();
-    const targetFPS = isMobile ? 30 : 60;
-    const frameInterval = 1000 / targetFPS;
+    let targetFPS = isMobile ? 30 : 60;
+    let frameInterval = 1000 / targetFPS;
 
     const autoScroll = (currentTime: number) => {
+      // Proveri da li je container još uvek dostupan i vidljiv
+      if (!pastSliderRef.current || !container || !isVisible) {
+        if (animationId !== null) {
+          cancelAnimationFrame(animationId);
+        }
+        return;
+      }
+
+      // Ažuriraj mobilni status na svakih nekoliko frameova
+      if (Math.random() < 0.01) { // 1% šansa za update
+        isMobile = checkIsMobile();
+        scrollSpeed = isMobile ? 0.8 : 1.2;
+        targetFPS = isMobile ? 30 : 60;
+        frameInterval = 1000 / targetFPS;
+      }
+
       // Zaustavi ako nije više vidljiv ili korisnik interaguje
       if (!isVisible || isUserInteracting.current) {
         animationId = requestAnimationFrame(autoScroll);
@@ -226,8 +281,8 @@ export default function LiveMatches() {
       const maxScroll = container.scrollWidth - container.clientWidth;
       const currentScroll = container.scrollLeft;
 
-      // Proveri da li ima dovoljno sadržaja za scroll
-      if (maxScroll <= 0) {
+      // Proveri da li ima dovoljno sadržaja za scroll - sa dodatnom proverom
+      if (maxScroll <= 0 || container.scrollWidth <= container.clientWidth) {
         animationId = requestAnimationFrame(autoScroll);
         return;
       }
@@ -244,16 +299,20 @@ export default function LiveMatches() {
       animationId = requestAnimationFrame(autoScroll);
     };
 
-    // Pokreni auto-scroll
-    animationId = requestAnimationFrame(autoScroll);
-    pastAutoScrollRef.current = animationId;
+    // Sačekaj malo da se DOM osveži i da container bude spreman
+    const startDelay = setTimeout(() => {
+      animationId = requestAnimationFrame(autoScroll);
+      pastAutoScrollRef.current = animationId;
+    }, 100);
 
     return () => {
+      clearTimeout(startDelay);
       if (animationId !== null) {
         cancelAnimationFrame(animationId);
       }
       if (pastAutoScrollRef.current) {
         cancelAnimationFrame(pastAutoScrollRef.current);
+        pastAutoScrollRef.current = null;
       }
     };
   }, [pastMatches, isVisible]);
@@ -273,21 +332,30 @@ export default function LiveMatches() {
     return () => clearTimeout(timeoutId);
   };
 
-  // Detektuj scroll direction i sakrij/prikaži slajder
+  // Detektuj scroll direction i sakrij/prikaži slajder - optimizovano za mobilne
   useEffect(() => {
+    let ticking = false;
+
     const handleScroll = () => {
-      const currentScrollY = window.scrollY;
-      
-      // Ako scroll-uje na dole, sakrij
-      if (currentScrollY > lastScrollY.current && currentScrollY > 100) {
-        setIsVisible(false);
-      } 
-      // Ako scroll-uje na gore, prikaži
-      else if (currentScrollY < lastScrollY.current) {
-        setIsVisible(true);
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          const currentScrollY = window.scrollY || window.pageYOffset;
+          const scrollThreshold = 50; // Manji threshold za mobilne
+          
+          // Ako scroll-uje na dole, sakrij (sa većom tolerancijom za mobilne)
+          if (currentScrollY > lastScrollY.current && currentScrollY > scrollThreshold) {
+            setIsVisible(false);
+          } 
+          // Ako scroll-uje na gore ili je blizu vrha, prikaži
+          else if (currentScrollY < lastScrollY.current || currentScrollY <= scrollThreshold) {
+            setIsVisible(true);
+          }
+          
+          lastScrollY.current = currentScrollY;
+          ticking = false;
+        });
+        ticking = true;
       }
-      
-      lastScrollY.current = currentScrollY;
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
@@ -339,7 +407,10 @@ export default function LiveMatches() {
                 touchAction: 'pan-x',
                 willChange: 'scroll-position',
                 contain: 'layout style paint',
-                scrollBehavior: 'auto'
+                scrollBehavior: 'auto',
+                WebkitTouchCallout: 'none',
+                WebkitUserSelect: 'none',
+                userSelect: 'none'
               }}
             >
               {upcomingMatches.map((match, index) => (
@@ -385,7 +456,10 @@ export default function LiveMatches() {
                     touchAction: 'pan-x',
                     willChange: 'scroll-position',
                     contain: 'layout style paint',
-                    scrollBehavior: 'auto'
+                    scrollBehavior: 'auto',
+                    WebkitTouchCallout: 'none',
+                    WebkitUserSelect: 'none',
+                    userSelect: 'none'
                   }}
             >
               {pastMatches.slice(0, 20).map((match, index) => (

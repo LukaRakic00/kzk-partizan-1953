@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import LiveMatches from '@/components/LiveMatches';
@@ -38,25 +38,41 @@ export default function Home() {
   const [showScrollIndicator, setShowScrollIndicator] = useState(true);
   
   // Pripremi mečeve za carousel (prioritet: live > next > prethodni mečevi po datumu)
-  const matchesForCarousel = [];
-  if (currentLiveMatch) matchesForCarousel.push({ type: 'live', match: currentLiveMatch });
-  if (nextMatch) matchesForCarousel.push({ type: 'next', match: nextMatch });
+  // Koristi useMemo da se ne kreira svaki put
+  const matchesForCarousel = useMemo(() => {
+    const carousel: Array<{ type: 'live' | 'next' | 'last'; match: any }> = [];
+    if (currentLiveMatch) carousel.push({ type: 'live', match: currentLiveMatch });
+    if (nextMatch) carousel.push({ type: 'next', match: nextMatch });
+    
+    // Dodaj najnovije prethodne mečeve (sortirani po datumu, najnoviji prvo)
+    const recentPastMatches = pastMatches
+      .filter(m => m.score) // Samo mečevi sa rezultatom
+      .slice(0, 5); // Uzmi najnovijih 5 prethodnih mečeva
+    
+    recentPastMatches.forEach((match) => {
+      carousel.push({ type: 'last', match });
+    });
+    
+    return carousel;
+  }, [currentLiveMatch, nextMatch, pastMatches]);
   
-  // Dodaj najnovije prethodne mečeve (sortirani po datumu, najnoviji prvo)
-  const recentPastMatches = pastMatches
-    .filter(m => m.score) // Samo mečevi sa rezultatom
-    .slice(0, 5); // Uzmi najnovijih 5 prethodnih mečeva
+  // Resetuj index kada se promene mečevi
+  useEffect(() => {
+    if (matchesForCarousel.length > 0 && activeMatchIndex >= matchesForCarousel.length) {
+      setActiveMatchIndex(0);
+    }
+  }, [matchesForCarousel.length]);
   
-  recentPastMatches.forEach((match) => {
-    matchesForCarousel.push({ type: 'last', match });
-  });
-  
-  // Auto-play carousel svake 3 sekunde
+  // Auto-play carousel svake 3 sekunde - optimizovano za mobilne
   useEffect(() => {
     if (matchesForCarousel.length <= 1) return;
     
+    // Pokreni autoplay čak i na mobilnim verzijama
     const interval = setInterval(() => {
-      setActiveMatchIndex((prev) => (prev + 1) % matchesForCarousel.length);
+      setActiveMatchIndex((prev) => {
+        if (matchesForCarousel.length === 0) return 0;
+        return (prev + 1) % matchesForCarousel.length;
+      });
     }, 3000);
     
     return () => clearInterval(interval);

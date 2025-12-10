@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Menu, X } from 'lucide-react';
+import { Menu, X, ChevronDown, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiClient } from '@/lib/api-client';
 import CloudinaryImage from './CloudinaryImage';
@@ -27,6 +27,11 @@ export default function Navbar() {
   const [showONamaDropdown, setShowONamaDropdown] = useState(false);
   const [showIgraciDropdown, setShowIgraciDropdown] = useState(false);
   const [showKontaktDropdown, setShowKontaktDropdown] = useState(false);
+  const [showMobileKlubDropdown, setShowMobileKlubDropdown] = useState(false);
+  const [showMobileTimDropdown, setShowMobileTimDropdown] = useState(false);
+  const [showMobileONamaDropdown, setShowMobileONamaDropdown] = useState(false);
+  const [showMobileIgraciDropdown, setShowMobileIgraciDropdown] = useState(false);
+  const [showMobileKontaktDropdown, setShowMobileKontaktDropdown] = useState(false);
   const pathname = usePathname();
 
   useEffect(() => {
@@ -41,6 +46,17 @@ export default function Navbar() {
   useEffect(() => {
     loadLogo();
   }, []);
+
+  // Zatvori sve mobilne dropdown menije kada se mobilni meni zatvara
+  useEffect(() => {
+    if (!isOpen) {
+      setShowMobileKlubDropdown(false);
+      setShowMobileTimDropdown(false);
+      setShowMobileONamaDropdown(false);
+      setShowMobileIgraciDropdown(false);
+      setShowMobileKontaktDropdown(false);
+    }
+  }, [isOpen]);
 
   const loadLogo = async () => {
     try {
@@ -421,164 +437,306 @@ export default function Navbar() {
                 if (item.href === '/klub') {
                   return (
                     <div key={item.href}>
-                      <Link
-                        href={item.href}
-                        onClick={() => setIsOpen(false)}
-                        className={`w-full text-left text-sm font-bold tracking-wider uppercase transition-colors ${
-                          pathname === item.href || pathname.startsWith('/klub')
-                            ? 'text-white border-l-2 border-white pl-4'
-                            : 'text-gray-300 hover:text-white pl-4'
-                        }`}
-                      >
-                        {item.label}
-                      </Link>
-                      <div className="pl-6 mt-2 space-y-2">
+                      <div className="flex items-center">
                         <Link
-                          href="/klub#upravni-odbor"
-                          onClick={() => {
-                            setIsOpen(false);
-                          }}
-                          className="block text-sm font-montserrat tracking-wider uppercase text-gray-400 hover:text-white transition-colors"
+                          href={item.href}
+                          onClick={() => setIsOpen(false)}
+                          className={`flex-1 text-left text-sm font-bold tracking-wider uppercase transition-colors ${
+                            pathname === item.href || pathname.startsWith('/klub')
+                              ? 'text-white border-l-2 border-white pl-4'
+                              : 'text-gray-300 hover:text-white pl-4'
+                          }`}
                         >
-                          Upravni Odbor
+                          {item.label}
                         </Link>
-                        <Link
-                          href="/klub#menadzment"
-                          onClick={() => {
-                            setIsOpen(false);
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowMobileKlubDropdown(!showMobileKlubDropdown);
                           }}
-                          className="block text-sm font-montserrat tracking-wider uppercase text-gray-400 hover:text-white transition-colors"
+                          className="p-2 text-gray-400 hover:text-white transition-colors"
+                          aria-label="Toggle dropdown"
                         >
-                          Menadžment
-                        </Link>
-                        <Link
-                          href="/klub#rukovodstvo"
-                          onClick={() => {
-                            setIsOpen(false);
-                          }}
-                          className="block text-sm font-montserrat tracking-wider uppercase text-gray-400 hover:text-white transition-colors"
-                        >
-                          Rukovodstvo
-                        </Link>
+                          {showMobileKlubDropdown ? (
+                            <ChevronDown size={18} />
+                          ) : (
+                            <ChevronRight size={18} />
+                          )}
+                        </button>
                       </div>
+                      <AnimatePresence>
+                        {showMobileKlubDropdown && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            transition={{ duration: 0.2 }}
+                            className="pl-6 mt-2 space-y-2 overflow-hidden"
+                          >
+                            <Link
+                              href="/klub#upravni-odbor"
+                              onClick={() => {
+                                setIsOpen(false);
+                                setShowMobileKlubDropdown(false);
+                              }}
+                              className="block text-sm font-montserrat tracking-wider uppercase text-gray-400 hover:text-white transition-colors"
+                            >
+                              Upravni Odbor
+                            </Link>
+                            <Link
+                              href="/klub#menadzment"
+                              onClick={() => {
+                                setIsOpen(false);
+                                setShowMobileKlubDropdown(false);
+                              }}
+                              className="block text-sm font-montserrat tracking-wider uppercase text-gray-400 hover:text-white transition-colors"
+                            >
+                              Menadžment
+                            </Link>
+                            <Link
+                              href="/klub#rukovodstvo"
+                              onClick={() => {
+                                setIsOpen(false);
+                                setShowMobileKlubDropdown(false);
+                              }}
+                              className="block text-sm font-montserrat tracking-wider uppercase text-gray-400 hover:text-white transition-colors"
+                            >
+                              Rukovodstvo
+                            </Link>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
                   );
                 }
                 if (item.href === '/o-nama') {
                   return (
                     <div key={item.href}>
-                      <Link
-                        href={item.href}
-                        onClick={() => setIsOpen(false)}
-                        className={`w-full text-left text-sm font-bold tracking-wider uppercase transition-colors ${
-                          pathname === item.href
-                            ? 'text-white border-l-2 border-white pl-4'
-                            : 'text-gray-300 hover:text-white pl-4'
-                        }`}
-                      >
-                        {item.label}
-                      </Link>
-                      <div className="pl-6 mt-2 space-y-2">
+                      <div className="flex items-center">
                         <Link
-                          href="/o-nama#istorijat"
-                          onClick={() => {
-                            setIsOpen(false);
-                          }}
-                          className="block text-sm font-montserrat tracking-wider uppercase text-gray-400 hover:text-white transition-colors"
+                          href={item.href}
+                          onClick={() => setIsOpen(false)}
+                          className={`flex-1 text-left text-sm font-bold tracking-wider uppercase transition-colors ${
+                            pathname === item.href
+                              ? 'text-white border-l-2 border-white pl-4'
+                              : 'text-gray-300 hover:text-white pl-4'
+                          }`}
                         >
-                          Istorijat
+                          {item.label}
                         </Link>
-                        <Link
-                          href="/o-nama#statut"
-                          onClick={() => {
-                            setIsOpen(false);
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowMobileONamaDropdown(!showMobileONamaDropdown);
                           }}
-                          className="block text-sm font-montserrat tracking-wider uppercase text-gray-400 hover:text-white transition-colors"
+                          className="p-2 text-gray-400 hover:text-white transition-colors"
+                          aria-label="Toggle dropdown"
                         >
-                          Statut
-                        </Link>
+                          {showMobileONamaDropdown ? (
+                            <ChevronDown size={18} />
+                          ) : (
+                            <ChevronRight size={18} />
+                          )}
+                        </button>
                       </div>
+                      <AnimatePresence>
+                        {showMobileONamaDropdown && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            transition={{ duration: 0.2 }}
+                            className="pl-6 mt-2 space-y-2 overflow-hidden"
+                          >
+                            <Link
+                              href="/o-nama#istorijat"
+                              onClick={() => {
+                                setIsOpen(false);
+                                setShowMobileONamaDropdown(false);
+                              }}
+                              className="block text-sm font-montserrat tracking-wider uppercase text-gray-400 hover:text-white transition-colors"
+                            >
+                              Istorijat
+                            </Link>
+                            <Link
+                              href="/o-nama#statut"
+                              onClick={() => {
+                                setIsOpen(false);
+                                setShowMobileONamaDropdown(false);
+                              }}
+                              className="block text-sm font-montserrat tracking-wider uppercase text-gray-400 hover:text-white transition-colors"
+                            >
+                              Statut
+                            </Link>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
                   );
                 }
                 if (item.href === '/tim') {
                   return (
                     <div key={item.href}>
-                      <Link
-                        href={item.href}
-                        onClick={() => setIsOpen(false)}
-                        className={`w-full text-left text-sm font-bold tracking-wider uppercase transition-colors ${
-                          pathname === item.href || pathname.startsWith('/tim/') || pathname.startsWith('/igraci')
-                            ? 'text-white border-l-2 border-white pl-4'
-                            : 'text-gray-300 hover:text-white pl-4'
-                        }`}
-                      >
-                        {item.label}
-                      </Link>
-                      <div className="pl-6 mt-2 space-y-2">
-                        <div>
-                          <div className="block text-sm font-montserrat tracking-wider uppercase text-gray-400 pl-4 mb-2">
-                            Igrači
-                          </div>
-                          <div className="pl-4 space-y-2">
-                            <Link
-                              href="/igraci#seniori"
-                              onClick={() => {
-                                setIsOpen(false);
-                              }}
-                              className="block text-sm font-montserrat tracking-wider uppercase text-gray-400 hover:text-white transition-colors"
-                            >
-                              Seniori
-                            </Link>
-                            <Link
-                              href="/igraci#juniori"
-                              onClick={() => {
-                                setIsOpen(false);
-                              }}
-                              className="block text-sm font-montserrat tracking-wider uppercase text-gray-400 hover:text-white transition-colors"
-                            >
-                              Juniori
-                            </Link>
-                            <Link
-                              href="/igraci#pionirke"
-                              onClick={() => {
-                                setIsOpen(false);
-                              }}
-                              className="block text-sm font-montserrat tracking-wider uppercase text-gray-400 hover:text-white transition-colors"
-                            >
-                              Pionirke
-                            </Link>
-                          </div>
-                        </div>
+                      <div className="flex items-center">
+                        <Link
+                          href={item.href}
+                          onClick={() => setIsOpen(false)}
+                          className={`flex-1 text-left text-sm font-bold tracking-wider uppercase transition-colors ${
+                            pathname === item.href || pathname.startsWith('/tim/') || pathname.startsWith('/igraci')
+                              ? 'text-white border-l-2 border-white pl-4'
+                              : 'text-gray-300 hover:text-white pl-4'
+                          }`}
+                        >
+                          {item.label}
+                        </Link>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowMobileTimDropdown(!showMobileTimDropdown);
+                          }}
+                          className="p-2 text-gray-400 hover:text-white transition-colors"
+                          aria-label="Toggle dropdown"
+                        >
+                          {showMobileTimDropdown ? (
+                            <ChevronDown size={18} />
+                          ) : (
+                            <ChevronRight size={18} />
+                          )}
+                        </button>
                       </div>
+                      <AnimatePresence>
+                        {showMobileTimDropdown && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            transition={{ duration: 0.2 }}
+                            className="pl-6 mt-2 space-y-2 overflow-hidden"
+                          >
+                            <div>
+                              <div className="flex items-center">
+                                <span className="flex-1 text-sm font-montserrat tracking-wider uppercase text-gray-400 pl-4">
+                                  Igrači
+                                </span>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setShowMobileIgraciDropdown(!showMobileIgraciDropdown);
+                                  }}
+                                  className="p-2 text-gray-400 hover:text-white transition-colors"
+                                  aria-label="Toggle igrači dropdown"
+                                >
+                                  {showMobileIgraciDropdown ? (
+                                    <ChevronDown size={16} />
+                                  ) : (
+                                    <ChevronRight size={16} />
+                                  )}
+                                </button>
+                              </div>
+                              <AnimatePresence>
+                                {showMobileIgraciDropdown && (
+                                  <motion.div
+                                    initial={{ opacity: 0, height: 0 }}
+                                    animate={{ opacity: 1, height: 'auto' }}
+                                    exit={{ opacity: 0, height: 0 }}
+                                    transition={{ duration: 0.2 }}
+                                    className="pl-4 mt-2 space-y-2 overflow-hidden"
+                                  >
+                                    <Link
+                                      href="/igraci#seniori"
+                                      onClick={() => {
+                                        setIsOpen(false);
+                                        setShowMobileTimDropdown(false);
+                                        setShowMobileIgraciDropdown(false);
+                                      }}
+                                      className="block text-sm font-montserrat tracking-wider uppercase text-gray-400 hover:text-white transition-colors"
+                                    >
+                                      Seniori
+                                    </Link>
+                                    <Link
+                                      href="/igraci#juniori"
+                                      onClick={() => {
+                                        setIsOpen(false);
+                                        setShowMobileTimDropdown(false);
+                                        setShowMobileIgraciDropdown(false);
+                                      }}
+                                      className="block text-sm font-montserrat tracking-wider uppercase text-gray-400 hover:text-white transition-colors"
+                                    >
+                                      Juniori
+                                    </Link>
+                                    <Link
+                                      href="/igraci#pionirke"
+                                      onClick={() => {
+                                        setIsOpen(false);
+                                        setShowMobileTimDropdown(false);
+                                        setShowMobileIgraciDropdown(false);
+                                      }}
+                                      className="block text-sm font-montserrat tracking-wider uppercase text-gray-400 hover:text-white transition-colors"
+                                    >
+                                      Pionirke
+                                    </Link>
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
                   );
                 }
                 if (item.href === '/kontakt') {
                   return (
                     <div key={item.href}>
-                      <Link
-                        href={item.href}
-                        onClick={() => setIsOpen(false)}
-                        className={`w-full text-left text-sm font-bold tracking-wider uppercase transition-colors ${
-                          pathname === item.href
-                            ? 'text-white border-l-2 border-white pl-4'
-                            : 'text-gray-300 hover:text-white pl-4'
-                        }`}
-                      >
-                        {item.label}
-                      </Link>
-                      <div className="pl-6 mt-2 space-y-2">
+                      <div className="flex items-center">
                         <Link
-                          href="/kontakt#skola-kosarke"
-                          onClick={() => {
-                            setIsOpen(false);
-                          }}
-                          className="block text-sm font-montserrat tracking-wider uppercase text-gray-400 hover:text-white transition-colors"
+                          href={item.href}
+                          onClick={() => setIsOpen(false)}
+                          className={`flex-1 text-left text-sm font-bold tracking-wider uppercase transition-colors ${
+                            pathname === item.href
+                              ? 'text-white border-l-2 border-white pl-4'
+                              : 'text-gray-300 hover:text-white pl-4'
+                          }`}
                         >
-                          Škola Košarke
+                          {item.label}
                         </Link>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowMobileKontaktDropdown(!showMobileKontaktDropdown);
+                          }}
+                          className="p-2 text-gray-400 hover:text-white transition-colors"
+                          aria-label="Toggle dropdown"
+                        >
+                          {showMobileKontaktDropdown ? (
+                            <ChevronDown size={18} />
+                          ) : (
+                            <ChevronRight size={18} />
+                          )}
+                        </button>
                       </div>
+                      <AnimatePresence>
+                        {showMobileKontaktDropdown && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            transition={{ duration: 0.2 }}
+                            className="pl-6 mt-2 space-y-2 overflow-hidden"
+                          >
+                            <Link
+                              href="/kontakt#skola-kosarke"
+                              onClick={() => {
+                                setIsOpen(false);
+                                setShowMobileKontaktDropdown(false);
+                              }}
+                              className="block text-sm font-montserrat tracking-wider uppercase text-gray-400 hover:text-white transition-colors"
+                            >
+                              Škola Košarke
+                            </Link>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
                   );
                 }
