@@ -367,7 +367,6 @@ export default function Navbar() {
                   priority
                   placeholder="blur"
                   objectFit="contain"
-                  sizes="(max-width: 768px) 96px, (max-width: 1024px) 144px, 160px"
                 />
               </div>
             )}
@@ -402,7 +401,6 @@ export default function Navbar() {
                 priority
                 placeholder="blur"
                 objectFit="contain"
-                sizes="96px"
               />
             </div>
           )}

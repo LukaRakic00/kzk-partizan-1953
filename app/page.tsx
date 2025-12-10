@@ -185,9 +185,8 @@ export default function Home() {
                 fill
                 className="object-cover opacity-70"
                 priority
-                placeholder="blur"
+                placeholder="skeleton"
                 objectFit="cover"
-                sizes="100vw"
               />
             </div>
             {/* Mobile Hero Image */}
@@ -199,9 +198,8 @@ export default function Home() {
                   fill
                   className="object-cover opacity-70"
                   priority
-                  placeholder="blur"
+                  placeholder="skeleton"
                   objectFit="cover"
-                  sizes="100vw"
                 />
               </div>
             )}
@@ -214,9 +212,8 @@ export default function Home() {
                   fill
                   className="object-cover opacity-70"
                   priority
-                  placeholder="blur"
+                  placeholder="skeleton"
                   objectFit="cover"
-                  sizes="100vw"
                 />
               </div>
             )}
@@ -459,13 +456,12 @@ export default function Home() {
       {backgroundImage && (
         <section className="relative h-64 md:h-96 overflow-hidden">
           <div className="absolute inset-0">
-            <CloudinaryImage
+            <Image
               src={backgroundImage}
               alt="Background"
               fill
               className="object-cover opacity-40"
-              sizes="100vw"
-              placeholder="skeleton"
+              priority
             />
           </div>
           <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/30 to-black/50"></div>
@@ -582,13 +578,11 @@ export default function Home() {
                   transition={{ delay: index * 0.1 }}
                   className="relative aspect-video overflow-hidden group"
                 >
-                  <CloudinaryImage
+                  <Image
                     src={img.url}
                     alt={`Gallery image ${index + 1}`}
                     fill
                     className="object-cover group-hover:scale-105 transition-transform"
-                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                    placeholder="skeleton"
                   />
                 </motion.div>
               ))}
@@ -626,13 +620,11 @@ export default function Home() {
                   <Link href={`/vesti/${item.slug}`}>
                     <div className="aspect-video relative overflow-hidden mb-4">
                       {item.image ? (
-                        <CloudinaryImage
+                        <Image
                           src={item.image}
                           alt={item.title}
                           fill
                           className="object-cover group-hover:scale-105 transition-transform"
-                          sizes="(max-width: 768px) 100vw, 33vw"
-                          placeholder="skeleton"
                         />
                       ) : (
                         <div className="w-full h-full bg-white/10 flex items-center justify-center">

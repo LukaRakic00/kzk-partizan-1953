@@ -41,14 +41,13 @@ export default function CloudinaryImage({
   const [imageError, setImageError] = useState(false);
 
   // Optimizuj URL ako je Cloudinary
-  // Za fill mode, koristimo responsive approach sa boljim quality
+  // Za fill mode, ne prosleđujemo width/height jer Next.js automatski optimizuje
   const optimizedSrc = isCloudinaryUrl(src)
     ? optimizeCloudinaryUrl(
         src,
         fill ? undefined : width,
         fill ? undefined : height,
-        objectFit === 'cover' ? 'c_fill' : objectFit === 'contain' ? 'c_scale' : undefined,
-        'auto:good' // Bolja kompresija bez vidljivog gubitka kvaliteta
+        objectFit === 'cover' ? 'c_fill' : objectFit === 'contain' ? 'c_scale' : undefined
       )
     : src;
 
@@ -100,8 +99,7 @@ export default function CloudinaryImage({
           priority={priority}
           placeholder={placeholder === 'blur' && blurDataURL ? 'blur' : 'empty'}
           blurDataURL={blurDataURL}
-          sizes={sizes || '(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw'}
-          loading={priority ? undefined : 'lazy'}
+          sizes={sizes}
           onLoadingComplete={handleLoadingComplete}
           onError={handleError}
         />
@@ -115,7 +113,6 @@ export default function CloudinaryImage({
           priority={priority}
           placeholder={placeholder === 'blur' && blurDataURL ? 'blur' : 'empty'}
           blurDataURL={blurDataURL}
-          loading={priority ? undefined : 'lazy'}
           onLoadingComplete={handleLoadingComplete}
           onError={handleError}
         />
