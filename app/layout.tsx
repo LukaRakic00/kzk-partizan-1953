@@ -24,6 +24,9 @@ export const metadata: Metadata = {
   icons: {
     icon: '/favicon.ico',
   },
+  verification: {
+    google: 'sV45RR4i84uVJcdGMhNtvXPXs3NCnOquoKXatpf5Fhs',
+  },
   openGraph: {
     title: 'KŽK Partizan - Ženski Košarkaški Klub',
     description: 'Zvanični sajt Ženskog Košarkaškog Kluba Partizan',
