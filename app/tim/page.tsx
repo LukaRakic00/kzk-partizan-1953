@@ -8,6 +8,8 @@ import InteractiveBackground from '@/components/InteractiveBackground';
 import { apiClient } from '@/lib/api-client';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
+import Link from 'next/link';
+import { ArrowRight, Users } from 'lucide-react';
 
 interface Team {
   season?: string;
@@ -96,6 +98,23 @@ export default function TimPage() {
                     />
                   </motion.div>
                 )}
+
+                {/* Link ka Igračima */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3 }}
+                  className="text-center mt-12"
+                >
+                  <Link
+                    href="/igraci#seniori"
+                    className="inline-flex items-center gap-2 px-6 py-3 bg-white/10 hover:bg-white/20 border border-white/20 hover:border-white/40 text-white font-semibold rounded-lg transition-all duration-300 hover:scale-105"
+                  >
+                    <Users className="w-5 h-5" />
+                    <span>Pogledaj igrače</span>
+                    <ArrowRight className="w-5 h-5" />
+                  </Link>
+                </motion.div>
                 </div>
           )}
         </div>
