@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken, getAuthToken } from '@/lib/auth';
 import { listImagesFromCloudinary } from '@/lib/cloudinary';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: NextRequest) {
   try {
     // Proveri autentifikaciju
