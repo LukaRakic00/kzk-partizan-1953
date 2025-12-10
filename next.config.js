@@ -9,6 +9,17 @@ const nextConfig = {
         pathname: '/**',
       },
     ],
+    // Optimizovane dimenzije za brže učitavanje
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+    // Omogućava format optimizaciju
+    formats: ['image/avif', 'image/webp'],
+    // Cache optimizacija
+    minimumCacheTTL: 60,
+    // Optimizacija za Cloudinary
+    dangerouslyAllowSVG: true,
+    contentDispositionType: 'attachment',
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
   env: {
     CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME,

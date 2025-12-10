@@ -185,8 +185,9 @@ export default function Home() {
                 fill
                 className="object-cover opacity-70"
                 priority
-                placeholder="skeleton"
+                placeholder="blur"
                 objectFit="cover"
+                sizes="100vw"
               />
             </div>
             {/* Mobile Hero Image */}
@@ -198,8 +199,9 @@ export default function Home() {
                   fill
                   className="object-cover opacity-70"
                   priority
-                  placeholder="skeleton"
+                  placeholder="blur"
                   objectFit="cover"
+                  sizes="100vw"
                 />
               </div>
             )}
@@ -212,8 +214,9 @@ export default function Home() {
                   fill
                   className="object-cover opacity-70"
                   priority
-                  placeholder="skeleton"
+                  placeholder="blur"
                   objectFit="cover"
+                  sizes="100vw"
                 />
               </div>
             )}
@@ -374,19 +377,23 @@ export default function Home() {
               
               {/* Indicators */}
               {matchesForCarousel.length > 1 && (
-                <div className="flex items-center justify-center gap-2 mt-4">
-                  {matchesForCarousel.map((_, index) => (
-                    <button
-                      key={index}
-                      onClick={() => setActiveMatchIndex(index)}
-                      className={`h-1.5 rounded-full transition-all ${
-                        index === activeMatchIndex
-                          ? 'bg-white w-6'
-                          : 'bg-white/20 w-1.5'
-                      }`}
-                      aria-label={`Go to slide ${index + 1}`}
-                    />
-                  ))}
+                <div className="flex items-center justify-center gap-2 mt-8 sm:mt-10 pt-4 relative">
+                  {/* Decorative line above indicators */}
+                  <div className="absolute top-0 left-1/2 -translate-x-1/2 w-16 h-px bg-white/20"></div>
+                  <div className="flex items-center justify-center gap-2 px-4 py-2 bg-black/30 backdrop-blur-sm rounded-full border border-white/10">
+                    {matchesForCarousel.map((_, index) => (
+                      <button
+                        key={index}
+                        onClick={() => setActiveMatchIndex(index)}
+                        className={`rounded-full transition-all duration-300 hover:scale-125 ${
+                          index === activeMatchIndex
+                            ? 'bg-white w-6 h-2 shadow-lg shadow-white/50'
+                            : 'bg-white/40 w-2 h-2 hover:bg-white/60'
+                        }`}
+                        aria-label={`Go to slide ${index + 1}`}
+                      />
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
@@ -452,12 +459,13 @@ export default function Home() {
       {backgroundImage && (
         <section className="relative h-64 md:h-96 overflow-hidden">
           <div className="absolute inset-0">
-            <Image
+            <CloudinaryImage
               src={backgroundImage}
               alt="Background"
               fill
               className="object-cover opacity-40"
-              priority
+              sizes="100vw"
+              placeholder="skeleton"
             />
           </div>
           <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/30 to-black/50"></div>
@@ -574,11 +582,13 @@ export default function Home() {
                   transition={{ delay: index * 0.1 }}
                   className="relative aspect-video overflow-hidden group"
                 >
-                  <Image
+                  <CloudinaryImage
                     src={img.url}
                     alt={`Gallery image ${index + 1}`}
                     fill
                     className="object-cover group-hover:scale-105 transition-transform"
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                    placeholder="skeleton"
                   />
                 </motion.div>
               ))}
@@ -616,11 +626,13 @@ export default function Home() {
                   <Link href={`/vesti/${item.slug}`}>
                     <div className="aspect-video relative overflow-hidden mb-4">
                       {item.image ? (
-                        <Image
+                        <CloudinaryImage
                           src={item.image}
                           alt={item.title}
                           fill
                           className="object-cover group-hover:scale-105 transition-transform"
+                          sizes="(max-width: 768px) 100vw, 33vw"
+                          placeholder="skeleton"
                         />
                       ) : (
                         <div className="w-full h-full bg-white/10 flex items-center justify-center">
