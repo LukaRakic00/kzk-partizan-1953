@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { apiClient } from '@/lib/api-client';
 import { Plus, Edit, Trash2, Upload, X, Save } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -40,6 +40,7 @@ export default function AdminTim() {
   const [uploadingTeamImage, setUploadingTeamImage] = useState(false);
   const [uploadingManagementImage, setUploadingManagementImage] = useState(false);
   const [uploadingSectionImage, setUploadingSectionImage] = useState<string | null>(null);
+  const teamImageInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     loadData();
@@ -83,13 +84,28 @@ export default function AdminTim() {
         headers: { Authorization: `Bearer ${token}` },
         body: uploadFormData,
       });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Greška pri upload-u slike' }));
+        throw new Error(errorData.error || 'Greška pri upload-u slike');
+      }
+      
       const data = await response.json();
-      setTeamData((prev) => ({ ...prev, teamImage: data.url }));
-      toast.success('Slika tima je uspešno upload-ovana');
-    } catch (error) {
-      toast.error('Greška pri upload-u slike');
+      const updatedTeamData = { ...teamData, teamImage: data.url };
+      setTeamData(updatedTeamData);
+      
+      // Automatski sačuvaj nakon uspešnog upload-a
+      await apiClient.updateTeam(updatedTeamData);
+      toast.success('Slika tima je uspešno upload-ovana i sačuvana');
+    } catch (error: any) {
+      console.error('Upload error:', error);
+      toast.error(error.message || 'Greška pri upload-u slike');
     } finally {
       setUploadingTeamImage(false);
+      // Resetuj file input da bi mogao ponovo da se koristi
+      if (teamImageInputRef.current) {
+        teamImageInputRef.current.value = '';
+      }
     }
   };
 
@@ -131,13 +147,26 @@ export default function AdminTim() {
         headers: { Authorization: `Bearer ${token}` },
         body: uploadFormData,
       });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Greška pri upload-u slike' }));
+        throw new Error(errorData.error || 'Greška pri upload-u slike');
+      }
+      
       const data = await response.json();
-      setTeamData((prev) => ({ ...prev, [section]: data.url }));
-      toast.success('Slika je uspešno upload-ovana');
-    } catch (error) {
-      toast.error('Greška pri upload-u slike');
+      const updatedTeamData = { ...teamData, [section]: data.url };
+      setTeamData(updatedTeamData);
+      
+      // Automatski sačuvaj nakon uspešnog upload-a
+      await apiClient.updateTeam(updatedTeamData);
+      toast.success('Slika je uspešno upload-ovana i sačuvana');
+    } catch (error: any) {
+      console.error('Upload error:', error);
+      toast.error(error.message || 'Greška pri upload-u slike');
     } finally {
       setUploadingSectionImage(null);
+      // Resetuj file input da bi mogao ponovo da se koristi
+      e.target.value = '';
     }
   };
 
@@ -245,6 +274,7 @@ export default function AdminTim() {
               <div>
                 <label className="block text-sm font-medium mb-2">Slika Tima</label>
                 <input
+                  ref={teamImageInputRef}
                   type="file"
                   accept="image/*"
                   onChange={handleTeamImageUpload}
@@ -255,6 +285,21 @@ export default function AdminTim() {
                 {teamData.teamImage && (
                   <div className="mt-4 relative w-full h-64 sm:h-96 rounded-lg overflow-hidden border border-white/20">
                     <Image src={teamData.teamImage} alt="Tim" fill className="object-cover" />
+                    <button
+                      onClick={async () => {
+                        const updatedTeamData = { ...teamData, teamImage: '' };
+                        setTeamData(updatedTeamData);
+                        await apiClient.updateTeam(updatedTeamData);
+                        if (teamImageInputRef.current) {
+                          teamImageInputRef.current.value = '';
+                        }
+                        toast.success('Slika je uklonjena');
+                      }}
+                      className="absolute top-2 right-2 bg-red-500/80 hover:bg-red-500 text-white p-2 rounded-full transition-all"
+                      title="Ukloni sliku"
+                    >
+                      <X size={16} />
+                    </button>
                   </div>
                 )}
               </div>
@@ -271,6 +316,18 @@ export default function AdminTim() {
                 {teamData.upravniOdborImage && (
                   <div className="mt-4 relative w-full h-64 sm:h-96 rounded-lg overflow-hidden border border-white/20">
                     <Image src={teamData.upravniOdborImage} alt="Upravni Odbor" fill className="object-cover" />
+                    <button
+                      onClick={async () => {
+                        const updatedTeamData = { ...teamData, upravniOdborImage: '' };
+                        setTeamData(updatedTeamData);
+                        await apiClient.updateTeam(updatedTeamData);
+                        toast.success('Slika je uklonjena');
+                      }}
+                      className="absolute top-2 right-2 bg-red-500/80 hover:bg-red-500 text-white p-2 rounded-full transition-all"
+                      title="Ukloni sliku"
+                    >
+                      <X size={16} />
+                    </button>
                   </div>
                 )}
               </div>
@@ -287,6 +344,18 @@ export default function AdminTim() {
                 {teamData.menadzmentImage && (
                   <div className="mt-4 relative w-full h-64 sm:h-96 rounded-lg overflow-hidden border border-white/20">
                     <Image src={teamData.menadzmentImage} alt="Menadžment" fill className="object-cover" />
+                    <button
+                      onClick={async () => {
+                        const updatedTeamData = { ...teamData, menadzmentImage: '' };
+                        setTeamData(updatedTeamData);
+                        await apiClient.updateTeam(updatedTeamData);
+                        toast.success('Slika je uklonjena');
+                      }}
+                      className="absolute top-2 right-2 bg-red-500/80 hover:bg-red-500 text-white p-2 rounded-full transition-all"
+                      title="Ukloni sliku"
+                    >
+                      <X size={16} />
+                    </button>
                   </div>
                 )}
               </div>
@@ -303,6 +372,18 @@ export default function AdminTim() {
                 {teamData.rukovodstvoImage && (
                   <div className="mt-4 relative w-full h-64 sm:h-96 rounded-lg overflow-hidden border border-white/20">
                     <Image src={teamData.rukovodstvoImage} alt="Rukovodstvo" fill className="object-cover" />
+                    <button
+                      onClick={async () => {
+                        const updatedTeamData = { ...teamData, rukovodstvoImage: '' };
+                        setTeamData(updatedTeamData);
+                        await apiClient.updateTeam(updatedTeamData);
+                        toast.success('Slika je uklonjena');
+                      }}
+                      className="absolute top-2 right-2 bg-red-500/80 hover:bg-red-500 text-white p-2 rounded-full transition-all"
+                      title="Ukloni sliku"
+                    >
+                      <X size={16} />
+                    </button>
                   </div>
                 )}
               </div>
