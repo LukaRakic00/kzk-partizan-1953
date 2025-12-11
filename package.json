@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "add-admin": "bun run scripts/add-admin.ts"
+    "add-admin": "bun run scripts/add-admin.ts",
+    "check-deployment": "bun run scripts/check-deployment.ts"
   },
   "dependencies": {
     "@sparticuz/chromium": "^131.0.1",

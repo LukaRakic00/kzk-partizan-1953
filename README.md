@@ -60,6 +60,45 @@ curl -X POST http://localhost:3000/api/seed \
 
 ## Deployment
 
-1. Postavi environment varijable
+### Provera Pre Deploy-a
+
+Pre deployment-a, proverite da li je sve spremno:
+
+```bash
+bun run check-deployment
+```
+
+Ova skripta će proveriti:
+- ✅ Sve obavezne environment varijable
+- ✅ Format connection string-ova
+- ✅ Cloudinary konfiguraciju
+- ✅ Postojanje potrebnih fajlova
+
+### Deployment na Loopia
+
+Detaljne instrukcije za deployment na Loopia hosting:
+
+1. **[LOOPIA_SETUP.md](./LOOPIA_SETUP.md)** - Kompletan vodič za podešavanje
+   - MongoDB Atlas setup
+   - Cloudinary konfiguracija
+   - Environment varijable
+   - Deployment koraci
+
+2. **[LOOPIA_PANEL_GUIDE.md](./LOOPIA_PANEL_GUIDE.md)** - Detaljne instrukcije za Loopia panel
+   - Kako dodati environment varijable
+   - FTP upload fajlova
+   - MongoDB Atlas setup korak po korak
+   - Cloudinary setup
+
+### Opšti Deployment Koraci
+
+1. Postavi environment varijable (vidi [ENV_SETUP.md](./ENV_SETUP.md))
 2. `bun run build`
 3. `bun start`
+
+### Alternativni Hosting Opcije
+
+- **Vercel** (Preporučeno za Next.js) - [vercel.com](https://vercel.com)
+- **Netlify** - [netlify.com](https://netlify.com)
+- **DigitalOcean** - [digitalocean.com](https://digitalocean.com)
+- **Loopia** - [loopia.se](https://loopia.se)
