@@ -9,6 +9,7 @@ import InteractiveBackground from '@/components/InteractiveBackground';
 import { apiClient } from '@/lib/api-client';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
+import CloudinaryImage from '@/components/CloudinaryImage';
 import Link from 'next/link';
 import { Calendar, Eye, ArrowLeft } from 'lucide-react';
 import { format } from 'date-fns';
@@ -97,36 +98,58 @@ export default function VestiDetailPage() {
               </div>
 
               {/* Glavna slika ili galerija */}
-              {news.image && (
+              {news.image && typeof news.image === 'string' && news.image.trim() !== '' && (
                 <div className="aspect-video relative overflow-hidden rounded-lg">
-                  <Image
-                    src={news.image}
-                    alt={news.title}
-                    fill
-                    className="object-cover"
-                  />
+                  {news.image.includes('cloudinary.com') ? (
+                    <CloudinaryImage
+                      src={news.image}
+                      alt={news.title}
+                      fill
+                      className="object-cover"
+                    />
+                  ) : (
+                    <Image
+                      src={news.image}
+                      alt={news.title}
+                      fill
+                      className="object-cover"
+                      unoptimized
+                    />
+                  )}
                 </div>
               )}
 
               {/* Više slika - galerija */}
-              {news.images && news.images.length > 0 && (
+              {news.images && Array.isArray(news.images) && news.images.length > 0 && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 my-8">
-                  {news.images.map((img, index) => (
-                    <motion.div
-                      key={index}
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ delay: index * 0.1 }}
-                      className="aspect-video relative overflow-hidden rounded-lg"
-                    >
-                      <Image
-                        src={img}
-                        alt={`${news.title} - Slika ${index + 1}`}
-                        fill
-                        className="object-cover hover:scale-105 transition-transform duration-300"
-                      />
-                    </motion.div>
-                  ))}
+                  {news.images
+                    .filter((img) => img && typeof img === 'string' && img.trim() !== '')
+                    .map((img, index) => (
+                      <motion.div
+                        key={index}
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: index * 0.1 }}
+                        className="aspect-video relative overflow-hidden rounded-lg"
+                      >
+                        {img.includes('cloudinary.com') ? (
+                          <CloudinaryImage
+                            src={img}
+                            alt={`${news.title} - Slika ${index + 1}`}
+                            fill
+                            className="object-cover hover:scale-105 transition-transform duration-300"
+                          />
+                        ) : (
+                          <Image
+                            src={img}
+                            alt={`${news.title} - Slika ${index + 1}`}
+                            fill
+                            className="object-cover hover:scale-105 transition-transform duration-300"
+                            unoptimized
+                          />
+                        )}
+                      </motion.div>
+                    ))}
                 </div>
               )}
 

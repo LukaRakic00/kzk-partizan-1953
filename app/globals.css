@@ -30,6 +30,25 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+/* Smanjenje zoom-a na desktop verzijama za bolji pregled */
+@media (min-width: 1024px) {
+  html {
+    zoom: 0.88;
+  }
+}
+
+@media (min-width: 1280px) {
+  html {
+    zoom: 0.85;
+  }
+}
+
+@media (min-width: 1536px) {
+  html {
+    zoom: 0.82;
+  }
+}
+
 /* Font utilities */
 .font-bebas {
   font-family: var(--font-bebas);

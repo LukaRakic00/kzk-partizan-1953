@@ -58,9 +58,16 @@ export async function POST(req: NextRequest) {
     // Postavi author iz korisnika
     data.author = user.username || 'Admin';
 
-    // Ako je published, postavi publishedAt
+    // Ako je published, postavi publishedAt (samo datum, bez vremena)
     if (data.published && !data.publishedAt) {
-      data.publishedAt = new Date();
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Postavi vreme na početak dana
+      data.publishedAt = today;
+    } else if (data.publishedAt) {
+      // Ako je poslat datum, osiguraj da je vreme na početku dana
+      const date = new Date(data.publishedAt);
+      date.setHours(0, 0, 0, 0);
+      data.publishedAt = date;
     }
 
     const news = await News.create(data);

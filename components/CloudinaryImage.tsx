@@ -40,6 +40,18 @@ export default function CloudinaryImage({
   const [loading, setLoading] = useState(true);
   const [imageError, setImageError] = useState(false);
 
+  // Proveri da li je src validan
+  if (!src || typeof src !== 'string' || src.trim() === '') {
+    return (
+      <div
+        className={`bg-gray-800 flex items-center justify-center ${className}`}
+        style={fill ? {} : { width, height }}
+      >
+        <span className="text-gray-500 text-sm">Slika</span>
+      </div>
+    );
+  }
+
   // Optimizuj URL ako je Cloudinary
   // Za fill mode, ne prosleđujemo width/height jer Next.js automatski optimizuje
   const optimizedSrc = isCloudinaryUrl(src)

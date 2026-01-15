@@ -19,21 +19,35 @@ export async function GET() {
       .lean();
 
     // Proveri da li su podaci stari (stariji od 24 sata)
-    const firstStanding = standings[0] as { updatedAt?: Date } | undefined;
-    const lastUpdated = firstStanding?.updatedAt;
+    const firstStanding = standings[0] as { updatedAt?: Date; createdAt?: Date } | undefined;
+    const lastUpdated = firstStanding?.updatedAt || firstStanding?.createdAt;
     const isStale = lastUpdated && (Date.now() - new Date(lastUpdated).getTime()) > UPDATE_INTERVAL;
 
+    // Vrati success čak i ako nema podataka - frontend će prikazati odgovarajuću poruku
     return NextResponse.json({
       success: true,
       standings: standings || [],
-      lastUpdated: lastUpdated || null,
+      lastUpdated: lastUpdated ? new Date(lastUpdated).toISOString() : null,
       isStale: isStale || false,
       totalTeams: standings.length || 0,
     });
   } catch (error: any) {
     console.error('Error fetching WABA standings:', error);
+    console.error('Error details:', {
+      message: error?.message,
+      stack: error?.stack?.substring(0, 500),
+      name: error?.name,
+    });
+    
+    // Vrati success: false sa error porukom
     return NextResponse.json(
-      { error: 'Greška pri učitavanju podataka' },
+      { 
+        success: false,
+        error: 'Greška pri učitavanju podataka',
+        message: error?.message || 'Nepoznata greška',
+        standings: [],
+        totalTeams: 0,
+      },
       { status: 500 }
     );
   }

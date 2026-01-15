@@ -110,7 +110,7 @@ KŽK Partizan 1953 s ponosom ističe da od osnivanja do danas nije imao nijedan 
                   className="space-y-8 scroll-mt-32"
                 >
                   <div className="text-center">
-                    <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold font-playfair uppercase tracking-wider mb-4 text-white">
+                    <h1 className="text-[36px] font-bold font-playfair uppercase tracking-wider mb-4 text-white">
                       {aboutTitle}
                     </h1>
                     <div className="w-24 h-1 bg-white mx-auto mb-8"></div>

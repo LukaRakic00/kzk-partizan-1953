@@ -86,14 +86,26 @@ export default function AdminNews() {
       });
 
       const data = await response.json();
+      
+      // Proveri da li ima grešku u response-u
+      if (!response.ok || data.error) {
+        throw new Error(data.error || 'Greška pri upload-u slike');
+      }
+
+      // Proveri da li postoji URL
+      if (!data.url) {
+        throw new Error('URL slike nije vraćen iz servera');
+      }
+
       if (isMain) {
         setFormData((prev) => ({ ...prev, image: data.url }));
       } else {
         setFormData((prev) => ({ ...prev, images: [...prev.images, data.url] }));
       }
       toast.success('Slika je uspešno upload-ovana');
-    } catch (error) {
-      toast.error('Greška pri upload-u slike');
+    } catch (error: any) {
+      console.error('Upload error:', error);
+      toast.error(error.message || 'Greška pri upload-u slike');
     } finally {
       setUploading(false);
       setUploadingIndex(null);
@@ -110,12 +122,27 @@ export default function AdminNews() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      // Formatiraj datum - samo datum bez vremena
+      let publishedAtDate: string | undefined = undefined;
+      if (formData.publishedAt) {
+        // Ako je unet datum, koristi ga (samo datum, bez vremena)
+        const date = new Date(formData.publishedAt);
+        // Postavi vreme na početak dana (00:00:00)
+        date.setHours(0, 0, 0, 0);
+        publishedAtDate = date.toISOString();
+      } else if (formData.published) {
+        // Ako je checked published ali nema datuma, postavi današnji datum (bez vremena)
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        publishedAtDate = today.toISOString();
+      }
+
       const newsData = {
         ...formData,
         slug: formData.slug || generateSlug(formData.title),
-        publishedAt: formData.publishedAt 
-          ? new Date(formData.publishedAt).toISOString() 
-          : (formData.published ? new Date().toISOString() : undefined),
+        publishedAt: publishedAtDate,
+        // Osiguraj da published ostane false ako nije eksplicitno checked
+        published: formData.published || false,
       };
 
       if (editingNews) {
@@ -151,6 +178,10 @@ export default function AdminNews() {
       const fullNews = await apiClient.getNewsBySlug(item.slug);
       setEditingNews(item);
       const publishedAtDate = fullNews.publishedAt || item.publishedAt;
+      // Formatiraj datum za date input (samo YYYY-MM-DD)
+      const formattedDate = publishedAtDate 
+        ? new Date(publishedAtDate).toISOString().split('T')[0]
+        : '';
       setFormData({
         title: fullNews.title || item.title,
         slug: fullNews.slug || item.slug,
@@ -160,9 +191,7 @@ export default function AdminNews() {
         images: fullNews.images || [],
         published: fullNews.published !== undefined ? fullNews.published : item.published,
         category: fullNews.category || item.category,
-        publishedAt: publishedAtDate 
-          ? new Date(publishedAtDate).toISOString().slice(0, 16)
-          : '',
+        publishedAt: formattedDate,
       });
       setShowModal(true);
     } catch (error) {
@@ -421,9 +450,13 @@ export default function AdminNews() {
                 <div>
                   <label className="block text-sm font-medium mb-2">Datum objave</label>
                   <input
-                    type="datetime-local"
-                    value={formData.publishedAt}
-                    onChange={(e) => setFormData({ ...formData, publishedAt: e.target.value })}
+                    type="date"
+                    value={formData.publishedAt ? formData.publishedAt.split('T')[0] : ''}
+                    onChange={(e) => {
+                      // Čuvaj samo datum (YYYY-MM-DD format)
+                      const dateValue = e.target.value;
+                      setFormData({ ...formData, publishedAt: dateValue });
+                    }}
                     className="w-full bg-black border border-white/20 px-4 py-3 text-white focus:outline-none focus:border-white"
                   />
                 </div>

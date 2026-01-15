@@ -60,6 +60,18 @@ export async function PUT(
 
     const data = await req.json();
     
+    // Formatiraj datum ako postoji (samo datum, bez vremena)
+    if (data.publishedAt) {
+      const date = new Date(data.publishedAt);
+      date.setHours(0, 0, 0, 0);
+      data.publishedAt = date;
+    } else if (data.published && !data.publishedAt) {
+      // Ako je published ali nema datuma, postavi današnji datum
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      data.publishedAt = today;
+    }
+    
     let news;
     if (isValidObjectId(params.id)) {
       news = await News.findByIdAndUpdate(params.id, data, { new: true });

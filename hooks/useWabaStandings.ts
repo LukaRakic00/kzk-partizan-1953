@@ -35,9 +35,12 @@ export const useWabaStandings = () => {
 
         const apiData = await response.json();
         
-        // Ako nema podataka, prikaži poruku
+        // Ako nema podataka ili je success false, prikaži poruku
         if (!apiData.success || !apiData.standings || apiData.standings.length === 0) {
-          setError('Nema podataka u bazi. Molimo pokrenite ažuriranje preko POST /api/waba/standings');
+          const errorMessage = apiData.error 
+            ? `Greška: ${apiData.error}${apiData.message ? ` - ${apiData.message}` : ''}`
+            : 'Nema podataka u bazi. Molimo pokrenite ažuriranje preko admin panela.';
+          setError(errorMessage);
           setTeams([]);
           return;
         }

@@ -118,8 +118,8 @@ export default function GalerijaPage() {
             animate={{ opacity: 1, y: 0 }}
             className="text-center mb-12"
           >
-              <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold font-playfair uppercase tracking-wider mb-4 text-white">
-              Galerija
+              <h1 className="text-[36px] font-bold font-playfair uppercase tracking-wider mb-4 text-white">
+                Galerija
             </h1>
               <p className="text-lg md:text-xl text-gray-300 max-w-3xl mx-auto leading-relaxed">
                 Prolazite kroz naše najlepše trenutke i uspehe kroz godine. Svaka fotografija priča priču o strasti, posvećenosti i zajedništvu koje čini KŽK Partizan 1953 posebnim.
