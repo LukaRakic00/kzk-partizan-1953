@@ -447,33 +447,160 @@ export default function Home() {
           {/* Tab Content */}
           {activeTab === 'matches' && matchesForCarousel.length > 0 && (
             <div className="relative">
-              {/* Strelica levo - samo ako ima više od 3 meča */}
+              {/* Strelica levo - samo za desktop, samo ako ima više od 3 meča */}
               {matchesForCarousel.length > 3 && matchIndex > 0 && (
                 <button
                   onClick={() => setMatchIndex(matchIndex - 1)}
-                  className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 md:-translate-x-8 z-10 bg-white/10 hover:bg-white/20 rounded-full p-2 md:p-3 transition-all"
+                  className="hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 -translate-x-12 lg:-translate-x-16 z-10 bg-white/10 hover:bg-white/20 rounded-full p-2 md:p-3 transition-all"
                 >
                   <ChevronLeft className="text-white" size={24} />
                 </button>
               )}
               
-              {/* Strelica desno - samo ako ima više od 3 meča */}
+              {/* Strelica desno - samo za desktop, samo ako ima više od 3 meča */}
               {matchesForCarousel.length > 3 && matchIndex < matchesForCarousel.length - 3 && (
                 <button
                   onClick={() => setMatchIndex(matchIndex + 1)}
-                  className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 md:translate-x-8 z-10 bg-white/10 hover:bg-white/20 rounded-full p-2 md:p-3 transition-all"
+                  className="hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 translate-x-12 lg:translate-x-16 z-10 bg-white/10 hover:bg-white/20 rounded-full p-2 md:p-3 transition-all"
                 >
                   <ChevronRight className="text-white" size={24} />
                 </button>
               )}
 
-              {/* Match Cards - Tri u nizu */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-                {matchesForCarousel.slice(matchIndex, matchIndex + 3).map((item, idx) => {
+              {/* Match Cards - Mobile: horizontalni scroll sa svim karticama */}
+              <div className="flex md:hidden gap-4 overflow-x-auto scrollbar-hide pb-4" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}>
+                {matchesForCarousel.map((item, idx) => {
                   const match = item.match;
                   return (
                     <motion.div
                       key={`${item.type}-${match.id}`}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3, delay: idx * 0.1 }}
+                      className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-lg p-3 md:p-4 hover:bg-white/10 hover:border-white/20 transition-all duration-300 flex-shrink-0 w-[85vw] md:w-auto"
+                    >
+                      {/* Header */}
+                      <div className="flex items-center justify-between mb-3 pb-2 border-b border-white/10">
+                        <div className="flex items-center gap-2">
+                          {item.type === 'live' && (
+                            <div className="flex items-center gap-1.5 px-2 py-1 bg-red-600/90 rounded-full animate-pulse">
+                              <Radio size={10} className="text-white" />
+                              <span className="text-[10px] font-bold font-montserrat text-white uppercase">LIVE</span>
+                            </div>
+                          )}
+                          <span className={`text-xs uppercase tracking-wider font-montserrat ${
+                            item.type === 'live' ? 'text-red-400' : item.type === 'next' ? 'text-blue-400' : 'text-gray-400'
+                          }`}>
+                            {item.type === 'live' ? 'U TOKU' : item.type === 'next' ? 'Sledeći Meč' : 'Prethodni Meč'}
+                          </span>
+                        </div>
+                        <span className="px-2 py-1 bg-white/10 rounded text-xs font-semibold font-playfair text-white">
+                          Kolo {match.round}
+                        </span>
+                      </div>
+                      
+                      {/* Match Content */}
+                      {item.type === 'last' && match.score ? (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <p className={`font-semibold text-xs md:text-sm font-montserrat flex-1 ${
+                              match.homeTeam.toLowerCase().includes('partizan') ? 'text-white' : 'text-gray-300'
+                            }`}>
+                              {match.homeTeam.toLowerCase().includes('partizan') ? 'KŽK Partizan 1953' : match.homeTeam}
+                            </p>
+                            <span className="text-lg md:text-xl font-bold font-playfair text-white ml-2">
+                              {match.score.home}
+                            </span>
+                          </div>
+                          <div className="h-px bg-white/10"></div>
+                          <div className="flex items-center justify-between">
+                            <p className={`font-semibold text-xs md:text-sm font-montserrat flex-1 ${
+                              match.awayTeam.toLowerCase().includes('partizan') ? 'text-white' : 'text-gray-300'
+                            }`}>
+                              {match.awayTeam.toLowerCase().includes('partizan') ? 'KŽK Partizan 1953' : match.awayTeam}
+                            </p>
+                            <span className="text-lg md:text-xl font-bold font-playfair text-white ml-2">
+                              {match.score.away}
+                            </span>
+                          </div>
+                        </div>
+                      ) : item.type === 'live' && match.score ? (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <p className={`font-bold text-sm md:text-base font-montserrat flex-1 ${
+                              match.homeTeam.toLowerCase().includes('partizan') ? 'text-white' : 'text-gray-200'
+                            }`}>
+                              {match.homeTeam.toLowerCase().includes('partizan') ? 'KŽK Partizan 1953' : match.homeTeam}
+                            </p>
+                            <span className="text-xl md:text-2xl font-bold font-playfair text-red-400 ml-2">
+                              {match.score.home}
+                            </span>
+                          </div>
+                          <div className="h-px bg-white/20"></div>
+                          <div className="flex items-center justify-between">
+                            <p className={`font-bold text-sm md:text-base font-montserrat flex-1 ${
+                              match.awayTeam.toLowerCase().includes('partizan') ? 'text-white' : 'text-gray-200'
+                            }`}>
+                              {match.awayTeam.toLowerCase().includes('partizan') ? 'KŽK Partizan 1953' : match.awayTeam}
+                            </p>
+                            <span className="text-xl md:text-2xl font-bold font-playfair text-red-400 ml-2">
+                              {match.score.away}
+                            </span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-center space-y-2">
+                          <p className={`font-bold text-sm md:text-base font-montserrat ${
+                            match.homeTeam.toLowerCase().includes('partizan') ? 'text-white' : 'text-gray-200'
+                          }`}>
+                            {match.homeTeam.toLowerCase().includes('partizan') ? 'KŽK Partizan 1953' : match.homeTeam}
+                          </p>
+                          <div className="text-base md:text-lg font-bold font-playfair text-white/40">VS</div>
+                          <p className={`font-bold text-sm md:text-base font-montserrat ${
+                            match.awayTeam.toLowerCase().includes('partizan') ? 'text-white' : 'text-gray-200'
+                          }`}>
+                            {match.awayTeam.toLowerCase().includes('partizan') ? 'KŽK Partizan 1953' : match.awayTeam}
+                          </p>
+                        </div>
+                      )}
+                      
+                      {/* Footer Info */}
+                      <div className="flex flex-col gap-1.5 text-xs font-montserrat mt-3 pt-2 border-t border-white/5 text-gray-400">
+                        <div className="flex items-center gap-2">
+                          <Calendar size={12} />
+                          <span>{match.date}</span>
+                        </div>
+                        {match.venue && (
+                          <div className="flex items-center gap-2">
+                            <MapPin size={12} />
+                            <span className="truncate text-xs">{match.venue}{match.city ? `, ${match.city}` : ''}</span>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Live Link */}
+                      {item.type === 'live' && match.linkLive && (
+                        <a
+                          href={match.linkLive}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block mt-3 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-center font-semibold font-montserrat transition-all text-xs"
+                        >
+                          Gledaj LIVE
+                        </a>
+                      )}
+                    </motion.div>
+                  );
+                })}
+              </div>
+              
+              {/* Match Cards - Desktop: grid sa tri kartice */}
+              <div className="hidden md:grid md:grid-cols-3 gap-4 md:gap-6">
+                {matchesForCarousel.slice(matchIndex, matchIndex + 3).map((item, idx) => {
+                  const match = item.match;
+                  return (
+                    <motion.div
+                      key={`${item.type}-${match.id}-desktop`}
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.3, delay: idx * 0.1 }}
@@ -599,31 +726,74 @@ export default function Home() {
           {/* News Tab */}
           {activeTab === 'news' && latestNews.length > 0 && (
             <div className="relative">
-              {/* Strelica levo - samo ako ima više od 3 vesti */}
+              {/* Strelica levo - samo za desktop, samo ako ima više od 3 vesti */}
               {latestNews.length > 3 && newsIndex > 0 && (
                 <button
                   onClick={() => setNewsIndex(newsIndex - 1)}
-                  className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 md:-translate-x-8 z-10 bg-white/10 hover:bg-white/20 rounded-full p-2 md:p-3 transition-all"
+                  className="hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 -translate-x-12 lg:-translate-x-16 z-10 bg-white/10 hover:bg-white/20 rounded-full p-2 md:p-3 transition-all"
                 >
                   <ChevronLeft className="text-white" size={24} />
                 </button>
               )}
               
-              {/* Strelica desno - samo ako ima više od 3 vesti */}
+              {/* Strelica desno - samo za desktop, samo ako ima više od 3 vesti */}
               {latestNews.length > 3 && newsIndex < latestNews.length - 3 && (
                 <button
                   onClick={() => setNewsIndex(newsIndex + 1)}
-                  className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 md:translate-x-8 z-10 bg-white/10 hover:bg-white/20 rounded-full p-2 md:p-3 transition-all"
+                  className="hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 translate-x-12 lg:translate-x-16 z-10 bg-white/10 hover:bg-white/20 rounded-full p-2 md:p-3 transition-all"
                 >
                   <ChevronRight className="text-white" size={24} />
                 </button>
               )}
 
-              {/* News Cards - Tri u nizu, maksimum 3 */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-                {latestNews.slice(newsIndex, newsIndex + 3).map((item, idx) => (
+              {/* News Cards - Mobile: horizontalni scroll sa svim karticama */}
+              <div className="flex md:hidden gap-4 overflow-x-auto scrollbar-hide pb-4" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}>
+                {latestNews.map((item, idx) => (
                   <motion.div
                     key={item._id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: idx * 0.1 }}
+                    className="bg-white/5 border border-white/10 hover:bg-white/10 transition-all group flex-shrink-0 w-[85vw] md:w-auto"
+                  >
+                    <Link href={`/vesti/${item.slug}`}>
+                      <div className="aspect-video relative overflow-hidden mb-3">
+                        {item.image ? (
+                          <Image
+                            src={item.image}
+                            alt={item.title}
+                            fill
+                            className="object-cover group-hover:scale-105 transition-transform"
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-white/10 flex items-center justify-center">
+                            <span className="text-gray-500">Slika</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="p-3 md:p-4">
+                        <span className="text-xs uppercase tracking-wider text-gray-400">{item.category}</span>
+                        <h3 className="text-base md:text-lg font-semibold mt-2 mb-2 group-hover:text-white transition-colors line-clamp-2">
+                          {item.title}
+                        </h3>
+                        <p className="text-gray-400 text-sm mb-3 line-clamp-2">
+                          {item.excerpt}
+                        </p>
+                        <span className="text-white text-xs uppercase tracking-wider flex items-center group-hover:underline">
+                          Pročitaj više
+                          <ArrowRight className="ml-2" size={14} />
+                        </span>
+                      </div>
+                    </Link>
+                  </motion.div>
+                ))}
+              </div>
+              
+              {/* News Cards - Desktop: grid sa tri kartice */}
+              <div className="hidden md:grid md:grid-cols-3 gap-4 md:gap-6">
+                {latestNews.slice(newsIndex, newsIndex + 3).map((item, idx) => (
+                  <motion.div
+                    key={`${item._id}-desktop`}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.3, delay: idx * 0.1 }}
@@ -1069,12 +1239,30 @@ export default function Home() {
               <div className="w-24 h-1 bg-white mx-auto"></div>
             </motion.div>
             <div className="relative overflow-hidden">
-              <div className="flex gap-8 md:gap-12 animate-scroll-infinite">
+              {/* Desktop - Auto-scroll animacija */}
+              <div className="hidden md:flex gap-8 md:gap-12 animate-scroll-infinite">
                 {/* Dupliraj slike za kontinuirani scroll */}
                 {[...partnerImages, ...partnerImages, ...partnerImages].map((partner, index) => (
                   <div
-                    key={`partner-${index}`}
+                    key={`partner-desktop-${index}`}
                     className="flex-shrink-0 w-40 h-24 md:w-56 md:h-32 lg:w-64 lg:h-36 relative grayscale hover:grayscale-0 transition-all duration-500 opacity-60 hover:opacity-100"
+                  >
+                    <Image
+                      src={partner.url}
+                      alt={`Partner ${index + 1}`}
+                      fill
+                      className="object-contain filter brightness-0 invert hover:brightness-100 hover:invert-0 transition-all duration-500"
+                    />
+                  </div>
+                ))}
+              </div>
+              
+              {/* Mobile - Ručni scroll */}
+              <div className="flex md:hidden gap-6 overflow-x-auto scrollbar-hide pb-4" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}>
+                {partnerImages.map((partner, index) => (
+                  <div
+                    key={`partner-mobile-${index}`}
+                    className="flex-shrink-0 w-40 h-24 relative grayscale hover:grayscale-0 transition-all duration-500 opacity-60 hover:opacity-100"
                   >
                     <Image
                       src={partner.url}
