@@ -132,13 +132,27 @@ body {
 }
 
 .animate-scroll-infinite {
-  animation: scroll-infinite 40s linear infinite;
   display: flex;
   width: fit-content;
 }
 
-.animate-scroll-infinite:hover {
-  animation-play-state: paused;
+/* Osiguraj da se animacija primenjuje samo na desktop verzijama */
+@media (min-width: 768px) {
+  .animate-scroll-infinite {
+    animation: scroll-infinite 40s linear infinite;
+  }
+  
+  .animate-scroll-infinite:hover {
+    animation-play-state: paused;
+  }
+}
+
+/* Osiguraj da se desktop verzija ne prikazuje na mobilnim uređajima */
+@media (max-width: 767px) {
+  .animate-scroll-infinite {
+    display: none !important;
+    animation: none !important;
+  }
 }
 
 /* Custom scrollbar */

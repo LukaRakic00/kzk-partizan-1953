@@ -756,7 +756,7 @@ export default function Home() {
                     transition={{ duration: 0.3, delay: idx * 0.1 }}
                     className="bg-white/5 border border-white/10 hover:bg-white/10 transition-all group flex-shrink-0 w-[85vw] md:w-auto"
                   >
-                    <Link href={`/vesti/${item.slug}`}>
+                    <Link href={`/vesti/${item.slug}`} className="block">
                       <div className="aspect-video relative overflow-hidden mb-3">
                         {item.image ? (
                           <Image
@@ -799,7 +799,7 @@ export default function Home() {
                     transition={{ duration: 0.3, delay: idx * 0.1 }}
                     className="bg-white/5 border border-white/10 hover:bg-white/10 transition-all group"
                   >
-                    <Link href={`/vesti/${item.slug}`}>
+                    <Link href={`/vesti/${item.slug}`} className="block">
                       <div className="aspect-video relative overflow-hidden mb-3">
                         {item.image ? (
                           <Image
@@ -1226,7 +1226,7 @@ export default function Home() {
 
       {/* Partneri Slider */}
       {partnerImages.length > 0 && (
-        <section className="py-16 md:py-20 bg-black/70 overflow-hidden relative">
+        <section id="partneri" className="py-16 md:py-20 bg-black/70 overflow-hidden relative">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -1239,7 +1239,7 @@ export default function Home() {
               <div className="w-24 h-1 bg-white mx-auto"></div>
             </motion.div>
             <div className="relative overflow-hidden">
-              {/* Desktop - Auto-scroll animacija */}
+              {/* Desktop - Auto-scroll animacija - samo za desktop */}
               <div className="hidden md:flex gap-8 md:gap-12 animate-scroll-infinite">
                 {/* Dupliraj slike za kontinuirani scroll */}
                 {[...partnerImages, ...partnerImages, ...partnerImages].map((partner, index) => (
@@ -1257,12 +1257,12 @@ export default function Home() {
                 ))}
               </div>
               
-              {/* Mobile - Ručni scroll */}
-              <div className="flex md:hidden gap-6 overflow-x-auto scrollbar-hide pb-4" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}>
+              {/* Mobile - Ručni scroll bez automatskog scrola - samo za mobilne */}
+              <div className="flex md:hidden gap-6 overflow-x-auto scrollbar-hide pb-4 snap-x snap-mandatory" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch', scrollBehavior: 'smooth' }}>
                 {partnerImages.map((partner, index) => (
                   <div
                     key={`partner-mobile-${index}`}
-                    className="flex-shrink-0 w-40 h-24 relative grayscale hover:grayscale-0 transition-all duration-500 opacity-60 hover:opacity-100"
+                    className="flex-shrink-0 w-40 h-24 snap-start relative grayscale hover:grayscale-0 transition-all duration-500 opacity-60 hover:opacity-100"
                   >
                     <Image
                       src={partner.url}

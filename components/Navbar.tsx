@@ -16,6 +16,7 @@ const navItems = [
   { href: '/galerija', label: 'GALERIJA' },
   { href: '/vesti', label: 'VESTI' },
   { href: '/kontakt', label: 'KONTAKT' },
+  { href: '/#partneri', label: 'PARTNERI' },
 ];
 
 export default function Navbar() {
@@ -99,8 +100,10 @@ export default function Navbar() {
   };
 
   // Split nav items into left and right
-  const leftNavItems = navItems.slice(0, 3); // POČETNA, KLUB, TIM
-  const rightNavItems = navItems.slice(3); // O NAMA, GALERIJA, VESTI, KONTAKT
+  // Partneri ide na levu stranu logoa
+  const leftNavItems = navItems.filter(item => item.href !== '/#partneri').slice(0, 3); // POČETNA, KLUB, TIM
+  const partneriItem = navItems.find(item => item.href === '/#partneri'); // PARTNERI
+  const rightNavItems = navItems.filter(item => item.href !== '/#partneri').slice(3); // O NAMA, GALERIJA, VESTI, KONTAKT
 
   const renderNavItem = (item: typeof navItems[0]) => {
     if (item.href === '/klub') {
@@ -369,6 +372,29 @@ export default function Navbar() {
                   </div>
                 );
               }
+              // Za anchor linkove (kao /#partneri)
+              if (item.href.startsWith('/#')) {
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={`text-xs lg:text-sm font-semibold font-montserrat tracking-wider uppercase transition-colors relative group px-2 py-1 ${
+                      pathname === '/' && typeof window !== 'undefined' && window.location.hash === item.href.substring(1)
+                        ? 'text-white'
+                        : 'text-gray-300 hover:text-white'
+                    }`}
+                  >
+                    {item.label}
+                    {pathname === '/' && typeof window !== 'undefined' && window.location.hash === item.href.substring(1) && (
+                      <motion.div
+                        className="absolute -bottom-1 left-0 right-0 h-0.5 bg-white"
+                        layoutId="underline"
+                      />
+                    )}
+                  </Link>
+                );
+              }
+              
               return (
               <Link
                 key={item.href}
@@ -409,6 +435,8 @@ export default function Navbar() {
           {/* Desktop Navigation - Left Side */}
           <div className="hidden md:flex items-center space-x-6 lg:space-x-8 flex-1 justify-start">
             {leftNavItems.map((item) => renderNavItem(item))}
+            {/* Partneri - na levoj strani logoa */}
+            {partneriItem && renderNavItem(partneriItem)}
           </div>
 
           {/* Logo - Centered (Desktop) - Ispada iz navbara */}
