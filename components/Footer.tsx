@@ -62,7 +62,7 @@ export default function Footer() {
             </p>
             <div className="flex space-x-4">
               <a
-                href="https://www.instagram.com/kzk_partizan1953/"
+                href="https://www.instagram.com/kzk_partizan_1953?igsh=MXF6NzdvbTZkcmJ3ag=="
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-gray-400 hover:text-white transition-colors"
