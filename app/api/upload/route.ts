@@ -5,6 +5,7 @@ import { verifyToken, getAuthToken } from '@/lib/auth';
 // Ensure this route runs in Node.js runtime
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60; // 60 sekundi timeout
 
 export async function POST(req: NextRequest) {
   try {
@@ -53,25 +54,53 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const imageData = await uploadImage(file, folder);
-
-    return NextResponse.json(imageData);
+    try {
+      const imageData = await uploadImage(file, folder);
+      return NextResponse.json(imageData);
+    } catch (uploadError: any) {
+      console.error('Upload image error:', uploadError);
+      console.error('Upload error details:', {
+        message: uploadError?.message,
+        stack: uploadError?.stack?.substring(0, 500),
+        name: uploadError?.name,
+      });
+      
+      // Return JSON error response - nikad HTML
+      const errorMessage = uploadError?.message || 'Greška pri upload-u slike';
+      return NextResponse.json(
+        { 
+          error: errorMessage,
+          details: process.env.NODE_ENV === 'development' ? uploadError?.stack?.substring(0, 500) : undefined
+        },
+        { 
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        }
+      );
+    }
   } catch (error: any) {
-    console.error('Upload error:', error);
+    console.error('Upload route error:', error);
     console.error('Error details:', {
       message: error?.message,
-      stack: error?.stack,
+      stack: error?.stack?.substring(0, 500),
       name: error?.name,
     });
     
-    // Return more specific error message
+    // Return JSON error response - nikad HTML
     const errorMessage = error?.message || 'Greška pri upload-u slike';
     return NextResponse.json(
       { 
         error: errorMessage,
-        details: process.env.NODE_ENV === 'development' ? error?.stack : undefined
+        details: process.env.NODE_ENV === 'development' ? error?.stack?.substring(0, 500) : undefined
       },
-      { status: 500 }
+      { 
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      }
     );
   }
 }

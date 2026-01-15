@@ -5,7 +5,6 @@ export interface IGallery extends Document {
   description?: string;
   images: string[];
   category: string;
-  year?: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -26,9 +25,6 @@ const GallerySchema: Schema = new Schema(
     category: {
       type: String,
       required: true,
-    },
-    year: {
-      type: Number,
     },
   },
   {

@@ -364,7 +364,7 @@ export default function LiveMatches() {
 
   if (loading) {
     return (
-      <div className="bg-black/50 border-t border-white/10 py-8">
+      <div className="bg-black/70 py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center text-gray-400 font-montserrat">Učitavanje mečeva...</div>
         </div>
@@ -374,7 +374,7 @@ export default function LiveMatches() {
 
   if (error) {
     return (
-      <div className="bg-black/50 border-t border-white/10 py-8">
+      <div className="bg-black/70 py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center text-red-400 font-montserrat">{error}</div>
         </div>
@@ -386,7 +386,7 @@ export default function LiveMatches() {
     <>
       {/* Predstojeći Mečevi - Slider */}
       {upcomingMatches.length > 0 && (
-        <div id="live-matches" className="bg-black/50 border-t border-white/10 py-8 md:py-12">
+        <div id="live-matches" className="bg-black/70 py-8 md:py-12">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-12">
               <h2 className="text-2xl md:text-3xl font-bold font-playfair uppercase tracking-wider mb-4">
@@ -440,7 +440,7 @@ export default function LiveMatches() {
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 100, opacity: 0 }}
               transition={{ duration: 0.3, ease: 'easeInOut' }}
-              className="fixed bottom-0 left-0 right-0 bg-black/95 border-t border-white/10 py-1.5 sm:py-2 md:py-3 z-40 shadow-lg"
+              className="fixed bottom-0 left-0 right-0 bg-black/95 py-1.5 sm:py-2 md:py-3 z-40 shadow-lg"
             >
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div

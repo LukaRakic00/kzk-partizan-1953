@@ -60,7 +60,7 @@ export default function VestiDetailPage() {
       <div className="relative z-10">
         <Navbar />
 
-      <article className="pt-32 md:pt-40 pb-20 px-4 sm:px-6 lg:px-8">
+      <article className="pt-40 md:pt-48 pb-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto">
           <Link
             href="/vesti"

@@ -21,6 +21,7 @@ const navItems = [
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [lastScrollY, setLastScrollY] = useState(0);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [showKlubDropdown, setShowKlubDropdown] = useState(false);
   const [showTimDropdown, setShowTimDropdown] = useState(false);
@@ -36,12 +37,36 @@ export default function Navbar() {
 
   useEffect(() => {
     const handleScroll = () => {
-      setScrolled(window.scrollY > 20);
+      const currentScrollY = window.scrollY;
+      const scrollDifference = Math.abs(currentScrollY - lastScrollY);
+      
+      // Ako je scroll na vrhu, uvek prikaži navbar
+      if (currentScrollY < 10) {
+        setScrolled(false);
+        setLastScrollY(currentScrollY);
+        return;
+      }
+      
+      // Threshold da se izbegnu previše česte promene
+      if (scrollDifference < 5) {
+        return;
+      }
+      
+      // Ako se scroll-uje na dole, prikaži navbar
+      if (currentScrollY > lastScrollY) {
+        setScrolled(false);
+      } 
+      // Ako se scroll-uje na gore, sakrij navbar
+      else if (currentScrollY < lastScrollY) {
+        setScrolled(true);
+      }
+      
+      setLastScrollY(currentScrollY);
     };
 
-    window.addEventListener('scroll', handleScroll);
+    window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+  }, [lastScrollY]);
 
   useEffect(() => {
     loadLogo();
@@ -59,18 +84,18 @@ export default function Navbar() {
   }, [isOpen]);
 
   const loadLogo = async () => {
-    try {
-      const setting = await apiClient.getSettings('logo_url');
-      if (setting && setting.value) {
-        setLogoUrl(setting.value);
-      } else {
-        // Fallback na default logo
-        setLogoUrl('/kzk_partizan.png');
-      }
-    } catch (error) {
-      // Fallback na default logo
-      setLogoUrl('/kzk_partizan.png');
-    }
+    // Primarno koristi logo iz /public foldera
+    setLogoUrl('/kzk_partizan.png');
+    
+    // Opciono: ako želiš da se učitava iz baze kao fallback, otkomentariši kod ispod
+    // try {
+    //   const setting = await apiClient.getSettings('logo_url');
+    //   if (setting && setting.value) {
+    //     setLogoUrl(setting.value);
+    //   }
+    // } catch (error) {
+    //   // Koristi default logo iz /public
+    // }
   };
 
   // Split nav items into left and right
@@ -88,7 +113,7 @@ export default function Navbar() {
         >
           <Link
             href={item.href}
-            className={`text-sm lg:text-base font-bold font-montserrat tracking-wider uppercase transition-colors relative group px-2 py-1 ${
+            className={`text-xs lg:text-sm font-semibold font-montserrat tracking-wider uppercase transition-colors relative group px-2 py-1 ${
               pathname === item.href || pathname.startsWith('/klub')
                 ? 'text-white'
                 : 'text-gray-300 hover:text-white'
@@ -149,7 +174,7 @@ export default function Navbar() {
         >
           <Link
             href={item.href}
-            className={`text-sm lg:text-base font-bold font-montserrat tracking-wider uppercase transition-colors relative group px-2 py-1 ${
+            className={`text-xs lg:text-sm font-semibold font-montserrat tracking-wider uppercase transition-colors relative group px-2 py-1 ${
               pathname === item.href || pathname.startsWith('/tim/') || pathname.startsWith('/igraci')
                 ? 'text-white'
                 : 'text-gray-300 hover:text-white'
@@ -214,6 +239,16 @@ export default function Navbar() {
                           Juniori
                         </Link>
                         <Link
+                          href="/igraci#kadetkinje"
+                          className="block px-4 py-2 text-sm font-montserrat tracking-wider uppercase text-gray-300 hover:text-white hover:bg-white/10 transition-colors"
+                          onClick={() => {
+                            setShowTimDropdown(false);
+                            setShowIgraciDropdown(false);
+                          }}
+                        >
+                          Kadetkinje
+                        </Link>
+                        <Link
                           href="/igraci#pionirke"
                           className="block px-4 py-2 text-sm font-montserrat tracking-wider uppercase text-gray-300 hover:text-white hover:bg-white/10 transition-colors"
                           onClick={() => {
@@ -243,7 +278,7 @@ export default function Navbar() {
                   >
                     <Link
                       href={item.href}
-                      className={`text-sm lg:text-base font-bold font-montserrat tracking-wider uppercase transition-colors relative group px-2 py-1 ${
+                      className={`text-xs lg:text-sm font-semibold font-montserrat tracking-wider uppercase transition-colors relative group px-2 py-1 ${
                         pathname === item.href
                           ? 'text-white'
                           : 'text-gray-300 hover:text-white'
@@ -297,7 +332,7 @@ export default function Navbar() {
                   >
                     <Link
                       href={item.href}
-                      className={`text-sm lg:text-base font-bold font-montserrat tracking-wider uppercase transition-colors relative group px-2 py-1 ${
+                      className={`text-xs lg:text-sm font-semibold font-montserrat tracking-wider uppercase transition-colors relative group px-2 py-1 ${
                         pathname === item.href
                           ? 'text-white'
                           : 'text-gray-300 hover:text-white'
@@ -338,7 +373,7 @@ export default function Navbar() {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`text-sm lg:text-base font-bold font-montserrat tracking-wider uppercase transition-colors relative group px-2 py-1 ${
+                className={`text-xs lg:text-sm font-semibold font-montserrat tracking-wider uppercase transition-colors relative group px-2 py-1 ${
                   pathname === item.href
                     ? 'text-white'
                     : 'text-gray-300 hover:text-white'
@@ -355,26 +390,42 @@ export default function Navbar() {
     );
   };
 
+  // Navbar je uvek fixed na vrhu
   return (
     <nav
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 pt-2 ${
-        scrolled ? 'bg-black/95 backdrop-blur-sm shadow-lg' : 'bg-transparent'
+      className={`fixed top-0 left-0 right-0 z-50 w-full transition-all duration-500 ${
+        scrolled
+          ? 'opacity-0 pointer-events-none -translate-y-full' 
+          : 'opacity-100 pointer-events-auto translate-y-0 pb-4 md:pb-6'
       }`}
+      style={{ background: 'transparent' }}
     >
+      {/* Crna pozadina za mobilne verzije - samo kada je menu otvoren */}
+      {isOpen && <div className="md:hidden absolute inset-0 bg-black/95 -z-10" />}
       <div className="w-full px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-20 md:h-24 relative">
+        <div className={`flex items-center justify-between relative transition-all duration-500 ${
+          scrolled ? 'h-20 md:h-24' : 'h-20 md:h-24'
+        }`}>
           {/* Desktop Navigation - Left Side */}
-          <div className="hidden md:flex items-center space-x-8 lg:space-x-10 flex-1">
+          <div className="hidden md:flex items-center space-x-6 lg:space-x-8 flex-1 justify-start">
             {leftNavItems.map((item) => renderNavItem(item))}
           </div>
 
-          {/* Logo - Centered (Desktop) */}
+          {/* Logo - Centered (Desktop) - Ispada iz navbara */}
           <Link 
             href="/" 
-            className="hidden md:flex absolute left-1/2 transform -translate-x-1/2 items-center justify-center group z-10"
+            className={`hidden md:flex absolute left-1/2 transform -translate-x-1/2 items-center justify-center group z-20 transition-all duration-500 ${
+              scrolled 
+                ? 'top-1/2 -translate-y-1/2' 
+                : 'bottom-0 -bottom-2 md:-bottom-3 lg:-bottom-4'
+            }`}
           >
             {logoUrl && (
-              <div className="relative w-32 h-32 md:w-36 md:h-36 lg:w-40 lg:h-40 flex-shrink-0">
+              <div className={`relative flex-shrink-0 transition-all duration-500 ${
+                scrolled 
+                  ? 'w-16 h-16 md:w-20 md:h-20 lg:w-24 lg:h-24' 
+                  : 'w-24 h-24 md:w-28 md:h-28 lg:w-32 lg:h-32'
+              }`}>
                 <CloudinaryImage
                   src={logoUrl}
                   alt="KŽK Partizan 1953 Logo"
@@ -389,38 +440,40 @@ export default function Navbar() {
           </Link>
 
           {/* Desktop Navigation - Right Side */}
-          <div className="hidden md:flex items-center space-x-8 lg:space-x-10 flex-1 justify-end">
+          <div className="hidden md:flex items-center space-x-6 lg:space-x-8 flex-1 justify-end">
             {rightNavItems.map((item) => renderNavItem(item))}
           </div>
+
+          {/* Mobile Logo - Centered u navbar-u */}
+          <Link 
+            href="/" 
+            className="md:hidden absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 flex items-center justify-center group z-10"
+            onClick={() => setIsOpen(false)}
+          >
+            {logoUrl && (
+              <div className="relative w-28 h-28 sm:w-32 sm:h-32 flex-shrink-0">
+                <CloudinaryImage
+                  src={logoUrl}
+                  alt="KŽK Partizan 1953 Logo"
+                  fill
+                  className="object-contain transition-transform duration-300 group-hover:scale-110"
+                  priority
+                  placeholder="blur"
+                  objectFit="contain"
+                />
+              </div>
+            )}
+          </Link>
 
           {/* Mobile Menu Button */}
           <button
             onClick={() => setIsOpen(!isOpen)}
-            className="md:hidden text-white p-2 z-20"
+            className="md:hidden text-white p-2 z-20 ml-auto"
             aria-label="Toggle menu"
           >
             {isOpen ? <X size={24} /> : <Menu size={24} />}
           </button>
         </div>
-      </div>
-
-      {/* Mobile Logo - Centered */}
-      <div className="md:hidden absolute left-1/2 transform -translate-x-1/2 top-2 h-20 flex items-center justify-center z-10">
-        <Link href="/" className="flex items-center justify-center group">
-          {logoUrl && (
-            <div className="relative w-24 h-24 flex-shrink-0">
-              <CloudinaryImage
-                src={logoUrl}
-                alt="KŽK Partizan 1953 Logo"
-                fill
-                className="object-contain transition-transform duration-300 group-hover:scale-110"
-                priority
-                placeholder="blur"
-                objectFit="contain"
-              />
-            </div>
-          )}
-        </Link>
       </div>
 
       {/* Mobile Navigation */}
@@ -430,7 +483,8 @@ export default function Navbar() {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="md:hidden bg-black border-t border-white/10"
+            className="md:hidden border-t border-white/10"
+            style={{ background: 'transparent' }}
           >
             <div className="px-4 py-4 space-y-4">
               {navItems.map((item) => {
@@ -663,6 +717,17 @@ export default function Navbar() {
                                       className="block text-sm font-montserrat tracking-wider uppercase text-gray-400 hover:text-white transition-colors"
                                     >
                                       Juniori
+                                    </Link>
+                                    <Link
+                                      href="/igraci#kadetkinje"
+                                      onClick={() => {
+                                        setIsOpen(false);
+                                        setShowMobileTimDropdown(false);
+                                        setShowMobileIgraciDropdown(false);
+                                      }}
+                                      className="block text-sm font-montserrat tracking-wider uppercase text-gray-400 hover:text-white transition-colors"
+                                    >
+                                      Kadetkinje
                                     </Link>
                                     <Link
                                       href="/igraci#pionirke"

@@ -71,7 +71,7 @@ export default function KlubPage() {
       <div className="relative z-10">
         <Navbar />
 
-        <section className="pt-32 md:pt-40 pb-20 px-4 sm:px-6 lg:px-8">
+        <section className="pt-40 md:pt-48 pb-20 px-4 sm:px-6 lg:px-8">
           <div className="max-w-7xl mx-auto">
             {loading ? (
               <div className="text-center py-20">

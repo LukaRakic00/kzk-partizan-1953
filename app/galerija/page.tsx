@@ -16,7 +16,6 @@ interface Gallery {
   description?: string;
   images: string[];
   category: string;
-  year?: number;
 }
 
 export default function GalerijaPage() {
@@ -24,7 +23,7 @@ export default function GalerijaPage() {
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
   const [allImages, setAllImages] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
-  const [openYears, setOpenYears] = useState<Set<number>>(new Set([2025])); // 2025 podrazumevano otvorena
+  const [openGalleries, setOpenGalleries] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     loadGalleries();
@@ -74,32 +73,37 @@ export default function GalerijaPage() {
     setSelectedImageIndex(null);
   };
 
-  const toggleYear = (year: number) => {
-    setOpenYears((prev) => {
+  const toggleGallery = (galleryId: string) => {
+    setOpenGalleries((prev) => {
       const newSet = new Set(prev);
-      if (newSet.has(year)) {
-        newSet.delete(year);
+      if (newSet.has(galleryId)) {
+        newSet.delete(galleryId);
       } else {
-        newSet.add(year);
+        newSet.add(galleryId);
       }
       return newSet;
     });
   };
 
-  // Grupiši galerije po godinama
-  const galleriesByYear = galleries.reduce((acc, gallery) => {
-    const year = gallery.year || 0;
-    if (!acc[year]) {
-      acc[year] = [];
+  // Automatski otvori najnoviju galeriju kada se učitaju galerije (samo jednom)
+  useEffect(() => {
+    if (galleries.length > 0 && openGalleries.size === 0) {
+      // Sortiraj po _id (opadajuće za najnoviju - MongoDB ObjectId sadrži timestamp)
+      const sorted = [...galleries].sort((a, b) => {
+        return b._id.localeCompare(a._id);
+      });
+      const newestGallery = sorted[0];
+      if (newestGallery) {
+        setOpenGalleries(new Set([newestGallery._id]));
+      }
     }
-    acc[year].push(gallery);
-    return acc;
-  }, {} as Record<number, Gallery[]>);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [galleries.length]); // Samo kada se promeni broj galerija
 
-  // Sortiraj godine opadajuće
-  const sortedYears = Object.keys(galleriesByYear)
-    .map(Number)
-    .sort((a, b) => b - a);
+  // Sortiraj galerije po _id (opadajuće za najnoviju)
+  const sortedGalleries = [...galleries].sort((a, b) => {
+    return b._id.localeCompare(a._id);
+  });
 
   return (
     <main className="min-h-screen relative">
@@ -111,7 +115,7 @@ export default function GalerijaPage() {
       <div className="relative z-10">
       <Navbar />
 
-      <section className="pt-32 md:pt-40 pb-20 px-4 sm:px-6 lg:px-8">
+      <section className="pt-40 md:pt-48 pb-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -132,36 +136,37 @@ export default function GalerijaPage() {
             </div>
           ) : (
             <>
-                {sortedYears.length > 0 ? (
+                {sortedGalleries.length > 0 ? (
                   <div className="space-y-6">
-                    {sortedYears.map((year, yearIndex) => {
-                      const yearGalleries = galleriesByYear[year];
-                      const isOpen = openYears.has(year);
+                    {sortedGalleries.map((gallery, galleryIndex) => {
+                      const isOpen = openGalleries.has(gallery._id);
                       
                       return (
                     <motion.div
-                          key={year}
+                          key={gallery._id}
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: yearIndex * 0.1 }}
+                          transition={{ delay: galleryIndex * 0.1 }}
                           className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-lg overflow-hidden"
                         >
-                          {/* Year Header */}
+                          {/* Gallery Header */}
                           <button
-                            onClick={() => toggleYear(year)}
-                            className="w-full flex items-center justify-between p-6 hover:bg-white/10 transition-colors"
+                            onClick={() => toggleGallery(gallery._id)}
+                            className="w-full flex items-center justify-between p-6 hover:bg-white/10 transition-colors text-left"
                           >
-                            <h2 className="text-3xl md:text-4xl font-bold font-playfair text-white">
-                              {year}
-                            </h2>
+                            <div className="flex-1">
+                              <h2 className="text-2xl md:text-3xl font-bold font-playfair text-white mb-1">
+                                {gallery.title || `Galerija ${galleryIndex + 1}`}
+                              </h2>
+                            </div>
                             {isOpen ? (
-                              <ChevronUp size={24} className="text-white" />
+                              <ChevronUp size={24} className="text-white flex-shrink-0 ml-4" />
                             ) : (
-                              <ChevronDown size={24} className="text-white" />
+                              <ChevronDown size={24} className="text-white flex-shrink-0 ml-4" />
                         )}
                           </button>
 
-                          {/* Year Content */}
+                          {/* Gallery Content */}
                           <AnimatePresence>
                             {isOpen && (
                               <motion.div
@@ -172,9 +177,12 @@ export default function GalerijaPage() {
                                 className="overflow-hidden"
                               >
                                 <div className="p-6 pt-0">
-                                  {yearGalleries.map((gallery, galleryIndex) => (
-                                    <div key={gallery._id} className={galleryIndex > 0 ? 'mt-8' : ''}>
-                                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                                  {gallery.description && (
+                                    <p className="text-gray-300 mb-4 text-sm md:text-base">
+                                      {gallery.description}
+                                    </p>
+                                  )}
+                                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                         {gallery.images.map((image, imgIndex) => (
                           <motion.div
                             key={imgIndex}
@@ -186,7 +194,7 @@ export default function GalerijaPage() {
                           >
                             <Image
                               src={image}
-                                              alt={`${gallery.title || year} - ${imgIndex + 1}`}
+                                              alt={`${gallery.title || 'Galerija'} - ${imgIndex + 1}`}
                               fill
                               className="object-cover group-hover:scale-110 transition-transform duration-300"
                             />
@@ -194,8 +202,6 @@ export default function GalerijaPage() {
                           </motion.div>
                         ))}
                       </div>
-                                    </div>
-                                  ))}
                                 </div>
                               </motion.div>
                             )}

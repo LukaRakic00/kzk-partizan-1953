@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { apiClient } from '@/lib/api-client';
 import { motion } from 'framer-motion';
-import { Users, Newspaper, Image as ImageIcon, Sparkles, RefreshCw, CheckCircle2, AlertCircle, Upload, ChevronDown, ChevronUp } from 'lucide-react';
+import { Users, Newspaper, Image as ImageIcon, Sparkles, RefreshCw, CheckCircle2, AlertCircle, Upload, ChevronDown, ChevronUp, Plus, Trash2, ArrowUp, ArrowDown, Edit, X, Download, Star, Smartphone } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Image from 'next/image';
 
@@ -23,12 +23,41 @@ export default function AdminDashboard() {
   const [uploadingHero, setUploadingHero] = useState(false);
   const [heroSectionOpen, setHeroSectionOpen] = useState(false);
   const [wabaSectionOpen, setWabaSectionOpen] = useState(false);
+  const [baneriImages, setBaneriImages] = useState<any[]>([]);
+  const [loadingBaneri, setLoadingBaneri] = useState(false);
+  const [activeHeroImageId, setActiveHeroImageId] = useState<string | null>(null);
+  const [mobileHeroImageId, setMobileHeroImageId] = useState<string | null>(null);
 
   useEffect(() => {
     loadStats();
     loadWabaStatus();
     loadHeroImage();
+    loadBaneriImages();
+    loadHeroSettings();
   }, []);
+
+  useEffect(() => {
+    if (heroSectionOpen) {
+      loadBaneriImages();
+      loadHeroSettings();
+    }
+  }, [heroSectionOpen]);
+
+  const loadHeroSettings = async () => {
+    try {
+      const activeHero = await apiClient.getSettings('hero_image_active');
+      const mobileHero = await apiClient.getSettings('hero_image_mobile');
+      
+      if (activeHero && activeHero.value) {
+        setActiveHeroImageId(activeHero.value);
+      }
+      if (mobileHero && mobileHero.value) {
+        setMobileHeroImageId(mobileHero.value);
+      }
+    } catch (error) {
+      console.error('Error loading hero settings:', error);
+    }
+  };
 
   const loadStats = async () => {
     try {
@@ -68,54 +97,131 @@ export default function AdminDashboard() {
   const loadHeroImage = async () => {
     try {
       const images = await apiClient.getImages('baneri');
+      const activeHeroSetting = await apiClient.getSettings('hero_image_active');
+      
+      if (activeHeroSetting && activeHeroSetting.value && images) {
+        const activeImage = images.find((img: any) => img._id === activeHeroSetting.value);
+        if (activeImage) {
+          setHeroImage(activeImage.url);
+          setHeroImageId(activeImage._id);
+          return;
+        }
+      }
+      
+      // Fallback na prvu sliku ako nema aktivnog hero banera
       if (images && images.length > 0) {
-        const sortedHero = images.sort((a: any, b: any) => (a.order || 0) - (b.order || 0));
-        setHeroImage(sortedHero[0].url);
-        setHeroImageId(sortedHero[0]._id);
+        setHeroImage(images[0].url);
+        setHeroImageId(images[0]._id);
       }
     } catch (error) {
       console.error('Error loading hero image:', error);
     }
   };
 
-  const handleHeroImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (!heroImageId) {
-      toast.error('Hero slika nije pronađena u bazi. Molimo prvo dodajte sliku preko admin/slike.');
-      return;
-    }
-
-    setUploadingHero(true);
+  const loadBaneriImages = async () => {
     try {
-      const updateFormData = new FormData();
-      updateFormData.append('file', file);
-      updateFormData.append('folder', 'baneri');
-      updateFormData.append('order', '0');
-
-      const token = localStorage.getItem('auth-token');
-      const response = await fetch(`/api/images/${heroImageId}`, {
-        method: 'PUT',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: updateFormData,
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Greška pri ažuriranju hero slike');
+      setLoadingBaneri(true);
+      const images = await apiClient.getImages('baneri');
+      if (images && Array.isArray(images)) {
+        setBaneriImages(images);
+      } else {
+        setBaneriImages([]);
       }
-
-      const updatedImage = await response.json();
-      setHeroImage(updatedImage.url);
-      toast.success('Hero banner je uspešno ažuriran!');
-    } catch (error: any) {
-      console.error('Error updating hero image:', error);
-      toast.error(`Greška pri ažuriranju hero slike: ${error.message || 'Nepoznata greška'}`);
+    } catch (error) {
+      console.error('Error loading baneri images:', error);
+      toast.error('Greška pri učitavanju baneri slika');
+      setBaneriImages([]);
     } finally {
-      setUploadingHero(false);
+      setLoadingBaneri(false);
+    }
+  };
+
+  const handleDownload = async (image: any) => {
+    try {
+      const response = await fetch(image.url);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const fileName = image.publicId.split('/').pop() || `image-${image._id}`;
+      a.download = `${fileName}.${image.format || 'jpg'}`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      toast.success('Slika je preuzeta');
+    } catch (error: any) {
+      toast.error(`Greška pri preuzimanju: ${error.message || 'Nepoznata greška'}`);
+    }
+  };
+
+  const handleSetActiveHero = async (imageId: string) => {
+    try {
+      await apiClient.updateSetting({
+        key: 'hero_image_active',
+        value: imageId,
+        type: 'text',
+        description: 'ID aktivnog hero banera'
+      });
+      setActiveHeroImageId(imageId);
+      toast.success('Aktivni hero baner je postavljen');
+      loadHeroImage();
+    } catch (error: any) {
+      toast.error(`Greška: ${error.message || 'Nepoznata greška'}`);
+    }
+  };
+
+  const handleSetMobileHero = async (imageId: string) => {
+    try {
+      const image = baneriImages.find(img => img._id === imageId);
+      if (!image) {
+        toast.error('Slika nije pronađena');
+        return;
+      }
+      
+      await apiClient.updateSetting({
+        key: 'hero_image_mobile',
+        value: image.url,
+        type: 'image',
+        description: 'URL mobilnog hero banera'
+      });
+      setMobileHeroImageId(imageId);
+      toast.success('Mobilni hero baner je postavljen');
+    } catch (error: any) {
+      toast.error(`Greška: ${error.message || 'Nepoznata greška'}`);
+    }
+  };
+
+  const handleBanerDelete = async (id: string) => {
+    if (!confirm('Da li ste sigurni da želite da obrišete ovaj baner?')) return;
+
+    try {
+      await apiClient.deleteImage(id);
+      toast.success('Baner je uspešno obrisan');
+      loadBaneriImages();
+      loadHeroImage();
+      
+      // Ako je obrisan aktivni ili mobilni baner, resetuj settings
+      if (activeHeroImageId === id) {
+        setActiveHeroImageId(null);
+        await apiClient.updateSetting({
+          key: 'hero_image_active',
+          value: '',
+          type: 'text',
+          description: 'ID aktivnog hero banera'
+        });
+      }
+      if (mobileHeroImageId === id) {
+        setMobileHeroImageId(null);
+        await apiClient.updateSetting({
+          key: 'hero_image_mobile',
+          value: '',
+          type: 'image',
+          description: 'URL mobilnog hero banera'
+        });
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Greška pri brisanju banera');
     }
   };
 
@@ -280,63 +386,114 @@ export default function AdminDashboard() {
             className="px-4 md:px-6 pb-6"
           >
             <p className="text-gray-400 text-sm mb-4 ml-4">
-              Zamenite glavnu hero sliku na početnoj stranici sajta
+              Upravljajte hero slikama na početnoj stranici. Izaberite aktivni hero baner za desktop verziju i mobilni baner za mobilne uređaje iz postojećih slika u folderu 'baneri'.
             </p>
 
-            {heroImage && (
-              <div className="mb-4">
-                <p className="text-sm text-gray-400 mb-3 ml-1 font-semibold uppercase tracking-wider">Trenutna hero slika:</p>
-                <div className="relative w-full max-w-2xl aspect-video bg-gradient-to-br from-white/10 to-white/5 rounded-lg overflow-hidden border-2 border-white/10 shadow-lg group">
-                  <Image
-                    src={heroImage}
-                    alt="Hero Banner"
-                    fill
-                    className="object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                </div>
+            {loadingBaneri ? (
+              <div className="text-center py-8">
+                <RefreshCw className="animate-spin mx-auto mb-2" size={24} />
+                <div className="text-gray-400 text-sm">Učitavanje baneri slika...</div>
               </div>
-            )}
-
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-              <label className="cursor-pointer">
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleHeroImageUpload}
-                  disabled={uploadingHero || !heroImageId}
-                  className="hidden"
-                />
-                <span
-                  className={`px-5 py-2.5 font-semibold uppercase tracking-wider transition-all flex items-center gap-2 rounded-lg shadow-lg text-sm ${
-                    uploadingHero || !heroImageId
-                      ? 'bg-gray-600 text-gray-300 cursor-not-allowed opacity-50'
-                      : 'bg-gradient-to-r from-white to-gray-100 text-black hover:from-gray-100 hover:to-white hover:scale-105 hover:shadow-xl'
-                  }`}
-                >
-                  {uploadingHero ? (
-                    <>
-                      <RefreshCw className="animate-spin" size={18} />
-                      <span>Upload u toku...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Upload size={18} />
-                      <span>{heroImageId ? 'Zameni Hero Banner' : 'Dodaj Hero Banner'}</span>
-                    </>
-                  )}
-                </span>
-              </label>
-              {!heroImageId && (
-                <div className="px-3 py-1.5 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
-                  <p className="text-xs text-yellow-400 font-medium">
-                    ⚠️ Hero slika ne postoji u bazi. Molimo dodajte prvo sliku.
+            ) : baneriImages.length === 0 ? (
+              <div className="text-center py-8 ml-4">
+                <div className="text-gray-400 mb-4">Nema baneri slika. Dodajte slike preko Admin/Slike u folder 'baneri'.</div>
+                <div className="px-3 py-2 bg-blue-500/10 border border-blue-500/20 rounded-lg inline-block">
+                  <p className="text-xs text-blue-400 font-medium">
+                    💡 Savet: Idite na <strong>Admin/Slike</strong> i filtrirajte po folderu 'baneri' da dodate nove slike.
                   </p>
                 </div>
-              )}
-            </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 ml-4">
+                {baneriImages.map((baner) => (
+                  <div
+                    key={baner._id}
+                    className={`bg-white/5 border rounded-lg p-3 hover:bg-white/10 transition-all ${
+                      activeHeroImageId === baner._id ? 'border-green-500/50 bg-green-500/5' : 
+                      mobileHeroImageId === baner._id ? 'border-blue-500/50 bg-blue-500/5' : 
+                      'border-white/10'
+                    }`}
+                  >
+                    <div className="relative aspect-video mb-3 bg-white/10 rounded overflow-hidden">
+                      <Image
+                        src={baner.url}
+                        alt={`Baner ${baner._id}`}
+                        fill
+                        className="object-cover"
+                      />
+                      <div className="absolute top-2 left-2 flex flex-col gap-1">
+                        {activeHeroImageId === baner._id && (
+                          <div className="bg-green-500 text-white text-xs px-2 py-1 rounded font-semibold flex items-center gap-1">
+                            <Star size={12} />
+                            AKTIVAN HERO
+                          </div>
+                        )}
+                        {mobileHeroImageId === baner._id && (
+                          <div className="bg-blue-500 text-white text-xs px-2 py-1 rounded font-semibold flex items-center gap-1">
+                            <Smartphone size={12} />
+                            MOBILNI
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="mb-3">
+                      {baner.width && baner.height && (
+                        <p className="text-xs text-gray-400">
+                          {baner.width} x {baner.height}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleSetActiveHero(baner._id)}
+                          className={`flex-1 px-2 py-1.5 transition-all flex items-center justify-center text-xs ${
+                            activeHeroImageId === baner._id
+                              ? 'bg-green-500/30 text-green-400 border border-green-500/50'
+                              : 'bg-green-500/20 text-green-400 hover:bg-green-500/30'
+                          }`}
+                          title="Postavi kao aktivni hero baner"
+                        >
+                          <Star size={14} className="mr-1" />
+                          {activeHeroImageId === baner._id ? 'Aktivan' : 'Aktiviraj'}
+                        </button>
+                        <button
+                          onClick={() => handleSetMobileHero(baner._id)}
+                          className={`flex-1 px-2 py-1.5 transition-all flex items-center justify-center text-xs ${
+                            mobileHeroImageId === baner._id
+                              ? 'bg-blue-500/30 text-blue-400 border border-blue-500/50'
+                              : 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30'
+                          }`}
+                          title="Postavi kao mobilni hero baner"
+                        >
+                          <Smartphone size={14} className="mr-1" />
+                          {mobileHeroImageId === baner._id ? 'Mobilni' : 'Mobilni'}
+                        </button>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleDownload(baner)}
+                          className="flex-1 bg-green-500/20 text-green-400 px-2 py-1.5 hover:bg-green-500/30 transition-all flex items-center justify-center text-xs"
+                          title="Preuzmi sliku"
+                        >
+                          <Download size={14} />
+                        </button>
+                        <button
+                          onClick={() => handleBanerDelete(baner._id)}
+                          className="flex-1 bg-red-500/20 text-red-400 px-2 py-1.5 hover:bg-red-500/30 transition-all flex items-center justify-center text-xs"
+                          title="Obriši"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </motion.div>
         )}
+
       </motion.div>
 
       {/* WABA Liga Ažuriranje Sekcija */}

@@ -12,7 +12,6 @@ interface Gallery {
   description?: string;
   images: string[];
   category: string;
-  year?: number;
 }
 
 export default function AdminGallery() {
@@ -24,7 +23,6 @@ export default function AdminGallery() {
     title: '',
     description: '',
     category: 'ostalo',
-    year: new Date().getFullYear().toString(),
     images: [] as string[],
   });
   const [uploading, setUploading] = useState(false);
@@ -83,7 +81,23 @@ export default function AdminGallery() {
           body: uploadFormData,
         });
 
+        // Proveri Content-Type pre parsiranja
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          const text = await response.text();
+          console.error('Non-JSON response:', text.substring(0, 500));
+          throw new Error(`Server je vratio neispravan format. Status: ${response.status}`);
+        }
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Greška pri upload-u slike');
+        }
+
         const data = await response.json();
+        if (!data.url) {
+          throw new Error('URL slike nije vraćen iz servera');
+        }
         return data.url;
       });
 
@@ -118,7 +132,6 @@ export default function AdminGallery() {
     try {
       const galleryData = {
         ...formData,
-        year: formData.year ? parseInt(formData.year) : undefined,
       };
 
       if (editingGallery) {
@@ -135,7 +148,6 @@ export default function AdminGallery() {
         title: '',
         description: '',
         category: 'igraci',
-        year: '2025',
         images: [],
       });
       setShowImageSelector(false);
@@ -151,7 +163,6 @@ export default function AdminGallery() {
       title: gallery.title,
       description: gallery.description || '',
       category: gallery.category,
-      year: gallery.year?.toString() || '',
       images: gallery.images,
     });
     setShowModal(true);
@@ -180,7 +191,6 @@ export default function AdminGallery() {
               title: '',
               description: '',
               category: 'igraci',
-              year: '2025',
               images: [],
             });
             setShowImageSelector(false);
@@ -208,9 +218,6 @@ export default function AdminGallery() {
                 <div className="flex-1">
                   <h3 className="text-lg sm:text-xl font-semibold mb-1">{gallery.title}</h3>
                   <p className="text-gray-400 text-xs sm:text-sm mb-2">{gallery.category}</p>
-                  {gallery.year && (
-                    <p className="text-gray-400 text-xs sm:text-sm">Godina: {gallery.year}</p>
-                  )}
                   {gallery.description && (
                     <p className="text-gray-300 mt-2 text-sm sm:text-base">{gallery.description}</p>
                   )}
@@ -273,56 +280,45 @@ export default function AdminGallery() {
             </h2>
             <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
               <div>
-                <label className="block text-sm font-medium mb-2">Naslov (opciono - ne prikazuje se na stranici)</label>
+                <label className="block text-sm font-medium mb-2">Naslov * (prikazuje se na stranici)</label>
                 <input
                   type="text"
+                  required
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                   className="w-full bg-white/5 border border-white/10 px-4 py-3 text-white focus:outline-none focus:border-white"
-                  placeholder="Naslov za admin panel (opciono)"
+                  placeholder="Npr: Sezona 2024/2025, Prvenstvo Srbije, itd."
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">Kategorija</label>
-                  <select
-                    value={formData.category}
-                    onChange={(e) => {
-                      setFormData({ ...formData, category: e.target.value });
-                      setShowImageSelector(false);
-                    }}
-                    className="w-full bg-white/5 border border-white/10 px-3 sm:px-4 py-2 sm:py-3 text-white text-sm sm:text-base focus:outline-none focus:border-white"
-                  >
-                    <option value="igraci">Igrači</option>
-                    <option value="baneri">Baneri</option>
-                    <option value="partneri">Partneri</option>
-                    <option value="direktori">Direktori</option>
-                    <option value="sections">Sections</option>
-                    <option value="vesti">Vesti</option>
-                    <option value="ostalo">Ostalo</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">Godina</label>
-                  <input
-                    type="number"
-                    value={formData.year}
-                    onChange={(e) => setFormData({ ...formData, year: e.target.value })}
-                    placeholder="2025"
-                    className="w-full bg-white/5 border border-white/10 px-3 sm:px-4 py-2 sm:py-3 text-white text-sm sm:text-base focus:outline-none focus:border-white"
-                  />
-                </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">Kategorija</label>
+                <select
+                  value={formData.category}
+                  onChange={(e) => {
+                    setFormData({ ...formData, category: e.target.value });
+                    setShowImageSelector(false);
+                  }}
+                  className="w-full bg-white/5 border border-white/10 px-3 sm:px-4 py-2 sm:py-3 text-white text-sm sm:text-base focus:outline-none focus:border-white"
+                >
+                  <option value="igraci">Igrači</option>
+                  <option value="baneri">Baneri</option>
+                  <option value="partneri">Partneri</option>
+                  <option value="direktori">Direktori</option>
+                  <option value="sections">Sections</option>
+                  <option value="vesti">Vesti</option>
+                  <option value="ostalo">Ostalo</option>
+                </select>
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-2">Opis (opciono - ne prikazuje se na stranici)</label>
+                <label className="block text-sm font-medium mb-2">Opis (opciono - prikazuje se na stranici)</label>
                 <textarea
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   rows={3}
                   className="w-full bg-white/5 border border-white/10 px-4 py-3 text-white focus:outline-none focus:border-white resize-none"
-                  placeholder="Opis za admin panel (opciono)"
+                  placeholder="Opis galerije (opciono)"
                 />
               </div>
 

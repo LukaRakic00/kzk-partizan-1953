@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
       query.category = category;
     }
 
-    const galleries = await Gallery.find(query).sort({ year: -1, createdAt: -1 });
+    const galleries = await Gallery.find(query).sort({ createdAt: -1 });
 
     return NextResponse.json(galleries);
   } catch (error) {

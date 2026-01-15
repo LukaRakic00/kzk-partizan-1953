@@ -60,7 +60,7 @@ export default function TimPage() {
       <div className="relative z-10">
       <Navbar />
 
-      <section className="pt-32 md:pt-40 pb-20 px-4 sm:px-6 lg:px-8">
+      <section className="pt-40 md:pt-48 pb-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
             {loading ? (
               <div className="text-center py-20">
@@ -88,7 +88,7 @@ export default function TimPage() {
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ delay: 0.2 }}
-                    className="relative w-full max-w-3xl mx-auto aspect-[16/9] rounded-lg overflow-hidden border border-white/10 shadow-xl"
+                    className="relative w-full max-w-5xl mx-auto aspect-[16/9] rounded-lg overflow-hidden border border-white/10 shadow-xl"
                   >
                     <Image
                       src={teamData.teamImage}

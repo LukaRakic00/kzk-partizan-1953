@@ -33,19 +33,19 @@ body {
 /* Smanjenje zoom-a na desktop verzijama za bolji pregled */
 @media (min-width: 1024px) {
   html {
-    zoom: 0.88;
+    zoom: 1;
   }
 }
 
 @media (min-width: 1280px) {
   html {
-    zoom: 0.85;
+    zoom: 1;
   }
 }
 
 @media (min-width: 1536px) {
   html {
-    zoom: 0.82;
+    zoom: 1;
   }
 }
 

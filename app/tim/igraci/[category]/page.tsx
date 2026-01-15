@@ -8,6 +8,7 @@ import InteractiveBackground from '@/components/InteractiveBackground';
 import { apiClient } from '@/lib/api-client';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
+import CloudinaryImage from '@/components/CloudinaryImage';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { useParams } from 'next/navigation';
@@ -26,14 +27,16 @@ interface Player {
 
 const categoryLabels: { [key: string]: string } = {
   seniori: 'SENIORI',
-  pionirke: 'PIONIRKE',
   juniori: 'JUNIORI',
+  kadetkinje: 'KADETKINJE',
+  pionirke: 'PIONIRKE',
 };
 
 const categoryDescriptions: { [key: string]: string } = {
   seniori: 'Naša seniorska ekipa – iskustvo, snaga i liderstvo',
-  pionirke: 'Mlade talente koje grade budućnost kluba',
   juniori: 'Najmlađi članovi našeg tima – budućnost košarke',
+  kadetkinje: 'Talenti koji rastu i razvijaju se u našem klubu',
+  pionirke: 'Mlade talente koje grade budućnost kluba',
 };
 
 export default function IgraciCategoryPage() {
@@ -66,7 +69,7 @@ export default function IgraciCategoryPage() {
     }
   };
 
-  if (!category || !['seniori', 'pionirke', 'juniori'].includes(category)) {
+  if (!category || !['seniori', 'juniori', 'kadetkinje', 'pionirke'].includes(category)) {
     return (
       <main className="min-h-screen relative">
         <div className="fixed inset-0 -z-10 pointer-events-none">
@@ -74,7 +77,7 @@ export default function IgraciCategoryPage() {
         </div>
         <div className="relative z-10">
           <Navbar />
-          <section className="pt-32 md:pt-40 pb-20 px-4 sm:px-6 lg:px-8">
+          <section className="pt-40 md:pt-48 pb-20 px-4 sm:px-6 lg:px-8">
             <div className="max-w-7xl mx-auto text-center">
               <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold font-playfair mb-4 text-white">
                 Kategorija nije pronađena
@@ -172,22 +175,31 @@ export default function IgraciCategoryPage() {
                     className="flex flex-col items-center text-center"
                   >
                     <div className="relative w-32 h-32 sm:w-40 sm:h-40 md:w-48 md:h-48 rounded-lg overflow-hidden border-4 border-white/20 shadow-xl mb-4 sm:mb-6">
-                      {player.image ? (
+                      {player.image && typeof player.image === 'string' && player.image.trim() !== '' ? (
+                        player.image.includes('cloudinary.com') ? (
+                          <CloudinaryImage
+                            src={player.image}
+                            alt={`${player.name} ${player.surname}`}
+                            fill
+                            className="object-cover"
+                          />
+                        ) : (
+                          <Image
+                            src={player.image}
+                            alt={`${player.name} ${player.surname}`}
+                            fill
+                            className="object-cover"
+                            unoptimized
+                          />
+                        )
+                      ) : (
                         <Image
-                          src={player.image}
+                          src="/kzk_partizan.png"
                           alt={`${player.name} ${player.surname}`}
                           fill
-                          className="object-cover"
+                          className="object-contain p-4"
+                          unoptimized
                         />
-                      ) : (
-                        <div className="w-full h-full bg-white/10 flex items-center justify-center">
-                          <div className="text-center">
-                            <div className="text-3xl sm:text-4xl font-bold text-white mb-1">
-                              #{player.number}
-                            </div>
-                            <span className="text-gray-500 text-xs sm:text-sm">Slika</span>
-                          </div>
-                        </div>
                       )}
                     </div>
                     <div className="mb-2">
@@ -197,9 +209,11 @@ export default function IgraciCategoryPage() {
                       <h3 className="text-lg sm:text-xl md:text-2xl font-bold font-playfair mb-2 text-white">
                         {player.name} {player.surname}
                       </h3>
-                      <p className="text-sm sm:text-base md:text-lg text-gray-300 mb-1">
-                        {player.position}
-                      </p>
+                      {player.position && (
+                        <p className="text-sm sm:text-base md:text-lg text-gray-300 mb-1">
+                          {player.position}
+                        </p>
+                      )}
                       <p className="text-xs sm:text-sm text-gray-400">
                         Sezona {player.year}/{player.year + 1}
                       </p>

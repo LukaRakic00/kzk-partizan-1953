@@ -9,7 +9,7 @@ import InteractiveBackground from '@/components/InteractiveBackground';
 import { apiClient } from '@/lib/api-client';
 import { useMatches } from '@/hooks/useMatches';
 import Link from 'next/link';
-import { ArrowRight, Trophy, Users, Calendar, Newspaper, Clock, MapPin, Radio, Send, Mail, Phone } from 'lucide-react';
+import { ArrowRight, Trophy, Users, Calendar, Newspaper, Clock, MapPin, Radio, Send, Mail, Phone, ChevronRight, ChevronLeft } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
 import CloudinaryImage from '@/components/CloudinaryImage';
@@ -36,6 +36,9 @@ export default function Home() {
   });
   const [submittingContact, setSubmittingContact] = useState(false);
   const [showScrollIndicator, setShowScrollIndicator] = useState(true);
+  const [activeTab, setActiveTab] = useState<'matches' | 'news'>('matches');
+  const [matchIndex, setMatchIndex] = useState(0);
+  const [newsIndex, setNewsIndex] = useState(0);
   
   // Pripremi mečeve za carousel (prioritet: live > next > prethodni mečevi po datumu)
   // Koristi useMemo da se ne kreira svaki put
@@ -78,6 +81,7 @@ export default function Home() {
     return () => clearInterval(interval);
   }, [matchesForCarousel.length]);
 
+
   useEffect(() => {
     loadData();
   }, []);
@@ -111,25 +115,37 @@ export default function Home() {
 
   const loadData = async () => {
     try {
-      // Učitaj hero sliku - OBAVEZNO iz foldera 'baneri'
+      // Učitaj hero slike - OBAVEZNO iz foldera 'baneri'
       const heroImg = await apiClient.getImages('baneri');
-      if (heroImg && heroImg.length > 0) {
-        // Sortiraj po order
-        const sortedHero = heroImg.sort((a: any, b: any) => (a.order || 0) - (b.order || 0));
-        setHeroImage(sortedHero[0].url);
-        // Ako postoji druga slika, koristi je za mobilne uređaje
-        if (sortedHero.length > 1) {
-          setHeroImageMobile(sortedHero[1].url);
+      
+      // Učitaj aktivni hero baner iz settings
+      const activeHeroSetting = await apiClient.getSettings('hero_image_active');
+      if (activeHeroSetting && activeHeroSetting.value && heroImg) {
+        const activeImage = heroImg.find((img: any) => img._id === activeHeroSetting.value);
+        if (activeImage) {
+          setHeroImage(activeImage.url);
+        } else {
+          // Fallback na prvu sliku ako aktivni nije pronađen
+          if (heroImg.length > 0) {
+            setHeroImage(heroImg[0].url);
+          }
         }
       } else {
-        // Fallback ako nema slike - koristi placeholder
-        console.warn('Nema hero slike u folderu baneri!');
+        // Fallback na prvu sliku ako nema aktivnog hero banera
+        if (heroImg && heroImg.length > 0) {
+          setHeroImage(heroImg[0].url);
+        } else {
+          console.warn('Nema hero slika u folderu baneri!');
+        }
       }
 
       // Učitaj mobilnu hero sliku iz settings
       const heroMobileSetting = await apiClient.getSettings('hero_image_mobile');
       if (heroMobileSetting && heroMobileSetting.value) {
         setHeroImageMobile(heroMobileSetting.value);
+      } else if (heroImg && heroImg.length > 0) {
+        // Fallback na prvu sliku ako nema mobilnog hero banera
+        setHeroImageMobile(heroImg[0].url);
       }
 
       // Učitaj tekstove iz settings-a
@@ -181,16 +197,23 @@ export default function Home() {
 
   return (
     <main className="min-h-screen relative">
-      {/* Interactive Background - u pozadini, ne prekriva ništa */}
+      {/* Interactive Background */}
       <div className="fixed inset-0 -z-10 pointer-events-none">
         <InteractiveBackground />
       </div>
       
       <div className="relative z-10">
-        <Navbar />
+        {/* Hero Section */}
+        {/* Navbar - odvojen od hero sekcije */}
+        <div className="relative z-30 w-full">
+          <Navbar />
+        </div>
 
         {/* Hero Section */}
-        <section className="relative h-screen flex items-center justify-center overflow-hidden z-20">
+        <section className="relative h-[60vh] md:h-[70vh] flex items-center overflow-hidden z-20">
+          {/* Hero Content */}
+          <div className="w-full h-full flex items-center relative z-10">
+        {/* Hero Image - Desktop */}
         {heroImage ? (
           <>
             {/* Desktop Hero Image */}
@@ -199,34 +222,32 @@ export default function Home() {
                 src={heroImage}
                 alt="Hero"
                 fill
-                className="object-cover opacity-70"
+                className="object-cover"
                 priority
                 placeholder="skeleton"
                 objectFit="cover"
               />
             </div>
             {/* Mobile Hero Image */}
-            {heroImageMobile && (
+            {heroImageMobile ? (
               <div className="md:hidden absolute inset-0 z-0">
                 <CloudinaryImage
                   src={heroImageMobile}
                   alt="Hero Mobile"
                   fill
-                  className="object-cover opacity-70"
+                  className="object-cover"
                   priority
                   placeholder="skeleton"
                   objectFit="cover"
                 />
               </div>
-            )}
-            {/* Fallback ako nema mobilne slike */}
-            {!heroImageMobile && (
+            ) : (
               <div className="md:hidden absolute inset-0 z-0">
                 <CloudinaryImage
                   src={heroImage}
                   alt="Hero"
                   fill
-                  className="object-cover opacity-70"
+                  className="object-cover"
                   priority
                   placeholder="skeleton"
                   objectFit="cover"
@@ -237,194 +258,54 @@ export default function Home() {
         ) : (
           <div className="absolute inset-0 z-0 bg-gradient-to-br from-gray-900 via-black to-gray-900"></div>
         )}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-black/60 z-0"></div>
+        <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/50 to-black/30 z-0"></div>
         
-        <div className="relative z-10 px-4 sm:px-6 lg:px-8 max-w-2xl mx-auto w-full">
-          {matchesForCarousel.length > 0 ? (
-            <div className="relative">
-              {/* Carousel Container */}
-              <div className="relative min-h-[240px] sm:min-h-[280px]">
-                {matchesForCarousel.map((item, index) => {
-                  const isActive = index === activeMatchIndex;
-                  const match = item.match;
-                  
-                  return (
-                    <motion.div
-                      key={`${item.type}-${match.id}`}
-                      initial={false}
-                      animate={{
-                        opacity: isActive ? 1 : 0,
-                        y: isActive ? 0 : 20,
-                      }}
-                      transition={{ duration: 0.4, ease: 'easeInOut' }}
-                      className={`absolute inset-0 ${
-                        isActive ? 'pointer-events-auto' : 'pointer-events-none'
-                      }`}
-                    >
-                      {/* Live Badge - samo za live */}
-                      {item.type === 'live' && (
-                        <div className="flex items-center justify-center mb-4">
-                          <div className="flex items-center gap-2 px-3 py-1 bg-red-600/90 rounded-full animate-pulse">
-                            <Radio size={12} className="text-white" />
-                            <span className="text-xs font-bold font-montserrat text-white uppercase">LIVE</span>
-                          </div>
-                        </div>
-                      )}
-                      
-                      {/* Match Card */}
-                      <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-lg p-3 sm:p-4">
-                        {/* Header */}
-                        <div className="flex items-center justify-between mb-4 pb-3 border-b border-white/10">
-                          <span className={`text-xs uppercase tracking-wider font-montserrat ${
-                            item.type === 'live' ? 'text-red-400' : item.type === 'next' ? 'text-blue-400' : 'text-gray-400'
-                          }`}>
-                            {item.type === 'live' ? 'U TOKU' : item.type === 'next' ? 'Sledeći Meč' : 'Prethodni Meč'}
-                          </span>
-                          <span className="px-2 py-0.5 bg-white/10 rounded text-xs font-semibold font-playfair text-white">
-                            Kolo {match.round}
-                          </span>
-                        </div>
-                        
-                        {/* Match Content */}
-                        {item.type === 'last' && match.score ? (
-                          // Prethodni meč sa rezultatom
-                          <div className="space-y-3">
-                            <div className="flex items-center justify-between gap-3">
-                              <p className={`font-semibold text-base sm:text-lg font-montserrat flex-1 ${
-                                match.homeTeam.toLowerCase().includes('partizan') ? 'text-white' : 'text-gray-300'
-                              }`}>
-                                {match.homeTeam.toLowerCase().includes('partizan') ? 'KŽK Partizan 1953' : match.homeTeam}
-                              </p>
-                              <span className="text-xl sm:text-2xl font-bold font-playfair text-white min-w-[2rem] text-right">
-                                {match.score.home}
-                              </span>
-                            </div>
-                            
-                            <div className="h-px bg-white/5"></div>
-                            
-                            <div className="flex items-center justify-between gap-3">
-                              <p className={`font-semibold text-base sm:text-lg font-montserrat flex-1 ${
-                                match.awayTeam.toLowerCase().includes('partizan') ? 'text-white' : 'text-gray-300'
-                              }`}>
-                                {match.awayTeam.toLowerCase().includes('partizan') ? 'KŽK Partizan 1953' : match.awayTeam}
-                              </p>
-                              <span className="text-xl sm:text-2xl font-bold font-playfair text-white min-w-[2rem] text-right">
-                                {match.score.away}
-                              </span>
-                            </div>
-                          </div>
-                        ) : item.type === 'live' && match.score ? (
-                          // Live meč sa rezultatom
-                          <div className="space-y-3">
-                            <div className="flex items-center justify-between gap-3">
-                              <p className={`font-bold text-lg sm:text-xl font-montserrat flex-1 ${
-                                match.homeTeam.toLowerCase().includes('partizan') ? 'text-white' : 'text-gray-200'
-                              }`}>
-                                {match.homeTeam.toLowerCase().includes('partizan') ? 'KŽK Partizan 1953' : match.homeTeam}
-                              </p>
-                              <span className="text-2xl sm:text-3xl font-bold font-playfair text-red-400 min-w-[2.5rem] text-right">
-                                {match.score.home}
-                              </span>
-                            </div>
-                            
-                            <div className="h-px bg-white/10"></div>
-                            
-                            <div className="flex items-center justify-between gap-3">
-                              <p className={`font-bold text-lg sm:text-xl font-montserrat flex-1 ${
-                                match.awayTeam.toLowerCase().includes('partizan') ? 'text-white' : 'text-gray-200'
-                              }`}>
-                                {match.awayTeam.toLowerCase().includes('partizan') ? 'KŽK Partizan 1953' : match.awayTeam}
-                              </p>
-                              <span className="text-2xl sm:text-3xl font-bold font-playfair text-red-400 min-w-[2.5rem] text-right">
-                                {match.score.away}
-                              </span>
-                            </div>
-                          </div>
-                        ) : (
-                          // Sledeći meč bez rezultata
-                          <div className="text-center space-y-3">
-                            <p className={`font-bold text-lg sm:text-xl md:text-2xl font-montserrat ${
-                              match.homeTeam.toLowerCase().includes('partizan') ? 'text-white' : 'text-gray-200'
-                            }`}>
-                              {match.homeTeam.toLowerCase().includes('partizan') ? 'KŽK Partizan 1953' : match.homeTeam}
-                            </p>
-                            <div className="text-lg sm:text-xl font-bold font-playfair text-white/40">VS</div>
-                            <p className={`font-bold text-lg sm:text-xl md:text-2xl font-montserrat ${
-                              match.awayTeam.toLowerCase().includes('partizan') ? 'text-white' : 'text-gray-200'
-                            }`}>
-                              {match.awayTeam.toLowerCase().includes('partizan') ? 'KŽK Partizan 1953' : match.awayTeam}
-                            </p>
-                          </div>
-                        )}
-                        
-                        {/* Footer Info */}
-                        <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 text-xs font-montserrat mt-4 pt-3 border-t border-white/5 text-gray-400">
-                          <div className="flex items-center gap-1.5">
-                            <Calendar size={12} />
-                            <span>{match.date}</span>
-                          </div>
-                          {match.venue && (
-                            <div className="flex items-center gap-1.5 w-full sm:w-auto justify-center">
-                              <MapPin size={12} className="flex-shrink-0" />
-                              <span className="truncate max-w-[180px]">{match.venue}{match.city ? `, ${match.city}` : ''}</span>
-                            </div>
-                          )}
-                        </div>
-                        
-                        {/* Live Link */}
-                        {item.type === 'live' && match.linkLive && (
-                          <a
-                            href={match.linkLive}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="block mt-3 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-center font-semibold font-montserrat transition-all text-xs sm:text-sm"
-                          >
-                            Gledaj LIVE
-                          </a>
-                        )}
-                      </div>
-                    </motion.div>
-                  );
-                })}
-              </div>
-              
-              {/* Indicators */}
-              {matchesForCarousel.length > 1 && (
-                <div className="flex items-center justify-center gap-2 mt-8 sm:mt-10 pt-4 relative">
-                  {/* Decorative line above indicators */}
-                  <div className="absolute top-0 left-1/2 -translate-x-1/2 w-16 h-px bg-white/20"></div>
-                  <div className="flex items-center justify-center gap-2 px-4 py-2 bg-black/30 backdrop-blur-sm rounded-full border border-white/10">
-                    {matchesForCarousel.map((_, index) => (
-                      <button
-                        key={index}
-                        onClick={() => setActiveMatchIndex(index)}
-                        className={`rounded-full transition-all duration-300 hover:scale-125 ${
-                          index === activeMatchIndex
-                            ? 'bg-white w-6 h-2 shadow-lg shadow-white/50'
-                            : 'bg-white/40 w-2 h-2 hover:bg-white/60'
-                        }`}
-                        aria-label={`Go to slide ${index + 1}`}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          ) : (
+        {/* Content Container - Welcome Message - Levo poravnato */}
+        <div className="relative z-10 w-full h-full px-4 sm:px-6 lg:px-8 xl:px-12">
+          <div className="max-w-7xl mx-auto h-full flex items-center">
             <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
+              initial={{ opacity: 0, x: -30 }}
+              animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.8 }}
-              className="text-center"
+              className="text-left"
             >
-              <h1 className="text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-bold font-playfair mb-6 tracking-tight text-white">
-                KŽK PARTIZAN
-              </h1>
-              <p className="text-lg sm:text-xl md:text-2xl text-gray-300 mb-8 max-w-2xl mx-auto px-4">
-                {heroText}
-              </p>
+              {/* Prvi red - DOBRO DOŠLI */}
+              <motion.h1
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.8, delay: 0.2 }}
+                className="font-bold font-playfair mb-4 tracking-wider text-white drop-shadow-2xl text-2xl md:text-5xl"
+              >
+                DOBRO DOŠLI
+              </motion.h1>
+              
+              {/* Drugi red - Na sajt KŽK Partizan */}
+              <motion.p
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.8, delay: 0.4 }}
+                className="font-semibold font-playfair mb-8 text-white drop-shadow-lg text-sm md:text-3xl"
+              >
+                Na sajt KŽK PARTIZAN
+              </motion.p>
+              
+              {/* Treći red - Detaljnije dugme */}
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.8, delay: 0.6 }}
+              >
+                <Link
+                  href="/o-nama"
+                  className="inline-flex items-center gap-2 md:gap-3 px-4 md:px-8 py-2 md:py-4 bg-black/80 border-2 border-white text-white font-bold font-playfair uppercase tracking-wider rounded-lg hover:bg-white/20 hover:text-white transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-white/20 group text-xs md:text-sm"
+                >
+                  <span>Detaljnije</span>
+                  <ChevronRight size={14} className="md:w-[18px] md:h-[18px] group-hover:translate-x-2 transition-transform duration-300" />
+                </Link>
+              </motion.div>
             </motion.div>
-          )}
+          </div>
+        </div>
         </div>
 
         {/* Scroll Indicator */}
@@ -468,24 +349,340 @@ export default function Home() {
         )}
       </section>
 
-      {/* Background Image Section */}
-      {backgroundImage && (
-        <section className="relative h-64 md:h-96 overflow-hidden">
-          <div className="absolute inset-0">
+      {/* Uskla sekcija sa tekstom i pozadinom */}
+      <section className="relative overflow-hidden bg-black h-[100px] md:h-[120px] lg:h-[150px]">
+        <div className="relative flex items-center justify-center gap-2 md:gap-6 lg:gap-8 px-4 sm:px-6 lg:px-8 h-full w-full">
+          {/* Leva pozadinska slika */}
+          <div className="absolute left-0 top-0 bottom-0 w-1/2 opacity-10">
             <Image
-              src={backgroundImage}
-              alt="Background"
+              src="/close-up-old-basketball-ball.jpg"
+              alt="Basketball"
               fill
-              className="object-cover opacity-40"
-              priority
+              className="object-cover object-left"
             />
           </div>
-          <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/30 to-black/50"></div>
-        </section>
-      )}
+          
+          {/* Desna pozadinska slika */}
+          <div className="absolute right-0 top-0 bottom-0 w-1/2 opacity-10">
+            <Image
+              src="/close-up-old-basketball-ball.jpg"
+              alt="Basketball"
+              fill
+              className="object-cover object-right"
+            />
+          </div>
+          
+          {/* Levi logo */}
+          <div className="relative z-20 flex-shrink-0">
+            <Image
+              src="/kzk_partizan.png"
+              alt="KŽK Partizan Logo"
+              width={100}
+              height={100}
+              className="w-12 h-12 md:w-20 md:h-20 lg:w-28 lg:h-28 object-contain"
+            />
+          </div>
+          
+          {/* Tekst u sredini */}
+          <h2 className="relative z-20 font-bold font-playfair text-white text-center tracking-wider text-sm md:text-4xl">
+            <span className="md:hidden">KŽK Partizan</span>
+            <span className="hidden md:inline"><span className="uppercase">K</span>ošarkaški ženski klub Partizan</span>
+          </h2>
+          
+          {/* Desni logo */}
+          <div className="relative z-20 flex-shrink-0">
+            <Image
+              src="/kzk_partizan.png"
+              alt="KŽK Partizan Logo"
+              width={100}
+              height={100}
+              className="w-12 h-12 md:w-20 md:h-20 lg:w-28 lg:h-28 object-contain"
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* Dekorativni separator */}
+      <div className="relative py-8 md:py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-center">
+            <div className="flex items-center gap-4 w-full max-w-2xl">
+              <div className="flex-1 h-px bg-gradient-to-r from-transparent via-white/20 to-white/40"></div>
+              <div className="w-2 h-2 bg-white/40 rounded-full"></div>
+              <div className="w-1 h-1 bg-white/30 rounded-full"></div>
+              <div className="w-2 h-2 bg-white/40 rounded-full"></div>
+              <div className="flex-1 h-px bg-gradient-to-l from-transparent via-white/20 to-white/40"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Matches & News Section - Tabovi */}
+      <section className="relative py-12 md:py-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Tabovi */}
+          <div className="flex justify-center mb-8 gap-4">
+            <button
+              onClick={() => setActiveTab('matches')}
+              className={`px-6 py-3 font-bold font-playfair text-lg transition-all duration-300 ${
+                activeTab === 'matches'
+                  ? 'text-white border-b-2 border-white'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              Mečevi
+            </button>
+            <button
+              onClick={() => setActiveTab('news')}
+              className={`px-6 py-3 font-bold font-playfair text-lg transition-all duration-300 ${
+                activeTab === 'news'
+                  ? 'text-white border-b-2 border-white'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              Vesti
+            </button>
+          </div>
+
+          {/* Tab Content */}
+          {activeTab === 'matches' && matchesForCarousel.length > 0 && (
+            <div className="relative">
+              {/* Strelica levo - samo ako ima više od 3 meča */}
+              {matchesForCarousel.length > 3 && matchIndex > 0 && (
+                <button
+                  onClick={() => setMatchIndex(matchIndex - 1)}
+                  className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 md:-translate-x-8 z-10 bg-white/10 hover:bg-white/20 rounded-full p-2 md:p-3 transition-all"
+                >
+                  <ChevronLeft className="text-white" size={24} />
+                </button>
+              )}
+              
+              {/* Strelica desno - samo ako ima više od 3 meča */}
+              {matchesForCarousel.length > 3 && matchIndex < matchesForCarousel.length - 3 && (
+                <button
+                  onClick={() => setMatchIndex(matchIndex + 1)}
+                  className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 md:translate-x-8 z-10 bg-white/10 hover:bg-white/20 rounded-full p-2 md:p-3 transition-all"
+                >
+                  <ChevronRight className="text-white" size={24} />
+                </button>
+              )}
+
+              {/* Match Cards - Tri u nizu */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+                {matchesForCarousel.slice(matchIndex, matchIndex + 3).map((item, idx) => {
+                  const match = item.match;
+                  return (
+                    <motion.div
+                      key={`${item.type}-${match.id}`}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3, delay: idx * 0.1 }}
+                      className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-lg p-3 md:p-4 hover:bg-white/10 hover:border-white/20 transition-all duration-300"
+                    >
+                      {/* Header */}
+                      <div className="flex items-center justify-between mb-3 pb-2 border-b border-white/10">
+                        <div className="flex items-center gap-2">
+                          {item.type === 'live' && (
+                            <div className="flex items-center gap-1.5 px-2 py-1 bg-red-600/90 rounded-full animate-pulse">
+                              <Radio size={10} className="text-white" />
+                              <span className="text-[10px] font-bold font-montserrat text-white uppercase">LIVE</span>
+                            </div>
+                          )}
+                          <span className={`text-xs uppercase tracking-wider font-montserrat ${
+                            item.type === 'live' ? 'text-red-400' : item.type === 'next' ? 'text-blue-400' : 'text-gray-400'
+                          }`}>
+                            {item.type === 'live' ? 'U TOKU' : item.type === 'next' ? 'Sledeći Meč' : 'Prethodni Meč'}
+                          </span>
+                        </div>
+                        <span className="px-2 py-1 bg-white/10 rounded text-xs font-semibold font-playfair text-white">
+                          Kolo {match.round}
+                        </span>
+                      </div>
+                      
+                      {/* Match Content */}
+                      {item.type === 'last' && match.score ? (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <p className={`font-semibold text-xs md:text-sm font-montserrat flex-1 ${
+                              match.homeTeam.toLowerCase().includes('partizan') ? 'text-white' : 'text-gray-300'
+                            }`}>
+                              {match.homeTeam.toLowerCase().includes('partizan') ? 'KŽK Partizan 1953' : match.homeTeam}
+                            </p>
+                            <span className="text-lg md:text-xl font-bold font-playfair text-white ml-2">
+                              {match.score.home}
+                            </span>
+                          </div>
+                          <div className="h-px bg-white/10"></div>
+                          <div className="flex items-center justify-between">
+                            <p className={`font-semibold text-xs md:text-sm font-montserrat flex-1 ${
+                              match.awayTeam.toLowerCase().includes('partizan') ? 'text-white' : 'text-gray-300'
+                            }`}>
+                              {match.awayTeam.toLowerCase().includes('partizan') ? 'KŽK Partizan 1953' : match.awayTeam}
+                            </p>
+                            <span className="text-lg md:text-xl font-bold font-playfair text-white ml-2">
+                              {match.score.away}
+                            </span>
+                          </div>
+                        </div>
+                      ) : item.type === 'live' && match.score ? (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <p className={`font-bold text-sm md:text-base font-montserrat flex-1 ${
+                              match.homeTeam.toLowerCase().includes('partizan') ? 'text-white' : 'text-gray-200'
+                            }`}>
+                              {match.homeTeam.toLowerCase().includes('partizan') ? 'KŽK Partizan 1953' : match.homeTeam}
+                            </p>
+                            <span className="text-xl md:text-2xl font-bold font-playfair text-red-400 ml-2">
+                              {match.score.home}
+                            </span>
+                          </div>
+                          <div className="h-px bg-white/20"></div>
+                          <div className="flex items-center justify-between">
+                            <p className={`font-bold text-sm md:text-base font-montserrat flex-1 ${
+                              match.awayTeam.toLowerCase().includes('partizan') ? 'text-white' : 'text-gray-200'
+                            }`}>
+                              {match.awayTeam.toLowerCase().includes('partizan') ? 'KŽK Partizan 1953' : match.awayTeam}
+                            </p>
+                            <span className="text-xl md:text-2xl font-bold font-playfair text-red-400 ml-2">
+                              {match.score.away}
+                            </span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-center space-y-2">
+                          <p className={`font-bold text-sm md:text-base font-montserrat ${
+                            match.homeTeam.toLowerCase().includes('partizan') ? 'text-white' : 'text-gray-200'
+                          }`}>
+                            {match.homeTeam.toLowerCase().includes('partizan') ? 'KŽK Partizan 1953' : match.homeTeam}
+                          </p>
+                          <div className="text-base md:text-lg font-bold font-playfair text-white/40">VS</div>
+                          <p className={`font-bold text-sm md:text-base font-montserrat ${
+                            match.awayTeam.toLowerCase().includes('partizan') ? 'text-white' : 'text-gray-200'
+                          }`}>
+                            {match.awayTeam.toLowerCase().includes('partizan') ? 'KŽK Partizan 1953' : match.awayTeam}
+                          </p>
+                        </div>
+                      )}
+                      
+                      {/* Footer Info */}
+                      <div className="flex flex-col gap-1.5 text-xs font-montserrat mt-3 pt-2 border-t border-white/5 text-gray-400">
+                        <div className="flex items-center gap-2">
+                          <Calendar size={12} />
+                          <span>{match.date}</span>
+                        </div>
+                        {match.venue && (
+                          <div className="flex items-center gap-2">
+                            <MapPin size={12} />
+                            <span className="truncate text-xs">{match.venue}{match.city ? `, ${match.city}` : ''}</span>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Live Link */}
+                      {item.type === 'live' && match.linkLive && (
+                        <a
+                          href={match.linkLive}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block mt-3 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-center font-semibold font-montserrat transition-all text-xs"
+                        >
+                          Gledaj LIVE
+                        </a>
+                      )}
+                    </motion.div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* News Tab */}
+          {activeTab === 'news' && latestNews.length > 0 && (
+            <div className="relative">
+              {/* Strelica levo - samo ako ima više od 3 vesti */}
+              {latestNews.length > 3 && newsIndex > 0 && (
+                <button
+                  onClick={() => setNewsIndex(newsIndex - 1)}
+                  className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 md:-translate-x-8 z-10 bg-white/10 hover:bg-white/20 rounded-full p-2 md:p-3 transition-all"
+                >
+                  <ChevronLeft className="text-white" size={24} />
+                </button>
+              )}
+              
+              {/* Strelica desno - samo ako ima više od 3 vesti */}
+              {latestNews.length > 3 && newsIndex < latestNews.length - 3 && (
+                <button
+                  onClick={() => setNewsIndex(newsIndex + 1)}
+                  className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 md:translate-x-8 z-10 bg-white/10 hover:bg-white/20 rounded-full p-2 md:p-3 transition-all"
+                >
+                  <ChevronRight className="text-white" size={24} />
+                </button>
+              )}
+
+              {/* News Cards - Tri u nizu, maksimum 3 */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+                {latestNews.slice(newsIndex, newsIndex + 3).map((item, idx) => (
+                  <motion.div
+                    key={item._id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: idx * 0.1 }}
+                    className="bg-white/5 border border-white/10 hover:bg-white/10 transition-all group"
+                  >
+                    <Link href={`/vesti/${item.slug}`}>
+                      <div className="aspect-video relative overflow-hidden mb-3">
+                        {item.image ? (
+                          <Image
+                            src={item.image}
+                            alt={item.title}
+                            fill
+                            className="object-cover group-hover:scale-105 transition-transform"
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-white/10 flex items-center justify-center">
+                            <span className="text-gray-500">Slika</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="p-3 md:p-4">
+                        <span className="text-xs uppercase tracking-wider text-gray-400">{item.category}</span>
+                        <h3 className="text-base md:text-lg font-semibold mt-2 mb-2 group-hover:text-white transition-colors line-clamp-2">
+                          {item.title}
+                        </h3>
+                        <p className="text-gray-400 text-sm mb-3 line-clamp-2">
+                          {item.excerpt}
+                        </p>
+                        <span className="text-white text-xs uppercase tracking-wider flex items-center group-hover:underline">
+                          Pročitaj više
+                          <ArrowRight className="ml-2" size={14} />
+                        </span>
+                      </div>
+                    </Link>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Dekorativni separator */}
+      <div className="relative py-8 md:py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-center">
+            <div className="flex items-center gap-4 w-full max-w-2xl">
+              <div className="flex-1 h-px bg-gradient-to-r from-transparent via-white/20 to-white/40"></div>
+              <div className="w-2 h-2 bg-white/40 rounded-full"></div>
+              <div className="w-1 h-1 bg-white/30 rounded-full"></div>
+              <div className="w-2 h-2 bg-white/40 rounded-full"></div>
+              <div className="flex-1 h-px bg-gradient-to-l from-transparent via-white/20 to-white/40"></div>
+            </div>
+          </div>
+        </div>
+      </div>
 
         {/* Features Section */}
-        <section className="py-16 md:py-24 bg-black relative z-10">
+        <section className="py-16 md:py-24 relative z-10">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
               <motion.div
@@ -575,6 +772,23 @@ export default function Home() {
           </div>
         </section>
 
+      {/* Dekorativni separator */}
+      {homeImages.length > 0 && (
+        <div className="relative py-8 md:py-12">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-center">
+              <div className="flex items-center gap-4 w-full max-w-2xl">
+                <div className="flex-1 h-px bg-gradient-to-r from-transparent via-white/20 to-white/40"></div>
+                <div className="w-2 h-2 bg-white/40 rounded-full"></div>
+                <div className="w-1 h-1 bg-white/30 rounded-full"></div>
+                <div className="w-2 h-2 bg-white/40 rounded-full"></div>
+                <div className="flex-1 h-px bg-gradient-to-l from-transparent via-white/20 to-white/40"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Images Gallery Section */}
       {homeImages.length > 0 && (
         <section className="py-20 bg-black/50">
@@ -607,80 +821,59 @@ export default function Home() {
         </section>
       )}
 
-      {/* Latest News Preview */}
-      <section className="py-20 bg-black/50">
+      {/* Dekorativni separator */}
+      <div className="relative py-8 md:py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-12 gap-4">
-            <div>
-              <h2 className="text-2xl md:text-3xl font-bold font-playfair uppercase tracking-wider mb-4">Najnovije Vesti</h2>
-              <div className="w-24 h-1 bg-white"></div>
+          <div className="flex items-center justify-center">
+            <div className="flex items-center gap-4 w-full max-w-2xl">
+              <div className="flex-1 h-px bg-gradient-to-r from-transparent via-white/20 to-white/40"></div>
+              <div className="w-2 h-2 bg-white/40 rounded-full"></div>
+              <div className="w-1 h-1 bg-white/30 rounded-full"></div>
+              <div className="w-2 h-2 bg-white/40 rounded-full"></div>
+              <div className="flex-1 h-px bg-gradient-to-l from-transparent via-white/20 to-white/40"></div>
             </div>
-            <Link
-              href="/vesti"
-              className="text-white hover:text-gray-300 uppercase text-sm tracking-wider flex items-center group self-start sm:self-auto"
-            >
-              Sve vesti
-              <ArrowRight className="ml-2 group-hover:translate-x-1 transition-transform" size={20} />
-            </Link>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {latestNews.length > 0 ? (
-              latestNews.map((item, index) => (
-                <motion.div
-                  key={item._id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                  className="bg-white/5 border border-white/10 hover:bg-white/10 transition-all group"
-                >
-                  <Link href={`/vesti/${item.slug}`}>
-                    <div className="aspect-video relative overflow-hidden mb-4">
-                      {item.image ? (
-                        <Image
-                          src={item.image}
-                          alt={item.title}
-                          fill
-                          className="object-cover group-hover:scale-105 transition-transform"
-                        />
-                      ) : (
-                        <div className="w-full h-full bg-white/10 flex items-center justify-center">
-                          <span className="text-gray-500">Slika</span>
-                        </div>
-                      )}
-                    </div>
-                <div className="p-6">
-                      <span className="text-xs uppercase tracking-wider text-gray-400">{item.category}</span>
-                  <h3 className="text-xl font-semibold mt-2 mb-2 group-hover:text-white transition-colors">
-                        {item.title}
-                  </h3>
-                      <p className="text-gray-400 text-sm mb-4 line-clamp-3">
-                        {item.excerpt}
-                  </p>
-                      <span className="text-white text-sm uppercase tracking-wider flex items-center group-hover:underline">
-                    Pročitaj više
-                    <ArrowRight className="ml-2" size={16} />
-                      </span>
-                    </div>
-                  </Link>
-                </motion.div>
-              ))
-            ) : (
-              <div className="col-span-3 text-center text-gray-400 py-8">
-                Nema objavljenih vesti
-              </div>
-            )}
           </div>
         </div>
-      </section>
+      </div>
 
       {/* League Table */}
       <LeagueTable />
 
+      {/* Dekorativni separator */}
+      <div className="relative py-8 md:py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-center">
+            <div className="flex items-center gap-4 w-full max-w-2xl">
+              <div className="flex-1 h-px bg-gradient-to-r from-transparent via-white/20 to-white/40"></div>
+              <div className="w-2 h-2 bg-white/40 rounded-full"></div>
+              <div className="w-1 h-1 bg-white/30 rounded-full"></div>
+              <div className="w-2 h-2 bg-white/40 rounded-full"></div>
+              <div className="flex-1 h-px bg-gradient-to-l from-transparent via-white/20 to-white/40"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Live Matches */}
       <LiveMatches />
 
+      {/* Dekorativni separator */}
+      <div className="relative py-8 md:py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-center">
+            <div className="flex items-center gap-4 w-full max-w-2xl">
+              <div className="flex-1 h-px bg-gradient-to-r from-transparent via-white/20 to-white/40"></div>
+              <div className="w-2 h-2 bg-white/40 rounded-full"></div>
+              <div className="w-1 h-1 bg-white/30 rounded-full"></div>
+              <div className="w-2 h-2 bg-white/40 rounded-full"></div>
+              <div className="flex-1 h-px bg-gradient-to-l from-transparent via-white/20 to-white/40"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Kontakt Forma Sekcija */}
-      <section className="py-20 bg-black/50 border-t border-white/10">
+      <section className="py-20 bg-black/70">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -844,9 +1037,26 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Dekorativni separator */}
+      {partnerImages.length > 0 && (
+        <div className="relative py-8 md:py-12">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-center">
+              <div className="flex items-center gap-4 w-full max-w-2xl">
+                <div className="flex-1 h-px bg-gradient-to-r from-transparent via-white/20 to-white/40"></div>
+                <div className="w-2 h-2 bg-white/40 rounded-full"></div>
+                <div className="w-1 h-1 bg-white/30 rounded-full"></div>
+                <div className="w-2 h-2 bg-white/40 rounded-full"></div>
+                <div className="flex-1 h-px bg-gradient-to-l from-transparent via-white/20 to-white/40"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Partneri Slider */}
       {partnerImages.length > 0 && (
-        <section className="py-16 md:py-20 bg-black/50 border-t border-white/10 overflow-hidden relative">
+        <section className="py-16 md:py-20 bg-black/70 overflow-hidden relative">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <motion.div
               initial={{ opacity: 0, y: 20 }}

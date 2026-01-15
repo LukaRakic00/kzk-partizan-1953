@@ -13,18 +13,39 @@ function ensureCloudinaryConfigured() {
   const apiSecret = process.env.CLOUDINARY_API_SECRET;
 
   if (!cloudName || !apiKey || !apiSecret) {
+    const missingVars = [];
+    if (!cloudName) missingVars.push('CLOUDINARY_CLOUD_NAME');
+    if (!apiKey) missingVars.push('CLOUDINARY_API_KEY');
+    if (!apiSecret) missingVars.push('CLOUDINARY_API_SECRET');
+    
+    console.error('Cloudinary configuration missing:', {
+      missing: missingVars,
+      hasCloudName: !!cloudName,
+      hasApiKey: !!apiKey,
+      hasApiSecret: !!apiSecret,
+      nodeEnv: process.env.NODE_ENV,
+      vercel: process.env.VERCEL,
+    });
+    
     throw new Error(
-      'Cloudinary konfiguracija nije podešena. Proverite environment varijable CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, i CLOUDINARY_API_SECRET.'
+      `Cloudinary konfiguracija nije podešena. Nedostaju: ${missingVars.join(', ')}. Proverite environment varijable.`
     );
   }
 
-  cloudinary.config({
-    cloud_name: cloudName,
-    api_key: apiKey,
-    api_secret: apiSecret,
-  });
+  try {
+    cloudinary.config({
+      cloud_name: cloudName,
+      api_key: apiKey,
+      api_secret: apiSecret,
+    });
 
-  cloudinaryConfigured = true;
+    cloudinaryConfigured = true;
+    console.log('Cloudinary uspešno konfigurisan');
+  } catch (configError: any) {
+    console.error('Cloudinary config error:', configError);
+    cloudinaryConfigured = false;
+    throw new Error(`Greška pri konfigurisanju Cloudinary: ${configError.message}`);
+  }
 }
 
 export default cloudinary;
@@ -70,32 +91,54 @@ export const uploadImage = async (
   height: number;
   format: string;
 }> => {
-  // Ensure Cloudinary is configured before use
-  ensureCloudinaryConfigured();
+  try {
+    // Ensure Cloudinary is configured before use
+    ensureCloudinaryConfigured();
+  } catch (configError: any) {
+    console.error('Cloudinary configuration error:', configError);
+    throw new Error(`Cloudinary konfiguracija neuspešna: ${configError.message}`);
+  }
 
-  const bytes = await file.arrayBuffer();
+  let bytes: ArrayBuffer;
+  try {
+    bytes = await file.arrayBuffer();
+  } catch (arrayBufferError: any) {
+    console.error('Error reading file:', arrayBufferError);
+    throw new Error(`Greška pri čitanju fajla: ${arrayBufferError.message}`);
+  }
+
   const buffer = Buffer.from(bytes);
 
   return new Promise((resolve, reject) => {
-    cloudinary.uploader
-      .upload_stream(
+    try {
+      const uploadStream = cloudinary.uploader.upload_stream(
         {
           folder: `KŽK_Partizan/${folder}`,
           resource_type: 'image',
         },
-        (error, result) => {
+        (error: any, result: any) => {
           if (error) {
             console.error('Cloudinary upload error:', error);
+            console.error('Error details:', {
+              http_code: error.http_code,
+              message: error.message,
+              name: error.name,
+            });
+            
             // Provide more specific error messages
             if (error.http_code === 401) {
               reject(new Error('Cloudinary autentifikacija neuspešna. Proverite API key i secret.'));
             } else if (error.http_code === 400) {
               reject(new Error(`Cloudinary greška: ${error.message || 'Neispravan zahtev'}`));
+            } else if (error.http_code === 500) {
+              reject(new Error(`Cloudinary server greška: ${error.message || 'Server error'}`));
             } else {
               reject(new Error(`Cloudinary upload greška: ${error.message || 'Nepoznata greška'}`));
             }
           } else if (!result) {
             reject(new Error('Cloudinary nije vratio rezultat upload-a'));
+          } else if (!result.secure_url) {
+            reject(new Error('Cloudinary nije vratio URL slike'));
           } else {
             resolve({
               url: result.secure_url,
@@ -106,8 +149,18 @@ export const uploadImage = async (
             });
           }
         }
-      )
-      .end(buffer);
+      );
+
+      uploadStream.on('error', (streamError: any) => {
+        console.error('Upload stream error:', streamError);
+        reject(new Error(`Greška pri upload stream-u: ${streamError.message || 'Nepoznata greška'}`));
+      });
+
+      uploadStream.end(buffer);
+    } catch (uploadError: any) {
+      console.error('Error creating upload stream:', uploadError);
+      reject(new Error(`Greška pri kreiranju upload stream-a: ${uploadError.message || 'Nepoznata greška'}`));
+    }
   });
 };
 

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { apiClient } from '@/lib/api-client';
 import { motion } from 'framer-motion';
-import { Plus, Edit, Trash2, Upload, ArrowUp, ArrowDown } from 'lucide-react';
+import { Plus, Edit, Trash2, Upload, ArrowUp, ArrowDown, Download, ChevronUp, ChevronDown } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Image from 'next/image';
 
@@ -31,6 +31,7 @@ export default function AdminImages() {
     });
   const [uploading, setUploading] = useState(false);
   const [selectedFolder, setSelectedFolder] = useState<string>('all');
+  const [baneriInfoOpen, setBaneriInfoOpen] = useState(true);
 
   useEffect(() => {
     loadImages();
@@ -109,6 +110,14 @@ export default function AdminImages() {
           body: uploadFormData,
         });
 
+        // Proveri Content-Type pre parsiranja
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          const text = await response.text();
+          console.error('Non-JSON response:', text.substring(0, 500));
+          throw new Error(`Server je vratio neispravan format. Status: ${response.status}`);
+        }
+
         if (!response.ok) {
           const errorData = await response.json();
           throw new Error(errorData.error || 'Greška pri upload-u');
@@ -181,11 +190,68 @@ export default function AdminImages() {
     }
   };
 
+  const handleDownload = async (image: ImageItem) => {
+    try {
+      const response = await fetch(image.url);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      // Izvuci ime fajla iz URL-a ili koristi publicId
+      const fileName = image.publicId.split('/').pop() || `image-${image._id}`;
+      a.download = `${fileName}.${image.format || 'jpg'}`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      toast.success('Slika je preuzeta');
+    } catch (error: any) {
+      toast.error(`Greška pri preuzimanju: ${error.message || 'Nepoznata greška'}`);
+    }
+  };
+
+  const handleBulkDownload = async () => {
+    if (images.length === 0) {
+      toast.error('Nema slika za preuzimanje');
+      return;
+    }
+
+    try {
+      toast.loading(`Preuzimanje ${images.length} slika...`, { id: 'bulk-download' });
+      
+      for (let i = 0; i < images.length; i++) {
+        const image = images[i];
+        try {
+          const response = await fetch(image.url);
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          const fileName = image.publicId.split('/').pop() || `image-${image._id}`;
+          a.download = `${fileName}.${image.format || 'jpg'}`;
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+          
+          // Mala pauza između download-a da browser ne blokira
+          await new Promise(resolve => setTimeout(resolve, 300));
+        } catch (error) {
+          console.error(`Greška pri preuzimanju slike ${image._id}:`, error);
+        }
+      }
+      
+      toast.success(`Uspešno preuzeto ${images.length} slika`, { id: 'bulk-download' });
+    } catch (error: any) {
+      toast.error(`Greška pri bulk download-u: ${error.message || 'Nepoznata greška'}`, { id: 'bulk-download' });
+    }
+  };
+
   const folders = ['all', 'baneri', 'direktori', 'home', 'igraci', 'ostalo', 'partneri', 'sections', 'vesti'];
 
   // Mapa gde se koristi svaki folder na sajtu
   const folderUsage: Record<string, string> = {
-    baneri: 'Hero sekcija (glavna pozadinska slika)',
+    baneri: 'Hero sekcija (slider sa automatskim menjanjem slika svakih 5 sekundi na početnoj stranici)',
     direktori: 'Direktori sekcija',
     home: 'Home page galerija',
     igraci: 'Igrači stranica',
@@ -193,6 +259,19 @@ export default function AdminImages() {
     partneri: 'Partneri slider (dno home page-a)',
     sections: 'Pozadinske slike za sekcije',
     vesti: 'Vesti stranica',
+  };
+
+  // Detaljnije objašnjenje za baneri
+  const baneriInfo = {
+    title: 'Baneri - Hero Sekcija',
+    description: 'Slike iz foldera "baneri" se automatski prikazuju na početnoj stranici kao slider koji se menja svakih 5 sekundi.',
+    usage: [
+      'Redosled slika određuje se preko "order" polja (manji broj = prvo prikazuje)',
+      'Sve slike iz foldera "baneri" se automatski učitavaju na home page',
+      'Možete upravljati redosledom pomoću strelica gore/dole',
+      'Prva slika (order: 0) se prikazuje kao glavna hero slika',
+    ],
+    location: 'Pojavljuje se na: Početna stranica (Home) - Hero sekcija na vrhu stranice',
   };
 
   return (
@@ -231,6 +310,15 @@ export default function AdminImages() {
               Sinhronizuj iz Cloudinary
             </button>
           )}
+          {images.length > 0 && (
+            <button
+              onClick={handleBulkDownload}
+              className="bg-green-500 text-white px-4 sm:px-6 py-2 sm:py-3 font-semibold uppercase tracking-wider hover:bg-green-600 transition-all flex items-center justify-center text-xs sm:text-sm"
+            >
+              <Download className="mr-2" size={16} />
+              Preuzmi Sve ({images.length})
+            </button>
+          )}
           <button
             onClick={() => {
               setEditingImage(null);
@@ -246,20 +334,87 @@ export default function AdminImages() {
       </div>
 
       {/* Folder Filter */}
-      <div className="mb-6 flex gap-2 flex-wrap">
-        {folders.map((folder) => (
-          <button
-            key={folder}
-            onClick={() => setSelectedFolder(folder)}
-            className={`px-4 py-2 uppercase tracking-wider transition-all ${
-              selectedFolder === folder
-                ? 'bg-white text-black'
-                : 'bg-white/10 text-white hover:bg-white/20'
-            }`}
+      <div className="mb-6">
+        <div className="flex gap-2 flex-wrap mb-4">
+          {folders.map((folder) => (
+            <button
+              key={folder}
+              onClick={() => setSelectedFolder(folder)}
+              className={`px-4 py-2 uppercase tracking-wider transition-all ${
+                selectedFolder === folder
+                  ? 'bg-white text-black'
+                  : 'bg-white/10 text-white hover:bg-white/20'
+              }`}
+            >
+              {folder === 'all' ? 'Sve' : folder}
+            </button>
+          ))}
+        </div>
+        
+        {/* Informacije o banerima kada je izabran folder baneri - kao Hero Banner sekcija */}
+        {selectedFolder === 'baneri' && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="bg-gradient-to-br from-white/5 to-white/[0.02] border-2 border-white/10 rounded-xl backdrop-blur-sm shadow-xl hover:shadow-2xl hover:shadow-white/5 transition-all duration-300 overflow-hidden mb-4"
           >
-            {folder === 'all' ? 'Sve' : folder}
-          </button>
-        ))}
+            <button
+              onClick={() => setBaneriInfoOpen(!baneriInfoOpen)}
+              className="w-full p-4 md:p-6 flex items-center justify-between hover:bg-white/5 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-1 h-6 bg-gradient-to-b from-white to-transparent"></div>
+                <h2 className="text-lg sm:text-xl font-bold font-playfair uppercase tracking-wider">
+                  Baneri - Hero Sekcija
+                </h2>
+              </div>
+              {baneriInfoOpen ? (
+                <ChevronUp className="text-white" size={20} />
+              ) : (
+                <ChevronDown className="text-white" size={20} />
+              )}
+            </button>
+
+            {baneriInfoOpen && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.3 }}
+                className="px-4 md:px-6 pb-6"
+              >
+                <p className="text-gray-400 text-sm mb-4 ml-4">
+                  Upravljajte hero slikama na početnoj stranici. Sve slike iz foldera 'baneri' se automatski prikazuju kao slider koji se menja svakih 5 sekundi. Redosled slika određuje se preko 'order' polja.
+                </p>
+
+                <div className="space-y-3 mb-4 ml-4">
+                  {baneriInfo.usage.map((item, index) => (
+                    <div key={index} className="flex items-start gap-2">
+                      <span className="text-white/60 mt-1">•</span>
+                      <span className="text-sm text-gray-300">{item}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-4 px-3 py-2 bg-blue-500/10 border border-blue-500/20 rounded-lg ml-4">
+                  <p className="text-xs text-blue-400 font-medium">
+                    📍 <strong>Pojavljuje se na:</strong> Početna stranica (Home) - Hero sekcija na vrhu stranice
+                  </p>
+                </div>
+              </motion.div>
+            )}
+          </motion.div>
+        )}
+        
+        {/* Opšte informacije za ostale foldere */}
+        {selectedFolder !== 'all' && selectedFolder !== 'baneri' && folderUsage[selectedFolder] && (
+          <div className="bg-white/5 border border-white/10 rounded-lg p-4 mb-4">
+            <p className="text-sm text-gray-300">
+              <span className="font-semibold text-white uppercase">{selectedFolder}:</span> {folderUsage[selectedFolder]}
+            </p>
+          </div>
+        )}
       </div>
 
       {loading ? (
@@ -318,6 +473,13 @@ export default function AdminImages() {
                 )}
               </div>
               <div className="flex space-x-2">
+                <button
+                  onClick={() => handleDownload(image)}
+                  className="flex-1 bg-green-500/20 text-green-400 px-3 py-2 hover:bg-green-500/30 transition-all flex items-center justify-center"
+                  title="Preuzmi sliku"
+                >
+                  <Download size={16} />
+                </button>
                 <button
                   onClick={() => {
                     setEditingImage(image);

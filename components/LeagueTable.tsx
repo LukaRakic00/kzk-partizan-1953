@@ -18,7 +18,7 @@ interface TableProps {
 function TableContent({ teams, loading, error, leagueName, isWaba = false }: TableProps) {
   if (loading) {
     return (
-      <div className="bg-black/50 border-t border-white/10 py-8">
+      <div className="bg-black/70 py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center text-gray-400 font-montserrat">Učitavanje tabele...</div>
         </div>
@@ -28,7 +28,7 @@ function TableContent({ teams, loading, error, leagueName, isWaba = false }: Tab
 
   if (error) {
     return (
-      <div className="bg-black/50 border-t border-white/10 py-8">
+      <div className="bg-black/70 py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center text-red-400 font-montserrat">{error}</div>
         </div>
@@ -205,7 +205,7 @@ export default function LeagueTable() {
   const leagueName = activeTab === 'zls' ? 'Prva Ženska Liga Srbije (ŽLS)' : 'WABA Liga';
 
   return (
-    <div className="bg-black/50 border-t border-white/10 py-8 md:py-12">
+    <div className="bg-black/70 py-8 md:py-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-12">
           <h2 className="text-[30px] font-bold font-playfair uppercase tracking-wider mb-4">

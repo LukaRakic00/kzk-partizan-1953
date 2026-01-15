@@ -14,21 +14,33 @@ export default function Footer() {
   }, []);
 
   const loadLogo = async () => {
-    try {
-      const setting = await apiClient.getSettings('logo_url');
-      if (setting && setting.value) {
-        setLogoUrl(setting.value);
-      } else {
-        setLogoUrl('https://res.cloudinary.com/diy4whjvs/image/upload/v1763032549/logo-zkz-01_lnh8b3.png');
-      }
-    } catch (error) {
-      setLogoUrl('https://res.cloudinary.com/diy4whjvs/image/upload/v1763032549/logo-zkz-01_lnh8b3.png');
-    }
+    // Primarno koristi logo iz /public foldera
+    setLogoUrl('/kzk_partizan.png');
+    
+    // Opciono: ako želiš da se učitava iz baze kao fallback, otkomentariši kod ispod
+    // try {
+    //   const setting = await apiClient.getSettings('logo_url');
+    //   if (setting && setting.value) {
+    //     setLogoUrl(setting.value);
+    //   }
+    // } catch (error) {
+    //   // Koristi default logo iz /public
+    // }
   };
 
   return (
-    <footer className="bg-black border-t border-white/10 pb-32 md:pb-40">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <footer className="relative bg-black border-t border-white/10 pb-32 md:pb-40 overflow-hidden">
+      {/* Pozadinska slika */}
+      <div className="absolute inset-0 opacity-20">
+        <Image
+          src="/0V2A4118-1024x682_nbf7tx.jpg"
+          alt="Background"
+          fill
+          className="object-cover"
+        />
+      </div>
+      <div className="relative z-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* Logo and Description */}
           <div className="col-span-1 md:col-span-2">
@@ -136,6 +148,7 @@ export default function Footer() {
         <div className="border-t border-white/10 mt-8 pt-8 text-center text-gray-400 text-sm">
           <p>&copy; {new Date().getFullYear()} KŽK Partizan 1953. Sva prava zadržana.</p>
         </div>
+      </div>
       </div>
     </footer>
   );

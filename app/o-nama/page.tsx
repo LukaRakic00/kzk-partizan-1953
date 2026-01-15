@@ -8,7 +8,7 @@ import InteractiveBackground from '@/components/InteractiveBackground';
 import { apiClient } from '@/lib/api-client';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
-import { Trophy, Award, Star, FileText, Download } from 'lucide-react';
+import { Trophy, Award, Star, FileText, Download, Medal, Crown, Globe } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 
 export default function ONamaPage() {
@@ -93,7 +93,7 @@ KŽK Partizan 1953 s ponosom ističe da od osnivanja do danas nije imao nijedan 
       <div className="relative z-10">
         <Navbar />
 
-        <section className="pt-32 md:pt-40 pb-20 px-4 sm:px-6 lg:px-8">
+        <section className="pt-40 md:pt-48 pb-20 px-4 sm:px-6 lg:px-8">
           <div className="max-w-6xl mx-auto space-y-20">
             {loading ? (
               <div className="text-center py-20">
@@ -163,7 +163,7 @@ KŽK Partizan 1953 s ponosom ističe da od osnivanja do danas nije imao nijedan 
                     transition={{ delay: 0.4 }}
                     className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-lg p-8 md:p-12 shadow-xl"
                   >
-                    <div className="prose prose-invert max-w-none text-gray-300 leading-relaxed">
+                    <div className="prose prose-invert max-w-none text-gray-300 leading-relaxed text-[20px]">
                       <ReactMarkdown>{historyText}</ReactMarkdown>
                     </div>
 
@@ -224,6 +224,136 @@ KŽK Partizan 1953 s ponosom ističe da od osnivanja do danas nije imao nijedan 
                         </p>
                       </div>
                     )}
+                  </motion.div>
+                </motion.div>
+
+                {/* USPEŠI Sekcija */}
+                <motion.div
+                  id="uspesi"
+                  initial={{ opacity: 0, y: 30 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.8, delay: 0.3 }}
+                  className="space-y-8 scroll-mt-32"
+                >
+                  <div className="text-center">
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: 0.2 }}
+                      className="inline-flex items-center justify-center mb-6"
+                    >
+                      <Crown className="mr-3 text-yellow-400" size={32} />
+                      <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold font-playfair uppercase tracking-wider text-white">
+                        USPEŠI KŽK PARTIZAN 1953
+                      </h2>
+                      <Crown className="ml-3 text-yellow-400" size={32} />
+                    </motion.div>
+                    <div className="w-32 h-1 bg-gradient-to-r from-transparent via-white to-transparent mx-auto mb-8"></div>
+                  </div>
+
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3 }}
+                    className="text-center mb-12"
+                  >
+                    <p className="text-lg md:text-xl text-gray-300 max-w-3xl mx-auto leading-relaxed">
+                      Ponosno nosimo svoje uspehe kao svedočanstvo decenija predanosti, strasti i zajedničkih pobeda.
+                    </p>
+                  </motion.div>
+
+                  {/* Statistike */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.4 }}
+                    className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8"
+                  >
+                    {/* Šampionske titule */}
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: 0.5 }}
+                      className="bg-gradient-to-br from-yellow-500/20 to-yellow-600/20 backdrop-blur-sm border-2 border-yellow-500/30 rounded-xl p-8 text-center hover:scale-105 transition-transform duration-300 shadow-xl"
+                    >
+                      <div className="flex justify-center mb-4">
+                        <div className="bg-yellow-500/20 rounded-full p-4 flex items-center justify-center">
+                          <Image
+                            src="https://upload.wikimedia.org/wikipedia/sr/thumb/3/37/Kss-logo-cyr-full-color.png/250px-Kss-logo-cyr-full-color.png"
+                            alt="Košarkaški savez Srbije Logo"
+                            width={48}
+                            height={48}
+                            className="object-contain"
+                            unoptimized
+                          />
+                        </div>
+                      </div>
+                      <div className="text-5xl md:text-6xl font-bold font-playfair text-yellow-400 mb-2">
+                        7
+                      </div>
+                      <div className="text-lg md:text-xl font-semibold text-white mb-1">
+                        šampionskih titula
+                      </div>
+                      <div className="text-sm text-gray-300 mt-2">
+                        Prvenstvo Srbije
+                      </div>
+                    </motion.div>
+
+                    {/* Nacionalni Kupovi */}
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: 0.6 }}
+                      className="bg-gradient-to-br from-blue-500/20 to-blue-600/20 backdrop-blur-sm border-2 border-blue-500/30 rounded-xl p-8 text-center hover:scale-105 transition-transform duration-300 shadow-xl"
+                    >
+                      <div className="flex justify-center mb-4">
+                        <div className="bg-blue-500/20 rounded-full p-4">
+                          <Award className="text-blue-400" size={48} />
+                        </div>
+                      </div>
+                      <div className="text-5xl md:text-6xl font-bold font-playfair text-blue-400 mb-2">
+                        5
+                      </div>
+                      <div className="text-lg md:text-xl font-semibold text-white mb-1">
+                        nacionalnih Kupova
+                      </div>
+                      <div className="text-sm text-gray-300 mt-2">
+                        Kup Srbije
+                      </div>
+                    </motion.div>
+
+                    {/* WABA Liga */}
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: 0.7 }}
+                      className="bg-gradient-to-br from-purple-500/20 to-purple-600/20 backdrop-blur-sm border-2 border-purple-500/30 rounded-xl p-8 text-center hover:scale-105 transition-transform duration-300 shadow-xl"
+                    >
+                      <div className="flex justify-center mb-4">
+                        <div className="bg-purple-500/20 rounded-full p-4 flex items-center justify-center">
+                          <Image
+                            src="https://waba-league.com/wp-content/uploads/2018/08/logo.png"
+                            alt="WABA League Logo"
+                            width={48}
+                            height={48}
+                            className="object-contain"
+                            unoptimized
+                          />
+                        </div>
+                      </div>
+                      <div className="text-5xl md:text-6xl font-bold font-playfair text-purple-400 mb-2">
+                        2
+                      </div>
+                      <div className="text-lg md:text-xl font-semibold text-white mb-1">
+                        titule u regionalnoj
+                      </div>
+                      <div className="text-lg md:text-xl font-semibold text-white mb-1">
+                        WABA ligi
+                      </div>
+                      <div className="text-sm text-gray-300 mt-2">
+                        Regionalna liga
+                      </div>
+                    </motion.div>
                   </motion.div>
                 </motion.div>
 

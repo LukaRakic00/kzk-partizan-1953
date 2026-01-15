@@ -11,7 +11,7 @@ export interface IPlayer extends Document {
   height?: number;
   weight?: number;
   dateOfBirth?: Date;
-  category?: 'seniori' | 'pionirke' | 'juniori';
+  category?: 'seniori' | 'juniori' | 'kadetkinje' | 'pionirke';
   createdAt: Date;
   updatedAt: Date;
 }
@@ -28,7 +28,7 @@ const PlayerSchema: Schema = new Schema(
     },
     position: {
       type: String,
-      required: true,
+      required: false,
     },
     number: {
       type: Number,
@@ -55,7 +55,7 @@ const PlayerSchema: Schema = new Schema(
     },
     category: {
       type: String,
-      enum: ['seniori', 'pionirke', 'juniori'],
+      enum: ['seniori', 'juniori', 'kadetkinje', 'pionirke'],
     },
   },
   {

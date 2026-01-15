@@ -16,19 +16,21 @@ interface Player {
   year: number;
   image?: string;
   bio?: string;
-  category?: 'seniori' | 'pionirke' | 'juniori';
+  category?: 'seniori' | 'juniori' | 'kadetkinje' | 'pionirke';
 }
 
 const categoryLabels: { [key: string]: string } = {
   seniori: 'SENIORI',
-  pionirke: 'PIONIRKE',
   juniori: 'JUNIORI',
+  kadetkinje: 'KADETKINJE',
+  pionirke: 'PIONIRKE',
 };
 
 const categoryColors: { [key: string]: string } = {
   seniori: 'from-blue-500 to-blue-600',
-  pionirke: 'from-pink-500 to-pink-600',
   juniori: 'from-purple-500 to-purple-600',
+  kadetkinje: 'from-orange-500 to-orange-600',
+  pionirke: 'from-pink-500 to-pink-600',
 };
 
 export default function AdminPlayers() {
@@ -45,7 +47,7 @@ export default function AdminPlayers() {
     year: new Date().getFullYear().toString(),
     bio: '',
     image: '',
-    category: 'seniori' as 'seniori' | 'pionirke' | 'juniori',
+    category: 'seniori' as 'seniori' | 'juniori' | 'kadetkinje' | 'pionirke',
   });
   const [uploading, setUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
@@ -96,15 +98,28 @@ export default function AdminPlayers() {
         body: uploadFormData,
       });
 
+      // Proveri Content-Type pre parsiranja
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text();
+        console.error('Non-JSON response:', text.substring(0, 500));
+        throw new Error(`Server je vratio neispravan format. Status: ${response.status}`);
+      }
+
       if (!response.ok) {
-        throw new Error('Upload failed');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Greška pri upload-u slike');
       }
 
       const data = await response.json();
+      if (!data.url) {
+        throw new Error('URL slike nije vraćen iz servera');
+      }
       setFormData((prev) => ({ ...prev, image: data.url }));
       toast.success('Slika je uspešno upload-ovana');
-    } catch (error) {
-      toast.error('Greška pri upload-u slike');
+    } catch (error: any) {
+      console.error('Upload error:', error);
+      toast.error(error.message || 'Greška pri upload-u slike');
     } finally {
       setUploading(false);
     }
@@ -210,11 +225,12 @@ export default function AdminPlayers() {
 
   const playersByCategory = {
     seniori: filteredPlayers.filter(p => p.category === 'seniori'),
-    pionirke: filteredPlayers.filter(p => p.category === 'pionirke'),
     juniori: filteredPlayers.filter(p => p.category === 'juniori'),
+    kadetkinje: filteredPlayers.filter(p => p.category === 'kadetkinje'),
+    pionirke: filteredPlayers.filter(p => p.category === 'pionirke'),
   };
 
-  const categories = ['seniori', 'pionirke', 'juniori'] as const;
+  const categories = ['seniori', 'juniori', 'kadetkinje', 'pionirke'] as const;
 
   return (
     <div>
@@ -239,8 +255,9 @@ export default function AdminPlayers() {
             >
               <option value="all" className="bg-black text-white">Sve kategorije</option>
               <option value="seniori" className="bg-black text-white">Seniori</option>
-              <option value="pionirke" className="bg-black text-white">Pionirke</option>
               <option value="juniori" className="bg-black text-white">Juniori</option>
+              <option value="kadetkinje" className="bg-black text-white">Kadetkinje</option>
+              <option value="pionirke" className="bg-black text-white">Pionirke</option>
             </select>
           </div>
           <button
@@ -379,7 +396,7 @@ export default function AdminPlayers() {
                 <select
                   required
                   value={formData.category}
-                  onChange={(e) => setFormData({ ...formData, category: e.target.value as 'seniori' | 'pionirke' | 'juniori' })}
+                  onChange={(e) => setFormData({ ...formData, category: e.target.value as 'seniori' | 'juniori' | 'kadetkinje' | 'pionirke' })}
                   className="w-full bg-black border border-white/20 px-4 py-3 text-white focus:outline-none focus:border-white appearance-none cursor-pointer pr-10"
                   style={{
                     backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='white' d='M6 9L1 4h10z'/%3E%3C/svg%3E")`,
@@ -389,8 +406,9 @@ export default function AdminPlayers() {
                   }}
                 >
                   <option value="seniori" className="bg-black text-white">Seniori</option>
-                  <option value="pionirke" className="bg-black text-white">Pionirke</option>
                   <option value="juniori" className="bg-black text-white">Juniori</option>
+                  <option value="kadetkinje" className="bg-black text-white">Kadetkinje</option>
+                  <option value="pionirke" className="bg-black text-white">Pionirke</option>
                 </select>
               </div>
 
@@ -430,9 +448,8 @@ export default function AdminPlayers() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-2">Pozicija *</label>
+                  <label className="block text-sm font-medium mb-2">Pozicija</label>
                   <select
-                    required
                     value={formData.position}
                     onChange={(e) => setFormData({ ...formData, position: e.target.value })}
                     className="w-full bg-black border border-white/20 px-4 py-3 text-white focus:outline-none focus:border-white appearance-none cursor-pointer pr-10"
