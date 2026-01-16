@@ -138,7 +138,7 @@ KŽK Partizan 1953 s ponosom ističe da od osnivanja do danas nije imao nijedan 
                       className="inline-flex items-center justify-center mb-6"
                     >
                       <Trophy className="mr-3 text-yellow-400" size={32} />
-                      <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold font-playfair uppercase tracking-wider text-white">
+                      <h2 className="text-[36px] font-bold font-playfair uppercase tracking-wider text-white">
                         Istorijat Kluba
                       </h2>
                       <Trophy className="ml-3 text-yellow-400" size={32} />
@@ -243,8 +243,8 @@ KŽK Partizan 1953 s ponosom ističe da od osnivanja do danas nije imao nijedan 
                       className="inline-flex items-center justify-center mb-6"
                     >
                       <Crown className="mr-3 text-yellow-400" size={32} />
-                      <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold font-playfair uppercase tracking-wider text-white">
-                        USPEŠI KŽK PARTIZAN 1953
+                      <h2 className="text-[36px] font-bold font-playfair uppercase tracking-wider text-white">
+                        USPESI KŽK PARTIZAN 1953
                       </h2>
                       <Crown className="ml-3 text-yellow-400" size={32} />
                     </motion.div>
