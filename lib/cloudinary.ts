@@ -142,12 +142,29 @@ export const uploadImage = async (
     };
     
     try {
+      console.log('[CLOUDINARY] Starting upload stream...', {
+        folder: `KŽK_Partizan/${folder}`,
+        cloudName: cloudinary.config().cloud_name,
+        hasApiKey: !!cloudinary.config().api_key,
+        hasApiSecret: !!cloudinary.config().api_secret,
+      });
+      
       const uploadStream = cloudinary.uploader.upload_stream(
         {
           folder: `KŽK_Partizan/${folder}`,
           resource_type: 'image',
+          // Dodaj dodatne opcije za bolju kompatibilnost
+          use_filename: false,
+          unique_filename: true,
+          overwrite: false,
         },
         (error: any, result: any) => {
+          console.log('[CLOUDINARY] Upload callback invoked', {
+            hasError: !!error,
+            hasResult: !!result,
+            errorType: error?.name,
+            errorHttpCode: error?.http_code,
+          });
           if (isResolved) return;
           
           cleanup();
@@ -236,12 +253,16 @@ export const uploadImage = async (
         if (isResolved) return;
         
         cleanup();
-        console.error('Upload stream error:', streamError);
-        console.error('Stream error details:', {
+        console.error('[CLOUDINARY] Upload stream error event:', streamError);
+        console.error('[CLOUDINARY] Stream error details:', {
           message: streamError?.message,
           error: streamError?.error,
           code: streamError?.code,
           statusCode: streamError?.statusCode,
+          errno: streamError?.errno,
+          syscall: streamError?.syscall,
+          hostname: streamError?.hostname,
+          type: streamError?.type,
         });
         
         let streamErrorMessage = 'Nepoznata greška pri upload stream-u';
@@ -257,11 +278,46 @@ export const uploadImage = async (
           streamErrorMessage = streamError.error;
         }
         
+        // Ako je network error, dodaj dodatne informacije
+        if (streamError?.code === 'ECONNREFUSED' || streamError?.code === 'ENOTFOUND') {
+          streamErrorMessage = `Cloudinary network greška (${streamError.code}). Proverite internet konekciju i Cloudinary dostupnost.`;
+        } else if (streamError?.code === 'ETIMEDOUT') {
+          streamErrorMessage = 'Cloudinary upload timeout. Pokušajte ponovo sa manjom slikom.';
+        }
+        
         isResolved = true;
         reject(new Error(`Greška pri upload stream-u: ${streamErrorMessage}`));
       });
+      
+      uploadStream.on('end', () => {
+        console.log('[CLOUDINARY] Upload stream ended');
+      });
+      
+      uploadStream.on('close', () => {
+        console.log('[CLOUDINARY] Upload stream closed');
+      });
+      
+      uploadStream.on('finish', () => {
+        console.log('[CLOUDINARY] Upload stream finished');
+      });
 
-      uploadStream.end(buffer);
+      console.log('[CLOUDINARY] Writing buffer to stream...', {
+        bufferLength: buffer.length,
+        bufferType: buffer.constructor.name,
+        isValidBuffer: Buffer.isBuffer(buffer),
+      });
+      
+      try {
+        // Cloudinary SDK očekuje buffer u end() metodi
+        uploadStream.end(buffer);
+        console.log('[CLOUDINARY] Buffer sent to stream');
+      } catch (writeError: any) {
+        cleanup();
+        if (isResolved) return;
+        console.error('[CLOUDINARY] Error writing to stream:', writeError);
+        isResolved = true;
+        reject(new Error(`Greška pri slanju podataka: ${writeError.message || 'Nepoznata greška'}`));
+      }
     } catch (uploadError: any) {
       cleanup();
       if (isResolved) return;
