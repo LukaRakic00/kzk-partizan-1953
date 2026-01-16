@@ -10,7 +10,7 @@ import { apiClient } from '@/lib/api-client';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Calendar, Eye, ArrowRight } from 'lucide-react';
+import { Calendar, ArrowRight } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface News {
@@ -21,7 +21,6 @@ interface News {
   image?: string;
   published: boolean;
   publishedAt?: string;
-  views: number;
   category: string;
 }
 
@@ -116,11 +115,7 @@ export default function VestiPage() {
                             {item.title}
                           </h2>
                           <p className="text-gray-300 mb-4 line-clamp-3">{item.excerpt}</p>
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center text-sm text-gray-400">
-                              <Eye size={16} className="mr-1" />
-                              {item.views}
-                            </div>
+                          <div className="flex items-center justify-end">
                             <span className="text-white text-sm uppercase tracking-wider flex items-center group-hover:underline">
                               Pročitaj više
                               <ArrowRight className="ml-2" size={16} />

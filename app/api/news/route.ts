@@ -58,6 +58,14 @@ export async function POST(req: NextRequest) {
     // Postavi author iz korisnika
     data.author = user.username || 'Admin';
 
+    // Osiguraj da se slike čuvaju pravilno (čak i ako su prazne)
+    if (data.image === '') {
+      data.image = undefined;
+    }
+    if (!data.images) {
+      data.images = [];
+    }
+
     // Ako je published, postavi publishedAt (samo datum, bez vremena)
     if (data.published && !data.publishedAt) {
       const today = new Date();

@@ -85,12 +85,24 @@ export default function AdminTim() {
         body: uploadFormData,
       });
       
+      // Proveri Content-Type pre parsiranja
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text();
+        console.error('Non-JSON response:', text.substring(0, 500));
+        throw new Error(`Server je vratio neispravan format. Status: ${response.status}`);
+      }
+      
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Greška pri upload-u slike' }));
+        const errorData = await response.json();
         throw new Error(errorData.error || 'Greška pri upload-u slike');
       }
       
       const data = await response.json();
+      if (!data.url) {
+        throw new Error('URL slike nije vraćen iz servera');
+      }
+      
       const updatedTeamData = { ...teamData, teamImage: data.url };
       setTeamData(updatedTeamData);
       
@@ -123,11 +135,30 @@ export default function AdminTim() {
         headers: { Authorization: `Bearer ${token}` },
         body: uploadFormData,
       });
+      
+      // Proveri Content-Type pre parsiranja
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text();
+        console.error('Non-JSON response:', text.substring(0, 500));
+        throw new Error(`Server je vratio neispravan format. Status: ${response.status}`);
+      }
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Greška pri upload-u slike');
+      }
+      
       const data = await response.json();
+      if (!data.url) {
+        throw new Error('URL slike nije vraćen iz servera');
+      }
+      
       setManagementForm((prev) => ({ ...prev, image: data.url }));
       toast.success('Slika je uspešno upload-ovana');
-    } catch (error) {
-      toast.error('Greška pri upload-u slike');
+    } catch (error: any) {
+      console.error('Upload error:', error);
+      toast.error(error.message || 'Greška pri upload-u slike');
     } finally {
       setUploadingManagementImage(false);
     }
@@ -148,12 +179,24 @@ export default function AdminTim() {
         body: uploadFormData,
       });
       
+      // Proveri Content-Type pre parsiranja
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text();
+        console.error('Non-JSON response:', text.substring(0, 500));
+        throw new Error(`Server je vratio neispravan format. Status: ${response.status}`);
+      }
+      
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Greška pri upload-u slike' }));
+        const errorData = await response.json();
         throw new Error(errorData.error || 'Greška pri upload-u slike');
       }
       
       const data = await response.json();
+      if (!data.url) {
+        throw new Error('URL slike nije vraćen iz servera');
+      }
+      
       const updatedTeamData = { ...teamData, [section]: data.url };
       setTeamData(updatedTeamData);
       

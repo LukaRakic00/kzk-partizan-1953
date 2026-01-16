@@ -11,7 +11,7 @@ import { motion } from 'framer-motion';
 import Image from 'next/image';
 import CloudinaryImage from '@/components/CloudinaryImage';
 import Link from 'next/link';
-import { Calendar, Eye, ArrowLeft } from 'lucide-react';
+import { Calendar, ArrowLeft } from 'lucide-react';
 import { format } from 'date-fns';
 import ReactMarkdown from 'react-markdown';
 
@@ -23,7 +23,6 @@ interface News {
   image?: string;
   images?: string[];
   publishedAt?: string;
-  views: number;
   category: string;
 }
 
@@ -91,10 +90,6 @@ export default function VestiDetailPage() {
                   )}
                 </div>
                 <h1 className="text-4xl md:text-5xl font-bold font-playfair mb-6">{news.title}</h1>
-                <div className="flex items-center text-sm text-gray-400 mb-8">
-                  <Eye size={16} className="mr-1" />
-                  {news.views} pregleda
-                </div>
               </div>
 
               {/* Glavna slika ili galerija */}

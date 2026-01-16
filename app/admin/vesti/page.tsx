@@ -16,7 +16,6 @@ interface News {
   published: boolean;
   publishedAt?: string;
   category: string;
-  views: number;
 }
 
 export default function AdminNews() {
@@ -151,6 +150,9 @@ export default function AdminNews() {
         publishedAt: publishedAtDate,
         // Osiguraj da published ostane false ako nije eksplicitno checked
         published: formData.published || false,
+        // Osiguraj da se slike čuvaju (čak i ako su prazne)
+        image: formData.image || undefined,
+        images: formData.images || [],
       };
 
       if (editingNews) {
@@ -280,11 +282,6 @@ export default function AdminNews() {
                       <div className="flex flex-wrap items-center gap-2 sm:space-x-4 text-xs sm:text-sm text-gray-400">
                         <span>{item.category}</span>
                         <span>•</span>
-                        <span className="flex items-center">
-                          <Eye size={14} className="mr-1" />
-                          {item.views}
-                        </span>
-                        <span>•</span>
                         <span className={item.published ? 'text-green-400' : 'text-yellow-400'}>
                           {item.published ? 'Objavljeno' : 'Nacrt'}
                         </span>
@@ -300,6 +297,27 @@ export default function AdminNews() {
                       <Eye size={14} className="sm:mr-2" />
                       <span className="hidden sm:inline">Pregled</span>
                     </Link>
+                    {!item.published && (
+                      <button
+                        onClick={async () => {
+                          try {
+                            const today = new Date();
+                            today.setHours(0, 0, 0, 0);
+                            await apiClient.updateNews(item._id, {
+                              published: true,
+                              publishedAt: today.toISOString(),
+                            });
+                            toast.success('Vest je uspešno objavljena');
+                            loadNews();
+                          } catch (error: any) {
+                            toast.error(error.message || 'Greška pri objavljivanju vesti');
+                          }
+                        }}
+                        className="bg-green-500/20 text-green-400 px-4 py-2 hover:bg-green-500/30 transition-all flex items-center text-sm"
+                      >
+                        Objavi
+                      </button>
+                    )}
                     <button
                       onClick={() => handleEdit(item)}
                       className="bg-white/10 text-white px-4 py-2 hover:bg-white/20 transition-all flex items-center text-sm"

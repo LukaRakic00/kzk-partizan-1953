@@ -11,7 +11,6 @@ export interface INews extends Document {
   published: boolean;
   publishedAt?: Date;
   category: string;
-  views: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -56,10 +55,6 @@ const NewsSchema: Schema = new Schema(
     category: {
       type: String,
       default: 'Vesti',
-    },
-    views: {
-      type: Number,
-      default: 0,
     },
   },
   {

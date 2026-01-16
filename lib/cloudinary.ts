@@ -108,8 +108,29 @@ export const uploadImage = async (
   }
 
   const buffer = Buffer.from(bytes);
+  
+  // Timeout za upload (60 sekundi)
+  const uploadTimeout = 60000;
+  let timeoutId: NodeJS.Timeout | null = null;
 
   return new Promise((resolve, reject) => {
+    let isResolved = false;
+    
+    // Timeout handler
+    timeoutId = setTimeout(() => {
+      if (!isResolved) {
+        isResolved = true;
+        reject(new Error('Upload timeout - Cloudinary nije odgovorio u roku od 60 sekundi'));
+      }
+    }, uploadTimeout);
+    
+    const cleanup = () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+        timeoutId = null;
+      }
+    };
+    
     try {
       const uploadStream = cloudinary.uploader.upload_stream(
         {
@@ -117,29 +138,55 @@ export const uploadImage = async (
           resource_type: 'image',
         },
         (error: any, result: any) => {
+          if (isResolved) return;
+          
+          cleanup();
+          
           if (error) {
             console.error('Cloudinary upload error:', error);
             console.error('Error details:', {
               http_code: error.http_code,
               message: error.message,
               name: error.name,
+              error: error.error,
             });
             
-            // Provide more specific error messages
-            if (error.http_code === 401) {
-              reject(new Error('Cloudinary autentifikacija neuspešna. Proverite API key i secret.'));
-            } else if (error.http_code === 400) {
-              reject(new Error(`Cloudinary greška: ${error.message || 'Neispravan zahtev'}`));
-            } else if (error.http_code === 500) {
-              reject(new Error(`Cloudinary server greška: ${error.message || 'Server error'}`));
-            } else {
-              reject(new Error(`Cloudinary upload greška: ${error.message || 'Nepoznata greška'}`));
+            // Extract error message - Cloudinary može vratiti različite formate greške
+            let errorMessage = 'Nepoznata greška pri upload-u';
+            
+            if (error.message) {
+              errorMessage = error.message;
+            } else if (error.error && typeof error.error === 'string') {
+              errorMessage = error.error;
+            } else if (error.error && error.error.message) {
+              errorMessage = error.error.message;
             }
+            
+            // Provide more specific error messages based on HTTP code
+            if (error.http_code === 401) {
+              errorMessage = 'Cloudinary autentifikacija neuspešna. Proverite API key i secret.';
+            } else if (error.http_code === 400) {
+              errorMessage = `Cloudinary greška: ${errorMessage}`;
+            } else if (error.http_code === 403) {
+              errorMessage = 'Cloudinary pristup odbijen. Proverite dozvole.';
+            } else if (error.http_code === 404) {
+              errorMessage = 'Cloudinary resurs nije pronađen.';
+            } else if (error.http_code === 500 || error.http_code === 502 || error.http_code === 503) {
+              errorMessage = `Cloudinary server greška (${error.http_code}): ${errorMessage}`;
+            } else if (error.http_code) {
+              errorMessage = `Cloudinary greška (${error.http_code}): ${errorMessage}`;
+            }
+            
+            isResolved = true;
+            reject(new Error(errorMessage));
           } else if (!result) {
+            isResolved = true;
             reject(new Error('Cloudinary nije vratio rezultat upload-a'));
           } else if (!result.secure_url) {
+            isResolved = true;
             reject(new Error('Cloudinary nije vratio URL slike'));
           } else {
+            isResolved = true;
             resolve({
               url: result.secure_url,
               publicId: result.public_id,
@@ -152,13 +199,22 @@ export const uploadImage = async (
       );
 
       uploadStream.on('error', (streamError: any) => {
+        if (isResolved) return;
+        
+        cleanup();
         console.error('Upload stream error:', streamError);
-        reject(new Error(`Greška pri upload stream-u: ${streamError.message || 'Nepoznata greška'}`));
+        const streamErrorMessage = streamError?.message || streamError?.error?.message || 'Nepoznata greška pri upload stream-u';
+        isResolved = true;
+        reject(new Error(`Greška pri upload stream-u: ${streamErrorMessage}`));
       });
 
       uploadStream.end(buffer);
     } catch (uploadError: any) {
+      cleanup();
+      if (isResolved) return;
+      
       console.error('Error creating upload stream:', uploadError);
+      isResolved = true;
       reject(new Error(`Greška pri kreiranju upload stream-a: ${uploadError.message || 'Nepoznata greška'}`));
     }
   });

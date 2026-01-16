@@ -29,11 +29,6 @@ export async function GET(
       return NextResponse.json({ error: 'Vest nije pronađena' }, { status: 404 });
     }
 
-    // Povećaj broj pregleda samo ako se pristupa preko slug-a (javni pristup)
-    if (!isValidObjectId(params.id)) {
-      await News.findByIdAndUpdate(news._id, { $inc: { views: 1 } });
-    }
-
     return NextResponse.json(news);
   } catch (error) {
     console.error('Get news error:', error);
@@ -59,6 +54,14 @@ export async function PUT(
     }
 
     const data = await req.json();
+    
+    // Osiguraj da se slike čuvaju pravilno (čak i ako su prazne)
+    if (data.image === '') {
+      data.image = undefined;
+    }
+    if (!data.images) {
+      data.images = [];
+    }
     
     // Formatiraj datum ako postoji (samo datum, bez vremena)
     if (data.publishedAt) {
