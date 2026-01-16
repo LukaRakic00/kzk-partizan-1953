@@ -8,9 +8,13 @@ function ensureCloudinaryConfigured() {
     return;
   }
 
-  const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
-  const apiKey = process.env.CLOUDINARY_API_KEY;
-  const apiSecret = process.env.CLOUDINARY_API_SECRET;
+  // Pročitaj environment varijable - probaj različite načine
+  const cloudName = process.env.CLOUDINARY_CLOUD_NAME || 
+                    (typeof window === 'undefined' ? process.env.CLOUDINARY_CLOUD_NAME : undefined);
+  const apiKey = process.env.CLOUDINARY_API_KEY || 
+                 (typeof window === 'undefined' ? process.env.CLOUDINARY_API_KEY : undefined);
+  const apiSecret = process.env.CLOUDINARY_API_SECRET || 
+                    (typeof window === 'undefined' ? process.env.CLOUDINARY_API_SECRET : undefined);
 
   if (!cloudName || !apiKey || !apiSecret) {
     const missingVars = [];

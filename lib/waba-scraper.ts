@@ -299,11 +299,13 @@ export class WABAStandingsScraper {
         // Ne baci grešku odmah - pokušaj prvo browser automation
       }
     } else {
-      // Ako nema ScrapingBee API key u Vercel produkciji, baci jasnu grešku
+      // Ako nema ScrapingBee API key, samo loguj upozorenje i nastavi sa fallback opcijama
       if (isVercel) {
-        throw new Error('ScrapingBee API key nije dostupan u Vercel produkciji. Proverite da li je SCRAPINGBEE_API_KEY pravilno postavljen u Vercel Environment Variables (Settings → Environment Variables → Production).');
+        console.warn('⚠ ScrapingBee API key nije dostupan u Vercel produkciji. Koristim browser automation ili fetch kao fallback.');
+        console.warn('💡 Za bolje performanse, dodajte SCRAPINGBEE_API_KEY u Vercel Environment Variables (Settings → Environment Variables → Production).');
+      } else {
+        console.log('ScrapingBee API key nije dostupan, koristim browser automation ili fetch');
       }
-      console.log('ScrapingBee API key nije dostupan, koristim browser automation ili fetch');
     }
 
     // Ako browser automation nije inicijalizovan, pokušaj da ga inicijalizuješ

@@ -8,18 +8,42 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 60; // 60 sekundi timeout
 
 export async function POST(req: NextRequest) {
+  const startTime = Date.now();
+  console.log('[UPLOAD] Request started');
+  
   try {
     const token = getAuthToken(req);
     if (!token) {
-      return NextResponse.json({ error: 'Niste autentifikovani' }, { status: 401 });
+      console.log('[UPLOAD] No token provided');
+      return NextResponse.json(
+        { error: 'Niste autentifikovani' },
+        { 
+          status: 401,
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        }
+      );
     }
 
     const payload = verifyToken(token);
     if (!payload) {
-      return NextResponse.json({ error: 'Neispravan token' }, { status: 401 });
+      console.log('[UPLOAD] Invalid token');
+      return NextResponse.json(
+        { error: 'Neispravan token' },
+        { 
+          status: 401,
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        }
+      );
     }
+    
+    console.log('[UPLOAD] Authentication OK');
 
     // Validate Cloudinary configuration
+    // Pročitaj environment varijable - probaj direktno iz process.env
     const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
     const apiKey = process.env.CLOUDINARY_API_KEY;
     const apiSecret = process.env.CLOUDINARY_API_SECRET;
@@ -29,12 +53,18 @@ export async function POST(req: NextRequest) {
     console.log('Environment check:', {
       NODE_ENV: process.env.NODE_ENV,
       VERCEL: process.env.VERCEL,
+      VERCEL_ENV: process.env.VERCEL_ENV,
       hasCloudName: !!cloudName,
       cloudNameLength: cloudName?.length || 0,
+      cloudNamePreview: cloudName ? `${cloudName.substring(0, 4)}...${cloudName.substring(cloudName.length - 2)}` : 'N/A',
       hasApiKey: !!apiKey,
       apiKeyLength: apiKey?.length || 0,
       hasApiSecret: !!apiSecret,
       apiSecretLength: apiSecret?.length || 0,
+      // Proveri sve environment varijable koje počinju sa CLOUDINARY
+      allCloudinaryVars: Object.keys(process.env)
+        .filter(key => key.startsWith('CLOUDINARY'))
+        .map(key => ({ key, exists: true, length: process.env[key]?.length || 0 })),
     });
     
     if (!cloudName || !apiKey || !apiSecret) {
@@ -78,14 +108,16 @@ export async function POST(req: NextRequest) {
       );
     }
     
-    console.log('Cloudinary configuration OK');
+    console.log('[UPLOAD] Cloudinary configuration OK');
     console.log('=== END CLOUDINARY CONFIG CHECK ===');
 
+    console.log('[UPLOAD] Parsing form data...');
     let formData: FormData;
     try {
       formData = await req.formData();
+      console.log('[UPLOAD] Form data parsed successfully');
     } catch (formDataError: any) {
-      console.error('Error parsing form data:', formDataError);
+      console.error('[UPLOAD] Error parsing form data:', formDataError);
       return NextResponse.json(
         { error: 'Greška pri parsiranju form data' },
         { 
@@ -152,14 +184,25 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    console.log('[UPLOAD] Starting Cloudinary upload...', {
+      fileName: file.name,
+      fileSize: file.size,
+      fileType: file.type,
+      folder,
+    });
+    
     try {
       const imageData = await uploadImage(file, folder);
+      const duration = Date.now() - startTime;
+      console.log('[UPLOAD] Upload successful', { duration: `${duration}ms` });
       return NextResponse.json(imageData, {
         headers: {
           'Content-Type': 'application/json',
         }
       });
     } catch (uploadError: any) {
+      const duration = Date.now() - startTime;
+      console.error(`[UPLOAD] Upload failed after ${duration}ms:`, uploadError);
       console.error('Upload image error:', uploadError);
       console.error('Upload error details:', {
         message: uploadError?.message,
