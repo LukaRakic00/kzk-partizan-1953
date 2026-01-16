@@ -24,6 +24,19 @@ export async function POST(req: NextRequest) {
     const apiKey = process.env.CLOUDINARY_API_KEY;
     const apiSecret = process.env.CLOUDINARY_API_SECRET;
     
+    // Detaljno logovanje za debug (bez osetljivih podataka)
+    console.log('=== CLOUDINARY CONFIG CHECK ===');
+    console.log('Environment check:', {
+      NODE_ENV: process.env.NODE_ENV,
+      VERCEL: process.env.VERCEL,
+      hasCloudName: !!cloudName,
+      cloudNameLength: cloudName?.length || 0,
+      hasApiKey: !!apiKey,
+      apiKeyLength: apiKey?.length || 0,
+      hasApiSecret: !!apiSecret,
+      apiSecretLength: apiSecret?.length || 0,
+    });
+    
     if (!cloudName || !apiKey || !apiSecret) {
       console.error('Cloudinary configuration missing:', {
         hasCloudName: !!cloudName,
@@ -31,7 +44,10 @@ export async function POST(req: NextRequest) {
         hasApiSecret: !!apiSecret,
       });
       return NextResponse.json(
-        { error: 'Cloudinary konfiguracija nije podešena. Proverite environment varijable.' },
+        { 
+          error: 'Cloudinary konfiguracija nije podešena. Proverite environment varijable u Vercel Settings → Environment Variables.',
+          hint: 'Dodajte CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY i CLOUDINARY_API_SECRET u Vercel dashboard.'
+        },
         { 
           status: 500,
           headers: {
@@ -43,9 +59,16 @@ export async function POST(req: NextRequest) {
     
     // Proveri da li su vrednosti prazne stringove
     if (cloudName.trim() === '' || apiKey.trim() === '' || apiSecret.trim() === '') {
-      console.error('Cloudinary configuration has empty values');
+      console.error('Cloudinary configuration has empty values:', {
+        cloudNameEmpty: cloudName.trim() === '',
+        apiKeyEmpty: apiKey.trim() === '',
+        apiSecretEmpty: apiSecret.trim() === '',
+      });
       return NextResponse.json(
-        { error: 'Cloudinary environment varijable ne mogu biti prazne. Proverite environment varijable u produkciji.' },
+        { 
+          error: 'Cloudinary environment varijable ne mogu biti prazne. Proverite environment varijable u Vercel Settings → Environment Variables.',
+          hint: 'Osigurajte da su sve tri varijable (CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET) pravilno podešene i da nisu prazne.'
+        },
         { 
           status: 500,
           headers: {
@@ -54,6 +77,9 @@ export async function POST(req: NextRequest) {
         }
       );
     }
+    
+    console.log('Cloudinary configuration OK');
+    console.log('=== END CLOUDINARY CONFIG CHECK ===');
 
     let formData: FormData;
     try {
