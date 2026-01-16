@@ -33,10 +33,16 @@ function ensureCloudinaryConfigured() {
   }
 
   try {
+    // Proveri da li su vrednosti prazne stringove
+    if (cloudName.trim() === '' || apiKey.trim() === '' || apiSecret.trim() === '') {
+      throw new Error('Cloudinary environment varijable ne mogu biti prazne stringove');
+    }
+    
     cloudinary.config({
       cloud_name: cloudName,
       api_key: apiKey,
       api_secret: apiSecret,
+      secure: true, // Uvek koristi HTTPS
     });
 
     cloudinaryConfigured = true;
@@ -149,32 +155,56 @@ export const uploadImage = async (
               message: error.message,
               name: error.name,
               error: error.error,
+              statusCode: error.statusCode,
+              status: error.status,
             });
             
             // Extract error message - Cloudinary može vratiti različite formate greške
             let errorMessage = 'Nepoznata greška pri upload-u';
             
+            // Proveri različite načine na koje Cloudinary može vratiti grešku
             if (error.message) {
               errorMessage = error.message;
-            } else if (error.error && typeof error.error === 'string') {
-              errorMessage = error.error;
-            } else if (error.error && error.error.message) {
-              errorMessage = error.error.message;
+              // Ako poruka sadrži "invalid JSON" ili "DOCTYPE", to znači da je dobio HTML
+              if (errorMessage.includes('invalid JSON') || errorMessage.includes('DOCTYPE')) {
+                errorMessage = 'Cloudinary server je vratio HTML umesto JSON-a. Proverite Cloudinary konfiguraciju i environment varijable.';
+              }
+            } else if (error.error) {
+              if (typeof error.error === 'string') {
+                errorMessage = error.error;
+              } else if (error.error.message) {
+                errorMessage = error.error.message;
+              } else if (typeof error.error === 'object') {
+                errorMessage = JSON.stringify(error.error);
+              }
             }
             
+            // Get HTTP code from different possible locations
+            const httpCode = error.http_code || error.statusCode || error.status;
+            
             // Provide more specific error messages based on HTTP code
-            if (error.http_code === 401) {
-              errorMessage = 'Cloudinary autentifikacija neuspešna. Proverite API key i secret.';
-            } else if (error.http_code === 400) {
-              errorMessage = `Cloudinary greška: ${errorMessage}`;
-            } else if (error.http_code === 403) {
-              errorMessage = 'Cloudinary pristup odbijen. Proverite dozvole.';
-            } else if (error.http_code === 404) {
+            if (httpCode === 401) {
+              errorMessage = 'Cloudinary autentifikacija neuspešna. Proverite API key i secret u environment varijablama.';
+            } else if (httpCode === 400) {
+              errorMessage = `Cloudinary greška (400): ${errorMessage}`;
+            } else if (httpCode === 403) {
+              errorMessage = 'Cloudinary pristup odbijen. Proverite dozvole i API key.';
+            } else if (httpCode === 404) {
               errorMessage = 'Cloudinary resurs nije pronađen.';
-            } else if (error.http_code === 500 || error.http_code === 502 || error.http_code === 503) {
-              errorMessage = `Cloudinary server greška (${error.http_code}): ${errorMessage}`;
-            } else if (error.http_code) {
-              errorMessage = `Cloudinary greška (${error.http_code}): ${errorMessage}`;
+            } else if (httpCode === 500 || httpCode === 502 || httpCode === 503) {
+              // Za 500 greške, možda je problem sa konfiguracijom
+              if (errorMessage.includes('invalid JSON') || errorMessage.includes('DOCTYPE')) {
+                errorMessage = 'Cloudinary server greška - proverite da li su environment varijable (CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET) pravilno podešene u produkciji.';
+              } else {
+                errorMessage = `Cloudinary server greška (${httpCode}): ${errorMessage}`;
+              }
+            } else if (httpCode) {
+              errorMessage = `Cloudinary greška (${httpCode}): ${errorMessage}`;
+            } else {
+              // Ako nema HTTP code ali ima poruku o JSON grešci
+              if (errorMessage.includes('invalid JSON') || errorMessage.includes('DOCTYPE')) {
+                errorMessage = 'Cloudinary server greška - proverite environment varijable i Cloudinary konfiguraciju.';
+              }
             }
             
             isResolved = true;
@@ -203,7 +233,26 @@ export const uploadImage = async (
         
         cleanup();
         console.error('Upload stream error:', streamError);
-        const streamErrorMessage = streamError?.message || streamError?.error?.message || 'Nepoznata greška pri upload stream-u';
+        console.error('Stream error details:', {
+          message: streamError?.message,
+          error: streamError?.error,
+          code: streamError?.code,
+          statusCode: streamError?.statusCode,
+        });
+        
+        let streamErrorMessage = 'Nepoznata greška pri upload stream-u';
+        if (streamError?.message) {
+          streamErrorMessage = streamError.message;
+          // Proveri da li je HTML error
+          if (streamErrorMessage.includes('invalid JSON') || streamErrorMessage.includes('DOCTYPE')) {
+            streamErrorMessage = 'Cloudinary server je vratio HTML umesto JSON-a. Proverite Cloudinary konfiguraciju.';
+          }
+        } else if (streamError?.error?.message) {
+          streamErrorMessage = streamError.error.message;
+        } else if (streamError?.error && typeof streamError.error === 'string') {
+          streamErrorMessage = streamError.error;
+        }
+        
         isResolved = true;
         reject(new Error(`Greška pri upload stream-u: ${streamErrorMessage}`));
       });

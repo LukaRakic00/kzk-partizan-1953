@@ -20,15 +20,38 @@ export async function POST(req: NextRequest) {
     }
 
     // Validate Cloudinary configuration
-    if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+    const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+    const apiKey = process.env.CLOUDINARY_API_KEY;
+    const apiSecret = process.env.CLOUDINARY_API_SECRET;
+    
+    if (!cloudName || !apiKey || !apiSecret) {
       console.error('Cloudinary configuration missing:', {
-        hasCloudName: !!process.env.CLOUDINARY_CLOUD_NAME,
-        hasApiKey: !!process.env.CLOUDINARY_API_KEY,
-        hasApiSecret: !!process.env.CLOUDINARY_API_SECRET,
+        hasCloudName: !!cloudName,
+        hasApiKey: !!apiKey,
+        hasApiSecret: !!apiSecret,
       });
       return NextResponse.json(
         { error: 'Cloudinary konfiguracija nije podešena. Proverite environment varijable.' },
-        { status: 500 }
+        { 
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        }
+      );
+    }
+    
+    // Proveri da li su vrednosti prazne stringove
+    if (cloudName.trim() === '' || apiKey.trim() === '' || apiSecret.trim() === '') {
+      console.error('Cloudinary configuration has empty values');
+      return NextResponse.json(
+        { error: 'Cloudinary environment varijable ne mogu biti prazne. Proverite environment varijable u produkciji.' },
+        { 
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        }
       );
     }
 
