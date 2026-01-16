@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { Montserrat, Playfair_Display } from 'next/font/google';
 import './globals.css';
 import { Toaster } from 'react-hot-toast';
+import BreadcrumbsSchema from '@/components/BreadcrumbsSchema';
 
 const montserrat = Montserrat({
   subsets: ['latin', 'cyrillic'],
@@ -69,6 +70,7 @@ export default function RootLayout({
   return (
     <html lang="sr" className={`${montserrat.variable} ${playfair.variable}`}>
       <body>
+        <BreadcrumbsSchema />
         {children}
         <Toaster
           position="top-right"
