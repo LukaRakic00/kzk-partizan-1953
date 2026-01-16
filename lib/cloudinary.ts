@@ -91,6 +91,99 @@ export const listImagesFromCloudinary = async (folder: string) => {
   }
 };
 
+// Direktan HTTP upload koristeći Cloudinary REST API
+async function uploadImageDirectHTTP(
+  file: File,
+  folder: string,
+  cloudName: string,
+  apiKey: string,
+  apiSecret: string
+): Promise<{
+  url: string;
+  publicId: string;
+  width: number;
+  height: number;
+  format: string;
+}> {
+  console.log('[CLOUDINARY-HTTP] Starting direct HTTP upload...');
+  
+  // Konvertuj file u buffer
+  const bytes = await file.arrayBuffer();
+  const buffer = Buffer.from(bytes);
+  
+  // Generiši timestamp i signature
+  const timestamp = Math.round(new Date().getTime() / 1000);
+  const uploadParams: Record<string, string> = {
+    folder: `KŽK_Partizan/${folder}`,
+    timestamp: timestamp.toString(),
+  };
+  
+  // Sortiraj parametre za signature
+  const sortedParams = Object.keys(uploadParams)
+    .sort()
+    .map(key => `${key}=${uploadParams[key]}`)
+    .join('&');
+  
+  // Generiši signature
+  const crypto = await import('crypto');
+  const signature = crypto
+    .createHash('sha1')
+    .update(sortedParams + apiSecret)
+    .digest('hex');
+  
+  // Koristi base64 string direktno (Cloudinary prihvata data URI)
+  const base64String = buffer.toString('base64');
+  const dataUri = `data:${file.type};base64,${base64String}`;
+  
+  // Kreiraj FormData (Next.js ima globalni FormData)
+  const formData = new FormData();
+  formData.append('file', dataUri);
+  formData.append('folder', uploadParams.folder);
+  formData.append('api_key', apiKey);
+  formData.append('timestamp', timestamp.toString());
+  formData.append('signature', signature);
+  
+  // Pošalji HTTP zahtev
+  const uploadUrl = `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`;
+  console.log('[CLOUDINARY-HTTP] Uploading to:', uploadUrl);
+  
+  const response = await fetch(uploadUrl, {
+    method: 'POST',
+    body: formData,
+  });
+  
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('[CLOUDINARY-HTTP] Upload failed:', {
+      status: response.status,
+      statusText: response.statusText,
+      errorText: errorText.substring(0, 500),
+    });
+    
+    // Pokušaj da parsiraj JSON error ako postoji
+    try {
+      const errorJson = JSON.parse(errorText);
+      throw new Error(`Cloudinary upload failed: ${errorJson.error?.message || errorText}`);
+    } catch {
+      throw new Error(`Cloudinary upload failed (${response.status}): ${errorText.substring(0, 200)}`);
+    }
+  }
+  
+  const result = await response.json();
+  console.log('[CLOUDINARY-HTTP] Upload successful:', {
+    publicId: result.public_id,
+    url: result.secure_url,
+  });
+  
+  return {
+    url: result.secure_url,
+    publicId: result.public_id,
+    width: result.width || 0,
+    height: result.height || 0,
+    format: result.format || 'unknown',
+  };
+}
+
 export const uploadImage = async (
   file: File,
   folder: string
@@ -107,6 +200,24 @@ export const uploadImage = async (
   } catch (configError: any) {
     console.error('Cloudinary configuration error:', configError);
     throw new Error(`Cloudinary konfiguracija neuspešna: ${configError.message}`);
+  }
+
+  const cloudName = process.env.CLOUDINARY_CLOUD_NAME!;
+  const apiKey = process.env.CLOUDINARY_API_KEY!;
+  const apiSecret = process.env.CLOUDINARY_API_SECRET!;
+
+  // U serverless okruženju (Vercel), koristi direktan HTTP upload umesto SDK-a
+  // SDK ima problema sa HTML odgovorima umesto JSON-a
+  const isVercel = process.env.VERCEL === '1' || process.env.VERCEL_ENV;
+  
+  if (isVercel) {
+    console.log('[CLOUDINARY] Using direct HTTP upload (Vercel serverless)');
+    try {
+      return await uploadImageDirectHTTP(file, folder, cloudName, apiKey, apiSecret);
+    } catch (httpError: any) {
+      console.error('[CLOUDINARY] Direct HTTP upload failed, trying SDK fallback:', httpError.message);
+      // Fallback na SDK ako HTTP ne radi
+    }
   }
 
   let bytes: ArrayBuffer;
