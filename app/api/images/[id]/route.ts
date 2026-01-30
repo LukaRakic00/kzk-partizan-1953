@@ -59,18 +59,59 @@ export async function PUT(
       const folder = formData.get('folder') as string;
       const order = formData.get('order') as string;
       const category = formData.get('category') as string;
+      const urlSajta = formData.get('urlSajta') as string | null;
+
+      console.log('Updating image metadata:', { id: params.id, folder, order, category, urlSajta });
 
       const updateData: any = {};
       if (folder) updateData.folder = folder;
       if (order) updateData.order = parseInt(order);
-      if (category !== null) updateData.category = category || undefined;
+      if (category !== null && category !== undefined) updateData.category = category || undefined;
+      
+      // Uvek ažuriraj urlSajta - ako postoji u formData, ažuriraj ga
+      // Eksplicitno postavi polje čak i ako je prazan
+      if (formData.has('urlSajta')) {
+        const urlValue = urlSajta || '';
+        const trimmedUrl = urlValue.trim();
+        // Ako je prazan string, postavi na null umesto praznog stringa
+        // MongoDB će sačuvati null, a na frontendu ćemo proveriti da li postoji i nije prazan
+        updateData.urlSajta = trimmedUrl === '' ? null : trimmedUrl;
+        console.log('Setting urlSajta in updateData:', updateData.urlSajta);
+      } else {
+        // Ako urlSajta nije poslat, ne menjaj ga
+        console.log('urlSajta not in formData, skipping update');
+      }
 
+      console.log('Update data:', updateData);
+
+      // Koristi $set da eksplicitno postavi polja
+      // Ovo osigurava da se polje postavi čak i ako je null
+      const updateQuery: any = {};
+      
+      if (Object.keys(updateData).length > 0) {
+        updateQuery.$set = updateData;
+      }
+      
+      console.log('Update query:', JSON.stringify(updateQuery, null, 2));
+
+      // Ažuriraj dokument
       const updatedImage = await Image.findByIdAndUpdate(
         params.id,
-        updateData,
-        { new: true }
+        updateQuery,
+        { new: true, runValidators: true }
       );
 
+      if (!updatedImage) {
+        throw new Error('Slika nije pronađena');
+      }
+
+      // Učitaj ponovo iz baze da proverim
+      const verifyImage = await Image.findById(params.id);
+      const imageObj = verifyImage?.toObject();
+      console.log('Updated image from DB:', JSON.stringify(imageObj, null, 2));
+      console.log('urlSajta value in DB:', imageObj?.urlSajta);
+      console.log('urlSajta exists in DB:', 'urlSajta' in (imageObj || {}));
+      
       return NextResponse.json(updatedImage);
     }
 
@@ -100,16 +141,40 @@ export async function PUT(
     const folderFromForm = formData.get('folder') as string;
     const order = formData.get('order') as string;
     const category = formData.get('category') as string;
+    const urlSajta = formData.get('urlSajta') as string | null;
 
     if (folderFromForm) updateData.folder = folderFromForm;
     if (order) updateData.order = parseInt(order);
-    if (category !== null) updateData.category = category || undefined;
+    if (category !== null && category !== undefined) updateData.category = category || undefined;
+    
+    // Uvek ažuriraj urlSajta - ako postoji u formData, ažuriraj ga
+    if (formData.has('urlSajta')) {
+      const urlValue = urlSajta || '';
+      const trimmedUrl = urlValue.trim();
+      // Ako je prazan string, postavi na null umesto praznog stringa
+      // MongoDB će sačuvati null, a na frontendu ćemo proveriti da li postoji i nije prazan
+      updateData.urlSajta = trimmedUrl === '' ? null : trimmedUrl;
+      console.log('Setting urlSajta (with file upload):', updateData.urlSajta);
+    }
+
+    console.log('Update data (with file upload):', updateData);
 
     const updatedImage = await Image.findByIdAndUpdate(
       params.id,
-      updateData,
-      { new: true }
+      { $set: updateData },
+      { new: true, runValidators: true }
     );
+
+    if (!updatedImage) {
+      throw new Error('Slika nije pronađena');
+    }
+
+    // Učitaj ponovo iz baze da proverim
+    const verifyImage = await Image.findById(params.id);
+    const imageObj = verifyImage?.toObject();
+    console.log('Updated image from DB (with file upload):', JSON.stringify(imageObj, null, 2));
+      console.log('urlSajta value in DB:', imageObj?.urlSajta);
+      console.log('urlSajta exists in DB:', 'urlSajta' in (imageObj || {}));
 
     return NextResponse.json(updatedImage);
   } catch (error: any) {

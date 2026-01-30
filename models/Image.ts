@@ -9,6 +9,7 @@ export interface IImage extends Document {
   width?: number;
   height?: number;
   format?: string;
+  urlSajta?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -44,6 +45,12 @@ const ImageSchema: Schema = new Schema(
     },
     format: {
       type: String,
+    },
+    urlSajta: {
+      type: String,
+      required: false,
+      default: null,
+      sparse: true,
     },
   },
   {

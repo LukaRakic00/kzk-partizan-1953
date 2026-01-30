@@ -17,6 +17,7 @@ interface ImageItem {
   width?: number;
   height?: number;
   format?: string;
+  urlSajta?: string | null;
 }
 
 export default function AdminImages() {
@@ -24,10 +25,11 @@ export default function AdminImages() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingImage, setEditingImage] = useState<ImageItem | null>(null);
-  const     [formData, setFormData] = useState({
+  const [formData, setFormData] = useState({
       folder: 'baneri',
       category: '',
       order: 0,
+      urlSajta: '',
     });
   const [uploading, setUploading] = useState(false);
   const [selectedFolder, setSelectedFolder] = useState<string>('all');
@@ -75,6 +77,12 @@ export default function AdminImages() {
         if (formData.category) {
           updateFormData.append('category', formData.category);
         }
+        // Uvek pošalji urlSajta - ako je prazan, pošalji prazan string (server će ga postaviti na null)
+        if (formData.urlSajta && formData.urlSajta.trim() !== '') {
+          updateFormData.append('urlSajta', formData.urlSajta.trim());
+        } else {
+          updateFormData.append('urlSajta', '');
+        }
 
         const token = localStorage.getItem('auth-token');
         const response = await fetch(`/api/images/${editingImage._id}`, {
@@ -94,7 +102,7 @@ export default function AdminImages() {
         loadImages();
         setShowModal(false);
         setEditingImage(null);
-        setFormData({ folder: selectedFolder === 'all' ? 'baneri' : selectedFolder, category: '', order: 0 });
+        setFormData({ folder: selectedFolder === 'all' ? 'baneri' : selectedFolder, category: '', order: 0, urlSajta: '' });
       } else {
         // Nova slika
         const uploadFormData = new FormData();
@@ -145,6 +153,13 @@ export default function AdminImages() {
         if (formData.category && formData.category.trim() !== '') {
           imageData.category = formData.category;
         }
+        
+        // Dodaj urlSajta - ako je unet, sačuvaj ga, inače postavi na null
+        if (formData.urlSajta && formData.urlSajta.trim() !== '') {
+          imageData.urlSajta = formData.urlSajta.trim();
+        } else {
+          imageData.urlSajta = null;
+        }
 
         console.log('Creating image in DB:', imageData); // Debug
         const createdImage = await apiClient.createImage(imageData);
@@ -153,7 +168,7 @@ export default function AdminImages() {
         toast.success('Slika je uspešno upload-ovana i sačuvana');
         loadImages();
         setShowModal(false);
-        setFormData({ folder: selectedFolder === 'all' ? 'baneri' : selectedFolder, category: '', order: 0 });
+        setFormData({ folder: selectedFolder === 'all' ? 'baneri' : selectedFolder, category: '', order: 0, urlSajta: '' });
       }
     } catch (error: any) {
       console.error('Upload error:', error);
@@ -322,7 +337,7 @@ export default function AdminImages() {
           <button
             onClick={() => {
               setEditingImage(null);
-              setFormData({ folder: selectedFolder === 'all' ? 'baneri' : selectedFolder, category: '', order: 0 });
+              setFormData({ folder: selectedFolder === 'all' ? 'baneri' : selectedFolder, category: '', order: 0, urlSajta: '' });
               setShowModal(true);
             }}
             className="bg-white text-black px-4 sm:px-6 py-2 sm:py-3 font-semibold uppercase tracking-wider hover:bg-gray-200 transition-all flex items-center justify-center text-xs sm:text-sm"
@@ -427,7 +442,7 @@ export default function AdminImages() {
           <button
             onClick={() => {
               setEditingImage(null);
-              setFormData({ folder: selectedFolder === 'all' ? 'baneri' : selectedFolder, category: '', order: 0 });
+              setFormData({ folder: selectedFolder === 'all' ? 'baneri' : selectedFolder, category: '', order: 0, urlSajta: '' });
               setShowModal(true);
             }}
             className="bg-white text-black px-6 py-3 font-semibold uppercase tracking-wider hover:bg-gray-200 transition-all"
@@ -471,6 +486,15 @@ export default function AdminImages() {
                     {image.width} x {image.height}
                   </p>
                 )}
+                {image.urlSajta && image.urlSajta.trim() !== '' ? (
+                  <p className={`text-xs mt-1 truncate ${image.folder === 'partneri' ? 'text-yellow-400 font-semibold' : 'text-blue-400'}`} title={image.urlSajta}>
+                    🔗 {image.urlSajta}
+                  </p>
+                ) : image.folder === 'partneri' ? (
+                  <p className="text-xs text-gray-500 mt-1 italic">
+                    ⚠️ Nema URL-a - partner nije klikabilan
+                  </p>
+                ) : null}
               </div>
               <div className="flex space-x-2">
                 <button
@@ -487,6 +511,7 @@ export default function AdminImages() {
                       folder: image.folder,
                       category: image.category || '',
                       order: image.order,
+                      urlSajta: image.urlSajta || '',
                     });
                     setShowModal(true);
                   }}
@@ -586,6 +611,26 @@ export default function AdminImages() {
               </div>
 
               <div>
+                <label className={`block text-sm font-medium mb-2 ${formData.folder === 'partneri' ? 'text-yellow-400' : ''}`}>
+                  URL Sajta {formData.folder === 'baneri' ? '(za banere)' : formData.folder === 'partneri' ? '(za partnere - OBAVEZNO za klikabilne linkove!)' : ''} - {formData.folder === 'partneri' ? 'preporučeno' : 'opciono'}
+                </label>
+                <input
+                  type="url"
+                  value={formData.urlSajta}
+                  onChange={(e) => setFormData({ ...formData, urlSajta: e.target.value })}
+                  className={`w-full bg-white/5 border ${formData.folder === 'partneri' ? 'border-yellow-500/50 focus:border-yellow-500' : 'border-white/10 focus:border-white'} px-4 py-3 text-white focus:outline-none`}
+                  placeholder="https://example.com"
+                />
+                <p className={`text-xs mt-1 ${formData.folder === 'partneri' ? 'text-yellow-400' : 'text-gray-400'}`}>
+                  {formData.folder === 'baneri' 
+                    ? 'Ako je unet URL, baner će biti klikabilan i vodiće na ovaj sajt. Ostavite prazno ako baner ne treba da bude klikabilan.'
+                    : formData.folder === 'partneri'
+                    ? '⚠️ VAŽNO: Ako je unet URL, partner će biti klikabilan i vodiće na ovaj sajt. Ostavite prazno ako partner ne treba da bude klikabilan. URL mora počinjati sa http:// ili https://'
+                    : 'Ako je unet URL, slika će biti klikabilna i vodiće na ovaj sajt. Ostavite prazno ako slika ne treba da bude klikabilna.'}
+                </p>
+              </div>
+
+              <div>
                 <label className="block text-sm font-medium mb-2">
                   {editingImage ? 'Nova slika (zamenjuje staru)' : 'Slika'}
                 </label>
@@ -634,6 +679,12 @@ export default function AdminImages() {
                         if (formData.category) {
                           updateFormData.append('category', formData.category);
                         }
+                        // Uvek pošalji urlSajta - ako je prazan, pošalji prazan string (server će ga postaviti na null)
+                        if (formData.urlSajta && formData.urlSajta.trim() !== '') {
+                          updateFormData.append('urlSajta', formData.urlSajta.trim());
+                        } else {
+                          updateFormData.append('urlSajta', '');
+                        }
 
                         const token = localStorage.getItem('auth-token');
                         const response = await fetch(`/api/images/${editingImage._id}`, {
@@ -653,7 +704,7 @@ export default function AdminImages() {
                         loadImages();
                         setShowModal(false);
                         setEditingImage(null);
-                        setFormData({ folder: selectedFolder === 'all' ? 'baneri' : selectedFolder, category: '', order: 0 });
+                        setFormData({ folder: selectedFolder === 'all' ? 'baneri' : selectedFolder, category: '', order: 0, urlSajta: '' });
                       } catch (error: any) {
                         toast.error(`Greška: ${error.message}`);
                       } finally {
@@ -670,7 +721,7 @@ export default function AdminImages() {
                     onClick={() => {
                       setShowModal(false);
                       setEditingImage(null);
-                      setFormData({ folder: selectedFolder === 'all' ? 'baneri' : selectedFolder, category: '', order: 0 });
+                      setFormData({ folder: selectedFolder === 'all' ? 'baneri' : selectedFolder, category: '', order: 0, urlSajta: '' });
                     }}
                     className="flex-1 bg-white/10 text-white px-6 py-3 font-semibold uppercase tracking-wider hover:bg-white/20 transition-all"
                     disabled={uploading}

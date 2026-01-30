@@ -12,17 +12,9 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Calendar, ArrowRight } from 'lucide-react';
 import { format } from 'date-fns';
-
-interface News {
-  _id: string;
-  title: string;
-  slug: string;
-  excerpt: string;
-  image?: string;
-  published: boolean;
-  publishedAt?: string;
-  category: string;
-}
+import { News } from '@/types';
+import LoadingSpinner from '@/components/common/LoadingSpinner';
+import EmptyState from '@/components/common/EmptyState';
 
 export default function VestiPage() {
   const [news, setNews] = useState<News[]>([]);
@@ -71,9 +63,7 @@ export default function VestiPage() {
           </motion.div>
 
           {loading ? (
-            <div className="text-center py-20">
-              <div className="text-gray-400">Učitavanje vesti...</div>
-            </div>
+            <LoadingSpinner message="Učitavanje vesti..." />
           ) : (
             <>
               {news.length > 0 ? (
@@ -85,13 +75,15 @@ export default function VestiPage() {
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.1 }}
                       className="bg-white/5 border border-white/10 hover:bg-white/10 transition-all group"
+                      itemScope
+                      itemType="https://schema.org/NewsArticle"
                     >
                       <Link href={`/vesti/${item.slug}`}>
                         <div className="aspect-video relative overflow-hidden">
                           {item.image ? (
                             <Image
                               src={item.image}
-                              alt={item.title}
+                              alt={`${item.title} - KŽK Partizan vesti`}
                               fill
                               className="object-cover group-hover:scale-105 transition-transform"
                             />
@@ -111,10 +103,10 @@ export default function VestiPage() {
                               </div>
                             )}
                           </div>
-                          <h2 className="text-2xl font-bold font-playfair mb-3 group-hover:text-white transition-colors">
+                          <h2 className="text-2xl font-bold font-playfair mb-3 group-hover:text-white transition-colors" itemProp="headline">
                             {item.title}
                           </h2>
-                          <p className="text-gray-300 mb-4 line-clamp-3">{item.excerpt}</p>
+                          <p className="text-gray-300 mb-4 line-clamp-3" itemProp="description">{item.excerpt}</p>
                           <div className="flex items-center justify-end">
                             <span className="text-white text-sm uppercase tracking-wider flex items-center group-hover:underline">
                               Pročitaj više
@@ -127,9 +119,7 @@ export default function VestiPage() {
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-20">
-                  <p className="text-gray-400">Vesti će biti dodate uskoro.</p>
-                </div>
+                <EmptyState message="Vesti će biti dodate uskoro." />
               )}
             </>
           )}

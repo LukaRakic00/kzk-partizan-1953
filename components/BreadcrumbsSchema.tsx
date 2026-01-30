@@ -67,11 +67,31 @@ export default function BreadcrumbsSchema() {
       '@context': 'https://schema.org',
       '@type': 'SportsOrganization',
       name: 'KŽK Partizan 1953',
+      alternateName: 'Košarkaški ženski klub Partizan 1953',
       url: 'https://kzkpartizan.rs',
-      logo: 'https://kzkpartizan.rs/kzk_partizan.png',
-      description: 'Ženski Košarkaški Klub Partizan 1953',
+      logo: {
+        '@type': 'ImageObject',
+        url: 'https://kzkpartizan.rs/kzk_partizan.png',
+      },
+      description: 'Ženski Košarkaški Klub Partizan 1953 - Tradicija, ponos i uspeh od 1953. godine',
       foundingDate: '1953',
       sport: 'Basketball',
+      address: {
+        '@type': 'PostalAddress',
+        streetAddress: 'Humska 1',
+        addressLocality: 'Beograd',
+        postalCode: '11000',
+        addressCountry: 'RS',
+      },
+      contactPoint: {
+        '@type': 'ContactPoint',
+        telephone: '+381-11-264-76-58',
+        email: 'info@kzkpartizan1953.rs',
+        contactType: 'customer service',
+      },
+      sameAs: [
+        // Add social media links if available
+      ],
     };
 
     // Ukloni postojeće schema ako postoje

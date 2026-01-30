@@ -1,15 +1,43 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { jwtVerify } from 'jose';
+import { env } from './lib/env';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
-const secret = new TextEncoder().encode(JWT_SECRET);
+const secret = new TextEncoder().encode(env.JWT_SECRET);
 
 // Verifikuj token koristeći jose (kompatibilno sa Edge Runtime)
-async function verifyTokenEdge(token: string): Promise<any | null> {
+interface TokenPayload {
+  userId: string;
+  username?: string;
+  email?: string;
+  role: string;
+  iat?: number;
+  exp?: number;
+}
+
+// Type guard za validaciju payload-a
+function isValidTokenPayload(payload: unknown): payload is TokenPayload {
+  if (!payload || typeof payload !== 'object') {
+    return false;
+  }
+  
+  const p = payload as Record<string, unknown>;
+  return (
+    typeof p.userId === 'string' &&
+    typeof p.role === 'string'
+  );
+}
+
+async function verifyTokenEdge(token: string): Promise<TokenPayload | null> {
   try {
     const { payload } = await jwtVerify(token, secret);
-    return payload;
+    
+    // Validiraj da payload ima potrebna polja
+    if (isValidTokenPayload(payload)) {
+      return payload;
+    }
+    
+    return null;
   } catch {
     return null;
   }

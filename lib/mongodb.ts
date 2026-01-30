@@ -1,11 +1,8 @@
 import mongoose from 'mongoose';
+import { env } from './env';
 
-const MONGODB_URI = process.env.MONGODB_URI!;
-const MONGO_DB = process.env.MONGO_DB || 'KZKPartizanDB';
-
-if (!MONGODB_URI) {
-  throw new Error('Please define the MONGODB_URI environment variable inside .env');
-}
+const MONGODB_URI = env.MONGODB_URI;
+const MONGO_DB = env.MONGO_DB;
 
 interface MongooseCache {
   conn: typeof mongoose | null;

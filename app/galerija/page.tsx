@@ -9,14 +9,7 @@ import { apiClient } from '@/lib/api-client';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import { ChevronDown, ChevronUp, ChevronLeft, ChevronRight, X } from 'lucide-react';
-
-interface Gallery {
-  _id: string;
-  title: string;
-  description?: string;
-  images: string[];
-  category: string;
-}
+import { Gallery } from '@/types';
 
 export default function GalerijaPage() {
   const [galleries, setGalleries] = useState<Gallery[]>([]);
@@ -194,7 +187,7 @@ export default function GalerijaPage() {
                           >
                             <Image
                               src={image}
-                                              alt={`${gallery.title || 'Galerija'} - ${imgIndex + 1}`}
+                              alt={`KŽK Partizan galerija - ${gallery.title || 'Galerija'} - Slika ${imgIndex + 1}`}
                               fill
                               className="object-cover group-hover:scale-110 transition-transform duration-300"
                             />
@@ -279,11 +272,11 @@ export default function GalerijaPage() {
                   transition={{ duration: 0.3 }}
                 >
             <Image
-                    src={allImages[selectedImageIndex]}
-                    alt={`Image ${selectedImageIndex + 1}`}
+              src={allImages[selectedImageIndex]}
+              alt={`KŽK Partizan galerija - Slika ${selectedImageIndex + 1}`}
               width={1200}
               height={800}
-                    className="object-contain max-h-[90vh] w-full"
+              className="object-contain max-h-[90vh] w-full"
             />
                 </motion.div>
               </AnimatePresence>

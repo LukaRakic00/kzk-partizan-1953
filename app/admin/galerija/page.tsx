@@ -5,14 +5,7 @@ import { apiClient } from '@/lib/api-client';
 import { Plus, Edit, Trash2, Upload, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Image from 'next/image';
-
-interface Gallery {
-  _id: string;
-  title: string;
-  description?: string;
-  images: string[];
-  category: string;
-}
+import { Gallery } from '@/types';
 
 export default function AdminGallery() {
   const [galleries, setGalleries] = useState<Gallery[]>([]);

@@ -10,13 +10,7 @@ import { motion } from 'framer-motion';
 import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowRight, Users } from 'lucide-react';
-
-interface Team {
-  season?: string;
-  title?: string;
-  description?: string;
-  teamImage?: string;
-}
+import { Team } from '@/types';
 
 export default function TimPage() {
   const [teamData, setTeamData] = useState({
@@ -26,10 +20,27 @@ export default function TimPage() {
     teamImage: '',
   });
   const [loading, setLoading] = useState(true);
+  const [sectionTexts, setSectionTexts] = useState<any>({});
 
   useEffect(() => {
     loadData();
+    loadSectionTexts();
   }, []);
+
+  const loadSectionTexts = async () => {
+    try {
+      const texts = await apiClient.getSettings();
+      const textsObj: any = {};
+      texts.forEach((setting: any) => {
+        if (setting.key.startsWith('basketball_school_')) {
+          textsObj[setting.key] = setting.value;
+        }
+      });
+      setSectionTexts(textsObj);
+    } catch (error) {
+      console.error('Error loading section texts:', error);
+    }
+  };
 
   const loadData = async () => {
     try {
@@ -121,6 +132,60 @@ export default function TimPage() {
       </section>
 
       <LiveMatches />
+
+      {/* Škola Košarke Sekcija */}
+      <section id="skola-kosarke" className="pt-12 py-20 bg-black/50 border-t border-white/10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="max-w-4xl mx-auto"
+          >
+            <div className="text-center mb-12">
+              <h2 className="text-[30px] font-bold font-playfair uppercase tracking-wider mb-4 text-white">
+                Škola Košarke
+              </h2>
+              <div className="w-24 h-1 bg-white mx-auto mb-8"></div>
+            </div>
+            
+            <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-lg p-8 md:p-12">
+              <motion.p
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="text-lg md:text-xl text-gray-300 leading-relaxed mb-8 text-center"
+              >
+                {sectionTexts.basketball_school_text || 'KŽK Partizan 1953 svake godine otvara vrata novim generacijama mladih košarkašica kroz upis u školu košarke. Naš cilj je da otkrijemo, razvijemo i inspirišemo buduće zvezde ovog sporta. Ako voliš košarku, sanjaš velike snove i želiš da rasteš uz podršku vrhunskih trenera i tradicije duge decenijama – pravo je vreme da postaneš deo crno-bele porodice!'}
+              </motion.p>
+              
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="bg-white/5 border border-white/10 rounded-lg p-6 text-center"
+              >
+                <h3 className="text-xl md:text-2xl font-bold font-playfair mb-4 text-white">Kontakt</h3>
+                <div className="space-y-3 text-gray-300">
+                  <p className="text-lg font-semibold">{sectionTexts.basketball_school_contact_name || 'Sofija Čukić'}</p>
+                  <a 
+                    href={`tel:${sectionTexts.basketball_school_contact_phone || '+381668391992'}`}
+                    className="block text-lg hover:text-white transition-colors"
+                  >
+                    {sectionTexts.basketball_school_contact_phone || '+381 66 8391 992'}
+                  </a>
+                  <a 
+                    href={`mailto:${sectionTexts.basketball_school_contact_email || 'sofija.cukic@kzkpartizan1953.rs'}`}
+                    className="block text-lg hover:text-white transition-colors break-all"
+                  >
+                    {sectionTexts.basketball_school_contact_email || 'sofija.cukic@kzkpartizan1953.rs'}
+                  </a>
+                </div>
+              </motion.div>
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
       <Footer />
       </div>
     </main>

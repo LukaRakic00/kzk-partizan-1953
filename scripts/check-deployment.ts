@@ -17,7 +17,6 @@ const requiredEnvVars = [
 const optionalEnvVars = [
   'MONGO_DB',
   'NEXTAUTH_SECRET',
-  'SCRAPINGBEE_API_KEY',
 ];
 
 interface CheckResult {

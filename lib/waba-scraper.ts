@@ -65,7 +65,6 @@ export class WABAStandingsScraper {
     
     // Za Vercel/produkciju, prioritizuj Puppeteer + @sparticuz/chromium
     // Playwright ne radi u Vercel serverless bez bundling browser-a
-    // Zatim ScrapingBee API kao fallback
     
     // 1. Za Vercel/produkciju, koristi Puppeteer + @sparticuz/chromium (najbolje za serverless)
     if (isVercel || (isProduction && chromium)) {
@@ -118,7 +117,6 @@ export class WABAStandingsScraper {
           if (errorMsg.includes('shared libraries') || errorMsg.includes('libnss3.so')) {
             console.error('NAPOMENA: @sparticuz/chromium zahteva dodatne system biblioteke.');
             console.error('Proverite da li je @sparticuz/chromium pravilno instaliran i da li je verzija kompatibilna sa Vercel Lambda okruženjem.');
-            console.error('Preporučeno: koristite ScrapingBee API kao alternativu.');
           }
           
           console.error('Stack trace:', err.stack);
@@ -206,107 +204,22 @@ export class WABAStandingsScraper {
 
     // Ako ništa nije uspelo
     console.error('✗ Nijedan browser automation tool nije uspeo da se inicijalizuje');
-    console.error('Dostupni paketi:', {
+      console.error('Dostupni paketi:', {
       puppeteer: !!puppeteer,
       chromium: !!chromium,
       playwright: !!playwright,
       vercel: isVercel,
       production: isProduction,
-      scrapingBeeApiKey: !!process.env.SCRAPINGBEE_API_KEY,
     });
     
-    // Ako postoji ScrapingBee API key, to je OK - koristićemo ga umesto browser automation
-    if (process.env.SCRAPINGBEE_API_KEY) {
-      console.log('ℹ ScrapingBee API key je dostupan - koristiće se umesto browser automation');
-      return false; // Vraćamo false ali će ScrapingBee biti korišćen u scrapeStandings
-    }
+    // Browser automation je primarni način za scraping
     
     this.usePuppeteer = false;
     return false;
   }
 
   async scrapeStandings(): Promise<WabaTeamData[]> {
-    // Proveri da li postoji ScrapingBee API key - koristi ga kao primarni način
-    // ScrapingBee radi i u development i u production okruženju
     const isVercel = process.env.VERCEL === '1' || process.env.VERCEL_ENV;
-    const scrapingBeeApiKey = process.env.SCRAPINGBEE_API_KEY?.trim();
-    
-    // Debug: loguj sve environment variables koje se tiču ScrapingBee
-    console.log('=== SCRAPINGBEE DEBUG ===');
-    console.log('Environment check:', {
-      VERCEL: process.env.VERCEL,
-      VERCEL_ENV: process.env.VERCEL_ENV,
-      NODE_ENV: process.env.NODE_ENV,
-      isVercel: isVercel,
-    });
-    
-    // Proveri sve moguće varijante imena environment variable
-    const envVars = {
-      'SCRAPINGBEE_API_KEY': process.env.SCRAPINGBEE_API_KEY,
-      'NEXT_PUBLIC_SCRAPINGBEE_API_KEY': process.env.NEXT_PUBLIC_SCRAPINGBEE_API_KEY,
-      'scrapingbee_api_key': process.env.scrapingbee_api_key,
-    };
-    
-    console.log('All ScrapingBee env vars:', Object.keys(envVars).map(key => ({
-      key,
-      exists: !!envVars[key as keyof typeof envVars],
-      length: envVars[key as keyof typeof envVars]?.length || 0,
-    })));
-    
-    console.log('ScrapingBee API key check:', {
-      exists: !!process.env.SCRAPINGBEE_API_KEY,
-      trimmed: !!scrapingBeeApiKey,
-      length: scrapingBeeApiKey?.length || 0,
-      preview: scrapingBeeApiKey ? `${scrapingBeeApiKey.substring(0, 10)}...${scrapingBeeApiKey.substring(scrapingBeeApiKey.length - 5)}` : 'N/A',
-      isEmpty: scrapingBeeApiKey === '',
-      isUndefined: scrapingBeeApiKey === undefined,
-      isNull: scrapingBeeApiKey === null,
-    });
-    console.log('=== END SCRAPINGBEE DEBUG ===');
-    
-    console.log('Provera ScrapingBee API key:', scrapingBeeApiKey ? `DOSTUPAN (${scrapingBeeApiKey.length} karaktera)` : 'NIJE DOSTUPAN');
-    
-    if (scrapingBeeApiKey) {
-      const isVercel = process.env.VERCEL === '1' || process.env.VERCEL_ENV;
-      const env = isVercel ? 'produkciji (Vercel)' : process.env.NODE_ENV === 'production' ? 'produkciji' : 'development';
-      console.log(`✓ Koristim ScrapingBee API (preporučeno za ${env})...`);
-      try {
-        const standings = await this.scrapeWithScrapingBee();
-        if (standings && standings.length > 0) {
-          console.log(`✓ ScrapingBee uspešan: pronađeno ${standings.length} timova`);
-          return standings;
-        } else {
-          console.warn('ScrapingBee vratio prazan rezultat, pokušavam sa browser automation...');
-        }
-      } catch (sbError: any) {
-        console.error('✗ ScrapingBee API neuspešan:', sbError.message);
-        console.error('ScrapingBee error details:', {
-          message: sbError.message,
-          stack: sbError.stack?.substring(0, 500),
-        });
-        
-        // Ako je greška vezana za invalid API key, pokušaj browser automation fallback
-        if (sbError.message && sbError.message.includes('Invalid API key')) {
-          console.warn('⚠ ScrapingBee API key nije validan. Pokušavam browser automation fallback...');
-          if (isVercel) {
-            console.warn('U Vercel produkciji, pokušavam Puppeteer + @sparticuz/chromium kao fallback...');
-          }
-          // Nastavi sa browser automation fallback
-        } else {
-          console.warn('Pokušavam sa browser automation fallback...');
-        }
-        // Nastavi sa browser automation fallback (i u Vercel-u)
-        // Ne baci grešku odmah - pokušaj prvo browser automation
-      }
-    } else {
-      // Ako nema ScrapingBee API key, samo loguj upozorenje i nastavi sa fallback opcijama
-      if (isVercel) {
-        console.warn('⚠ ScrapingBee API key nije dostupan u Vercel produkciji. Koristim browser automation ili fetch kao fallback.');
-        console.warn('💡 Za bolje performanse, dodajte SCRAPINGBEE_API_KEY u Vercel Environment Variables (Settings → Environment Variables → Production).');
-      } else {
-        console.log('ScrapingBee API key nije dostupan, koristim browser automation ili fetch');
-      }
-    }
 
     // Ako browser automation nije inicijalizovan, pokušaj da ga inicijalizuješ
     if (!this.browser) {
@@ -328,8 +241,7 @@ export class WABAStandingsScraper {
     if (!this.usePuppeteer || !this.browser) {
       if (isVercel) {
         // U Vercel produkciji, fetch metoda neće raditi jer stranica koristi JavaScript
-        // Ako smo došli ovde, znači da ScrapingBee nije radio i browser automation nije dostupan
-        throw new Error('Browser automation nije dostupan u Vercel produkciji. Proverite da li su instalirani puppeteer-core i @sparticuz/chromium paketi, ili da li je SCRAPINGBEE_API_KEY pravilno postavljen u Vercel Environment Variables.');
+        throw new Error('Browser automation nije dostupan u Vercel produkciji. Proverite da li su instalirani puppeteer-core i @sparticuz/chromium paketi.');
       }
       console.log('Koristim fetch metodu jer browser automation nije dostupan ili nije inicijalizovan');
       console.warn('NAPOMENA: Fetch metoda možda neće moći da pronađe tabelu ako stranica koristi JavaScript za renderovanje.');
@@ -634,145 +546,6 @@ export class WABAStandingsScraper {
     }
   }
 
-  private async scrapeWithScrapingBee(): Promise<WabaTeamData[]> {
-    const scrapingBeeApiKey = process.env.SCRAPINGBEE_API_KEY?.trim();
-    if (!scrapingBeeApiKey) {
-      throw new Error('SCRAPINGBEE_API_KEY nije postavljen');
-    }
-
-    // Proveri da li API key izgleda validno (ScrapingBee API key je obično 40+ karaktera)
-    if (scrapingBeeApiKey.length < 20) {
-      throw new Error(`SCRAPINGBEE_API_KEY izgleda nevalidno (prekratak: ${scrapingBeeApiKey.length} karaktera). Proverite da li je pravilno postavljen u .env fajlu.`);
-    }
-
-    console.log('Koristim ScrapingBee API za scraping...');
-    console.log(`API key dužina: ${scrapingBeeApiKey.length} karaktera`);
-    
-    try {
-      // ScrapingBee API sa render_js=true za JavaScript-renderovane stranice
-      // Povećaj wait vreme da se tabela potpuno učita (maksimum je 10000ms)
-      const scrapingBeeUrl = `https://app.scrapingbee.com/api/v1/?api_key=${encodeURIComponent(scrapingBeeApiKey)}&url=${encodeURIComponent(CONFIG.URL)}&render_js=true&wait=10000`;
-      
-      console.log('Pozivam ScrapingBee API...');
-      console.log('ScrapingBee URL (bez API key):', `https://app.scrapingbee.com/api/v1/?url=${encodeURIComponent(CONFIG.URL)}&render_js=true&wait=10000`);
-      
-      const response = await fetch(scrapingBeeUrl, {
-        method: 'GET',
-        headers: {
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        },
-        // Povećaj timeout za produkciju
-        signal: AbortSignal.timeout(60000), // 60 sekundi timeout
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        let errorMessage = `ScrapingBee API error: ${response.status}`;
-        
-        if (response.status === 401) {
-          errorMessage += ' - Invalid API key. Proverite da li je API key pravilno postavljen u .env fajlu i da li je validan na ScrapingBee dashboard-u.';
-        } else if (response.status === 402) {
-          errorMessage += ' - Payment required. Proverite da li imate dovoljno kredita na ScrapingBee nalogu.';
-        } else {
-          errorMessage += ` - ${errorText.substring(0, 200)}`;
-        }
-        
-        throw new Error(errorMessage);
-      }
-
-      const html = await response.text();
-      
-      if (!html || html.length < 100) {
-        throw new Error('ScrapingBee vratio prazan HTML');
-      }
-
-      console.log(`ScrapingBee vratio ${html.length} karaktera HTML-a`);
-      
-      // Proveri da li HTML sadrži mbt-table
-      const hasMbtTable = html.includes('mbt-table') || html.includes('mbt-standings');
-      console.log(`HTML sadrži mbt-table: ${hasMbtTable}`);
-      
-      // Proveri da li HTML sadrži team_id linkove (glavna tabela)
-      const hasTeamIdLinks = html.includes('team_id') || html.includes('teamId');
-      console.log(`HTML sadrži team_id linkove: ${hasTeamIdLinks}`);
-      
-      // Debug: loguj mali deo HTML-a da vidimo strukturu
-      const tableMatch = html.match(/<table[^>]*class="[^"]*mbt[^"]*"[^>]*>[\s\S]{0,500}/i);
-      if (tableMatch) {
-        console.log('Pronađena mbt tabela u HTML-u:', tableMatch[0].substring(0, 200));
-      }
-      
-      // Ako nema mbt-table u HTML-u, možda ScrapingBee nije dovoljno čekao
-      if (!hasMbtTable && !hasTeamIdLinks) {
-        console.warn('⚠ ScrapingBee HTML ne sadrži mbt-table ili team_id linkove - možda JavaScript nije renderovan');
-        console.warn('Pokušavam parsiranje ipak...');
-      }
-      
-      const standings = this.parseRowsDirectly(html);
-      
-      if (standings.length === 0) {
-        // Pokušaj sa različitim parsiranjem
-        console.warn('Prvo parsiranje nije pronašlo podatke, pokušavam alternativno...');
-        
-        // Debug: proveri šta je u HTML-u
-        const debugTableMatch = html.match(/<table[^>]*>[\s\S]{0,1000}/i);
-        if (debugTableMatch) {
-          console.log('Debug - pronađena tabela u HTML-u:', debugTableMatch[0].substring(0, 500));
-        }
-        
-        // Proveri da li možda postoji problem sa renderovanjem
-        const hasScriptTags = html.includes('<script') && html.includes('</script>');
-        const hasBodyTag = html.includes('<body');
-        console.log(`HTML struktura: hasScriptTags=${hasScriptTags}, hasBodyTag=${hasBodyTag}`);
-        
-        // Ako nema mbt-table, pokušaj ponovo sa dužim čekanjem
-        if (!hasMbtTable) {
-          console.warn('⚠ Prvi ScrapingBee poziv nije vratio mbt-table, pokušavam ponovo sa dužim čekanjem...');
-          
-          // Pokušaj ponovo sa još dužim čekanjem (maksimum 10 sekundi)
-          const retryUrl = `https://app.scrapingbee.com/api/v1/?api_key=${encodeURIComponent(scrapingBeeApiKey)}&url=${encodeURIComponent(CONFIG.URL)}&render_js=true&wait=10000&block_resources=image,media,font`;
-          
-          try {
-            const retryResponse = await fetch(retryUrl, {
-              method: 'GET',
-              headers: {
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-              },
-              signal: AbortSignal.timeout(60000),
-            });
-            
-            if (retryResponse.ok) {
-              const retryHtml = await retryResponse.text();
-              console.log(`ScrapingBee retry vratio ${retryHtml.length} karaktera HTML-a`);
-              
-              const retryHasMbtTable = retryHtml.includes('mbt-table') || retryHtml.includes('mbt-standings');
-              const retryHasTeamIdLinks = retryHtml.includes('team_id') || retryHtml.includes('teamId');
-              
-              if (retryHasMbtTable || retryHasTeamIdLinks) {
-                const retryStandings = this.parseRowsDirectly(retryHtml);
-                if (retryStandings.length > 0) {
-                  console.log(`✓ Retry uspešan: pronađeno ${retryStandings.length} timova`);
-                  return retryStandings;
-                }
-              }
-            }
-          } catch (retryErr: any) {
-            console.warn('Retry ScrapingBee poziv neuspešan:', retryErr.message);
-          }
-          
-          throw new Error('ScrapingBee vratio HTML ali tabela (mbt-table) nije pronađena. JavaScript možda nije renderovan. Pokušajte sa browser automation fallback.');
-        }
-        
-        throw new Error('ScrapingBee vratio HTML ali tabela nije pronađena ili nema podataka');
-      }
-
-      console.log(`✓ Uspešno učitano ${standings.length} timova (ScrapingBee)`);
-      return standings;
-    } catch (error: any) {
-      console.error('✗ Greška pri scrapanju sa ScrapingBee:', error.message);
-      throw error;
-    }
-  }
 
   private async scrapeWithFetch(): Promise<WabaTeamData[]> {
     try {

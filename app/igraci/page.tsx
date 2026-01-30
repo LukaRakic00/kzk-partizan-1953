@@ -11,32 +11,7 @@ import Image from 'next/image';
 import CloudinaryImage from '@/components/CloudinaryImage';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
-
-interface Player {
-  _id: string;
-  name: string;
-  surname: string;
-  position: string;
-  number: number;
-  year: number;
-  image?: string;
-  bio?: string;
-  category?: string;
-}
-
-const categoryLabels: { [key: string]: string } = {
-  seniori: 'SENIORI',
-  juniori: 'JUNIORI',
-  kadetkinje: 'KADETKINJE',
-  pionirke: 'PIONIRKE',
-};
-
-const categoryDescriptions: { [key: string]: string } = {
-  seniori: 'Naša seniorska ekipa – iskustvo, snaga i liderstvo',
-  juniori: 'Najmlađi članovi našeg tima – budućnost košarke',
-  kadetkinje: 'Talenti koji rastu i razvijaju se u našem klubu',
-  pionirke: 'Mlade talente koje grade budućnost kluba',
-};
+import { Player, categoryLabels, categoryDescriptions } from '@/types';
 
 export default function IgraciPage() {
   const [playersByCategory, setPlayersByCategory] = useState<{ [key: string]: Player[] }>({
@@ -178,7 +153,7 @@ export default function IgraciPage() {
                       animate={{ opacity: 1, y: 0 }}
                       className="scroll-mt-32"
                     >
-                      <div className="text-center mb-8 sm:mb-12">
+                      <div className="sticky top-24 z-40 bg-black/80 backdrop-blur-sm py-4 mb-8 border-b border-white/10 text-center">
                         <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold font-playfair mb-4 sm:mb-6 uppercase tracking-wider text-white">
                           {categoryLabels[category]}
                         </h2>
@@ -204,6 +179,7 @@ export default function IgraciPage() {
                                       src={player.image}
                                       alt={`${player.name} ${player.surname}`}
                                       fill
+                                      sizes="(max-width: 640px) 128px, (max-width: 768px) 160px, 192px"
                                       className="object-cover"
                                     />
                                   ) : (
@@ -211,6 +187,7 @@ export default function IgraciPage() {
                                       src={player.image}
                                       alt={`${player.name} ${player.surname}`}
                                       fill
+                                      sizes="(max-width: 640px) 128px, (max-width: 768px) 160px, 192px"
                                       className="object-cover"
                                       unoptimized
                                     />
@@ -220,6 +197,7 @@ export default function IgraciPage() {
                                     src="/kzk_partizan.png"
                                     alt={`${player.name} ${player.surname}`}
                                     fill
+                                    sizes="(max-width: 640px) 128px, (max-width: 768px) 160px, 192px"
                                     className="object-contain p-4"
                                     unoptimized
                                   />

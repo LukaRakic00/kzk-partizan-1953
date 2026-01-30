@@ -1,9 +1,12 @@
 import { MetadataRoute } from 'next';
+import connectDB from '@/lib/mongodb';
+import News from '@/models/News';
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = 'https://kzkpartizan.rs';
 
-  return [
+  // Static pages
+  const staticPages: MetadataRoute.Sitemap = [
     {
       url: baseUrl,
       lastModified: new Date(),
@@ -53,4 +56,26 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.7,
     },
   ];
+
+  // Dynamic pages - News articles
+  try {
+    await connectDB();
+    const publishedNews = await News.find({ published: true })
+      .select('slug updatedAt publishedAt')
+      .sort({ publishedAt: -1 })
+      .limit(1000); // Limit to prevent sitemap from being too large
+
+    const newsPages: MetadataRoute.Sitemap = publishedNews.map((article) => ({
+      url: `${baseUrl}/vesti/${article.slug}`,
+      lastModified: article.updatedAt || article.publishedAt || new Date(),
+      changeFrequency: 'weekly' as const,
+      priority: 0.8,
+    }));
+
+    return [...staticPages, ...newsPages];
+  } catch (error) {
+    console.error('Error generating sitemap:', error);
+    // Return static pages only if there's an error
+    return staticPages;
+  }
 }

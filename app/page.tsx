@@ -1242,36 +1242,82 @@ export default function Home() {
               {/* Desktop - Auto-scroll animacija - samo za desktop */}
               <div className="hidden md:flex gap-8 md:gap-12 animate-scroll-infinite">
                 {/* Dupliraj slike za kontinuirani scroll */}
-                {[...partnerImages, ...partnerImages, ...partnerImages].map((partner, index) => (
-                  <div
-                    key={`partner-desktop-${index}`}
-                    className="flex-shrink-0 w-40 h-24 md:w-56 md:h-32 lg:w-64 lg:h-36 relative grayscale hover:grayscale-0 transition-all duration-500 opacity-60 hover:opacity-100"
-                  >
+                {[...partnerImages, ...partnerImages, ...partnerImages].map((partner, index) => {
+                  const hasUrl = partner.urlSajta && partner.urlSajta.trim() !== '';
+                  const baseClasses = 'flex-shrink-0 w-40 h-24 md:w-56 md:h-32 lg:w-64 lg:h-36 relative grayscale hover:grayscale-0 transition-all duration-500 opacity-60 hover:opacity-100';
+                  
+                  const imageContent = (
                     <Image
                       src={partner.url}
                       alt={`Partner ${index + 1}`}
                       fill
                       className="object-contain filter brightness-0 invert hover:brightness-100 hover:invert-0 transition-all duration-500"
                     />
-                  </div>
-                ))}
+                  );
+                  
+                  if (hasUrl) {
+                    return (
+                      <a
+                        key={`partner-desktop-${index}`}
+                        href={partner.urlSajta}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`${baseClasses} cursor-pointer`}
+                      >
+                        {imageContent}
+                      </a>
+                    );
+                  }
+                  
+                  return (
+                    <div
+                      key={`partner-desktop-${index}`}
+                      className={baseClasses}
+                    >
+                      {imageContent}
+                    </div>
+                  );
+                })}
               </div>
               
               {/* Mobile - Ručni scroll bez automatskog scrola - samo za mobilne */}
               <div className="flex md:hidden gap-6 overflow-x-auto scrollbar-hide pb-4 snap-x snap-mandatory" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch', scrollBehavior: 'smooth' }}>
-                {partnerImages.map((partner, index) => (
-                  <div
-                    key={`partner-mobile-${index}`}
-                    className="flex-shrink-0 w-40 h-24 snap-start relative grayscale hover:grayscale-0 transition-all duration-500 opacity-60 hover:opacity-100"
-                  >
+                {partnerImages.map((partner, index) => {
+                  const hasUrl = partner.urlSajta && partner.urlSajta.trim() !== '';
+                  const baseClasses = 'flex-shrink-0 w-40 h-24 snap-start relative grayscale hover:grayscale-0 transition-all duration-500 opacity-60 hover:opacity-100';
+                  
+                  const imageContent = (
                     <Image
                       src={partner.url}
                       alt={`Partner ${index + 1}`}
                       fill
                       className="object-contain filter brightness-0 invert hover:brightness-100 hover:invert-0 transition-all duration-500"
                     />
-                  </div>
-                ))}
+                  );
+                  
+                  if (hasUrl) {
+                    return (
+                      <a
+                        key={`partner-mobile-${index}`}
+                        href={partner.urlSajta}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`${baseClasses} cursor-pointer`}
+                      >
+                        {imageContent}
+                      </a>
+                    );
+                  }
+                  
+                  return (
+                    <div
+                      key={`partner-mobile-${index}`}
+                      className={baseClasses}
+                    >
+                      {imageContent}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>

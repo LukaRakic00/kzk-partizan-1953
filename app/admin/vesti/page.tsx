@@ -6,17 +6,7 @@ import { Plus, Edit, Trash2, Eye } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Image from 'next/image';
 import Link from 'next/link';
-
-interface News {
-  _id: string;
-  title: string;
-  slug: string;
-  excerpt: string;
-  image?: string;
-  published: boolean;
-  publishedAt?: string;
-  category: string;
-}
+import { News } from '@/types';
 
 export default function AdminNews() {
   const [news, setNews] = useState<News[]>([]);

@@ -1,4 +1,5 @@
 import { v2 as cloudinary } from 'cloudinary';
+import { env } from './env';
 
 let cloudinaryConfigured = false;
 
@@ -8,53 +9,21 @@ function ensureCloudinaryConfigured() {
     return;
   }
 
-  // Pročitaj environment varijable - probaj različite načine
-  const cloudName = process.env.CLOUDINARY_CLOUD_NAME || 
-                    (typeof window === 'undefined' ? process.env.CLOUDINARY_CLOUD_NAME : undefined);
-  const apiKey = process.env.CLOUDINARY_API_KEY || 
-                 (typeof window === 'undefined' ? process.env.CLOUDINARY_API_KEY : undefined);
-  const apiSecret = process.env.CLOUDINARY_API_SECRET || 
-                    (typeof window === 'undefined' ? process.env.CLOUDINARY_API_SECRET : undefined);
-
-  if (!cloudName || !apiKey || !apiSecret) {
-    const missingVars = [];
-    if (!cloudName) missingVars.push('CLOUDINARY_CLOUD_NAME');
-    if (!apiKey) missingVars.push('CLOUDINARY_API_KEY');
-    if (!apiSecret) missingVars.push('CLOUDINARY_API_SECRET');
-    
-    console.error('Cloudinary configuration missing:', {
-      missing: missingVars,
-      hasCloudName: !!cloudName,
-      hasApiKey: !!apiKey,
-      hasApiSecret: !!apiSecret,
-      nodeEnv: process.env.NODE_ENV,
-      vercel: process.env.VERCEL,
-    });
-    
-    throw new Error(
-      `Cloudinary konfiguracija nije podešena. Nedostaju: ${missingVars.join(', ')}. Proverite environment varijable.`
-    );
-  }
-
   try {
-    // Proveri da li su vrednosti prazne stringove
-    if (cloudName.trim() === '' || apiKey.trim() === '' || apiSecret.trim() === '') {
-      throw new Error('Cloudinary environment varijable ne mogu biti prazne stringove');
-    }
-    
     cloudinary.config({
-      cloud_name: cloudName,
-      api_key: apiKey,
-      api_secret: apiSecret,
+      cloud_name: env.CLOUDINARY_CLOUD_NAME,
+      api_key: env.CLOUDINARY_API_KEY,
+      api_secret: env.CLOUDINARY_API_SECRET,
       secure: true, // Uvek koristi HTTPS
     });
 
     cloudinaryConfigured = true;
     console.log('Cloudinary uspešno konfigurisan');
-  } catch (configError: any) {
-    console.error('Cloudinary config error:', configError);
+  } catch (configError: unknown) {
+    const error = configError instanceof Error ? configError : new Error('Unknown error');
+    console.error('Cloudinary config error:', error);
     cloudinaryConfigured = false;
-    throw new Error(`Greška pri konfigurisanju Cloudinary: ${configError.message}`);
+    throw new Error(`Greška pri konfigurisanju Cloudinary: ${error.message}`);
   }
 }
 

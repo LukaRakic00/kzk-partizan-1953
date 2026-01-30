@@ -442,6 +442,11 @@ export default function AdminDashboard() {
                           {baner.width} x {baner.height}
                         </p>
                       )}
+                      {baner.urlSajta && (
+                        <p className="text-xs text-blue-400 mt-1 truncate" title={baner.urlSajta}>
+                          🔗 {baner.urlSajta}
+                        </p>
+                      )}
                     </div>
                     <div className="flex flex-col gap-2">
                       <div className="flex gap-2">

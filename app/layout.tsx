@@ -18,9 +18,13 @@ const playfair = Playfair_Display({
 });
 
 export const metadata: Metadata = {
-  title: 'KŽK Partizan - Ženski Košarkaški Klub',
-  description: 'Zvanični sajt Ženskog Košarkaškog Kluba Partizan. Pratite naš tim, rezultate, vesti i više.',
-  keywords: 'KŽK Partizan, ženska košarka, Partizan, košarka, Beograd',
+  metadataBase: new URL('https://kzkpartizan.rs'),
+  title: {
+    default: 'KŽK Partizan - Ženski Košarkaški Klub',
+    template: '%s | KŽK Partizan',
+  },
+  description: 'Zvanični sajt Ženskog Košarkaškog Kluba Partizan. Tradicija, ponos i uspeh od 1953. godine. Pratite naš tim, rezultate, vesti i više.',
+  keywords: 'KŽK Partizan, ženska košarka, Partizan, košarka, Beograd, Partizan 1953, ženski košarkaški klub',
   authors: [{ name: 'KŽK Partizan' }],
   icons: {
     icon: [
@@ -45,9 +49,19 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: 'KŽK Partizan - Ženski Košarkaški Klub',
-    description: 'Zvanični sajt Ženskog Košarkaškog Kluba Partizan',
+    description: 'Zvanični sajt Ženskog Košarkaškog Kluba Partizan. Tradicija, ponos i uspeh od 1953. godine.',
     type: 'website',
     locale: 'sr_RS',
+    url: 'https://kzkpartizan.rs',
+    siteName: 'KŽK Partizan',
+    images: [
+      {
+        url: '/kzk_partizan.png',
+        width: 1200,
+        height: 630,
+        alt: 'KŽK Partizan 1953',
+      },
+    ],
   },
   robots: {
     index: true,

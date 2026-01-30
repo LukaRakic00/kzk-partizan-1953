@@ -6,25 +6,7 @@ import { motion } from 'framer-motion';
 import { Plus, Edit, Trash2, Upload, X, Filter } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Image from 'next/image';
-
-interface Player {
-  _id: string;
-  name: string;
-  surname: string;
-  position: string;
-  number: number;
-  year: number;
-  image?: string;
-  bio?: string;
-  category?: 'seniori' | 'juniori' | 'kadetkinje' | 'pionirke';
-}
-
-const categoryLabels: { [key: string]: string } = {
-  seniori: 'SENIORI',
-  juniori: 'JUNIORI',
-  kadetkinje: 'KADETKINJE',
-  pionirke: 'PIONIRKE',
-};
+import { Player, PlayerCategory, categoryLabels } from '@/types';
 
 const categoryColors: { [key: string]: string } = {
   seniori: 'from-blue-500 to-blue-600',
@@ -47,7 +29,7 @@ export default function AdminPlayers() {
     year: new Date().getFullYear().toString(),
     bio: '',
     image: '',
-    category: 'seniori' as 'seniori' | 'juniori' | 'kadetkinje' | 'pionirke',
+    category: 'seniori' as PlayerCategory,
   });
   const [uploading, setUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
@@ -202,7 +184,7 @@ export default function AdminPlayers() {
       year: player.year.toString(),
       bio: player.bio || '',
       image: player.image || '',
-      category: player.category || 'seniori',
+      category: (player.category || 'seniori') as PlayerCategory,
     });
     setShowModal(true);
   };
@@ -396,7 +378,7 @@ export default function AdminPlayers() {
                 <select
                   required
                   value={formData.category}
-                  onChange={(e) => setFormData({ ...formData, category: e.target.value as 'seniori' | 'juniori' | 'kadetkinje' | 'pionirke' })}
+                  onChange={(e) => setFormData({ ...formData, category: e.target.value as PlayerCategory })}
                   className="w-full bg-black border border-white/20 px-4 py-3 text-white focus:outline-none focus:border-white appearance-none cursor-pointer pr-10"
                   style={{
                     backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='white' d='M6 9L1 4h10z'/%3E%3C/svg%3E")`,

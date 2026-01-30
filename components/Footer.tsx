@@ -36,6 +36,7 @@ export default function Footer() {
           src="/0V2A4118-1024x682_nbf7tx.jpg"
           alt="Background"
           fill
+          sizes="100vw"
           className="object-cover"
         />
       </div>
@@ -51,6 +52,7 @@ export default function Footer() {
                     src={logoUrl}
                     alt="KŽK Partizan 1953 Logo"
                     fill
+                    sizes="(max-width: 768px) 80px, 96px"
                     className="object-contain"
                   />
                 </div>

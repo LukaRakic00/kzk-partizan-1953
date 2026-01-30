@@ -12,32 +12,7 @@ import CloudinaryImage from '@/components/CloudinaryImage';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { useParams } from 'next/navigation';
-
-interface Player {
-  _id: string;
-  name: string;
-  surname: string;
-  position: string;
-  number: number;
-  year: number;
-  image?: string;
-  bio?: string;
-  category?: string;
-}
-
-const categoryLabels: { [key: string]: string } = {
-  seniori: 'SENIORI',
-  juniori: 'JUNIORI',
-  kadetkinje: 'KADETKINJE',
-  pionirke: 'PIONIRKE',
-};
-
-const categoryDescriptions: { [key: string]: string } = {
-  seniori: 'Naša seniorska ekipa – iskustvo, snaga i liderstvo',
-  juniori: 'Najmlađi članovi našeg tima – budućnost košarke',
-  kadetkinje: 'Talenti koji rastu i razvijaju se u našem klubu',
-  pionirke: 'Mlade talente koje grade budućnost kluba',
-};
+import { Player, categoryLabels, categoryDescriptions } from '@/types';
 
 export default function IgraciCategoryPage() {
   const params = useParams();
@@ -60,7 +35,10 @@ export default function IgraciCategoryPage() {
       setPlayers(data);
       
       // Extract unique years from players
-      const years = [...new Set(data.map((p: Player) => p.year))].sort((a, b) => b - a);
+      const yearNumbers: number[] = data
+        .map((p: Player) => p.year)
+        .filter((year: unknown): year is number => typeof year === 'number');
+      const years = Array.from(new Set<number>(yearNumbers)).sort((a, b) => b - a);
       setAvailableYears(years);
     } catch (error) {
       console.error('Error loading players:', error);

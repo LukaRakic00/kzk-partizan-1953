@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { Menu, X, ChevronDown, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiClient } from '@/lib/api-client';
@@ -34,7 +34,20 @@ export default function Navbar() {
   const [showMobileONamaDropdown, setShowMobileONamaDropdown] = useState(false);
   const [showMobileIgraciDropdown, setShowMobileIgraciDropdown] = useState(false);
   const [showMobileKontaktDropdown, setShowMobileKontaktDropdown] = useState(false);
+  const [currentHash, setCurrentHash] = useState<string>('');
   const pathname = usePathname();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setCurrentHash(window.location.hash);
+      const handleHashChange = () => {
+        setCurrentHash(window.location.hash);
+      };
+      window.addEventListener('hashchange', handleHashChange);
+      return () => window.removeEventListener('hashchange', handleHashChange);
+    }
+  }, []);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -143,23 +156,66 @@ export default function Navbar() {
                 <Link
                   href="/klub#upravni-odbor"
                   className="block px-4 py-2 text-sm font-montserrat tracking-wider uppercase text-gray-300 hover:text-white hover:bg-white/10 transition-colors"
-                  onClick={() => setShowKlubDropdown(false)}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setShowKlubDropdown(false);
+                    if (pathname !== '/klub') {
+                      router.push('/klub#upravni-odbor');
+                      setTimeout(() => {
+                        const scrollToElement = () => {
+                          const targetElement = document.getElementById('upravni-odbor');
+                          if (targetElement) {
+                            targetElement.scrollIntoView({ behavior: 'smooth' });
+                            setCurrentHash('#upravni-odbor');
+                          } else {
+                            setTimeout(scrollToElement, 100);
+                          }
+                        };
+                        scrollToElement();
+                      }, 500);
+                    } else {
+                      const targetElement = document.getElementById('upravni-odbor');
+                      if (targetElement) {
+                        targetElement.scrollIntoView({ behavior: 'smooth' });
+                        setCurrentHash('#upravni-odbor');
+                        window.history.replaceState(null, '', '/klub#upravni-odbor');
+                      }
+                    }
+                  }}
                 >
                   Upravni Odbor
                 </Link>
                 <Link
                   href="/klub#menadzment"
                   className="block px-4 py-2 text-sm font-montserrat tracking-wider uppercase text-gray-300 hover:text-white hover:bg-white/10 transition-colors"
-                  onClick={() => setShowKlubDropdown(false)}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setShowKlubDropdown(false);
+                    if (pathname !== '/klub') {
+                      router.push('/klub#menadzment');
+                      setTimeout(() => {
+                        const scrollToElement = () => {
+                          const targetElement = document.getElementById('menadzment');
+                          if (targetElement) {
+                            targetElement.scrollIntoView({ behavior: 'smooth' });
+                            setCurrentHash('#menadzment');
+                          } else {
+                            setTimeout(scrollToElement, 100);
+                          }
+                        };
+                        scrollToElement();
+                      }, 500);
+                    } else {
+                      const targetElement = document.getElementById('menadzment');
+                      if (targetElement) {
+                        targetElement.scrollIntoView({ behavior: 'smooth' });
+                        setCurrentHash('#menadzment');
+                        window.history.replaceState(null, '', '/klub#menadzment');
+                      }
+                    }
+                  }}
                 >
                   Menadžment
-                </Link>
-                <Link
-                  href="/klub#rukovodstvo"
-                  className="block px-4 py-2 text-sm font-montserrat tracking-wider uppercase text-gray-300 hover:text-white hover:bg-white/10 transition-colors"
-                  onClick={() => setShowKlubDropdown(false)}
-                >
-                  Rukovodstvo
                 </Link>
               </motion.div>
             )}
@@ -265,13 +321,20 @@ export default function Navbar() {
                     )}
                   </AnimatePresence>
                 </div>
+                <Link
+                  href="/tim#skola-kosarke"
+                  className="block px-4 py-2 text-sm font-montserrat tracking-wider uppercase text-gray-300 hover:text-white hover:bg-white/10 transition-colors"
+                  onClick={() => setShowTimDropdown(false)}
+                >
+                  Škola Košarke
+                </Link>
               </motion.div>
             )}
           </AnimatePresence>
         </div>
       );
     }
-              if (item.href === '/o-nama') {
+    if (item.href === '/o-nama') {
                 return (
                   <div
                     key={item.href}
@@ -374,24 +437,56 @@ export default function Navbar() {
               }
               // Za anchor linkove (kao /#partneri)
               if (item.href.startsWith('/#')) {
+                const hash = item.href.substring(2); // Ukloni '/#' da dobijemo samo 'partneri'
+                const isActive = pathname === '/' && currentHash === `#${hash}`;
+                
+                const handleSmoothScroll = (e: React.MouseEvent<HTMLAnchorElement>) => {
+                  e.preventDefault();
+                  const targetId = hash;
+                  
+                  if (pathname !== '/') {
+                    // Ako nismo na homepage, navigiraj na homepage sa hash-om
+                    router.push(`/#${targetId}`);
+                    // Sačekaj da se stranica učita i scroll do sekcije
+                    const scrollToElement = () => {
+                      const targetElement = document.getElementById(targetId);
+                      if (targetElement) {
+                        targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        setCurrentHash(`#${targetId}`);
+                        window.history.replaceState(null, '', `/#${targetId}`);
+                      } else {
+                        // Retry if element not found yet - pokušaj ponovo nakon kratke pauze
+                        setTimeout(scrollToElement, 100);
+                      }
+                    };
+                    // Počni sa scroll-om nakon što se komponenta učita
+                    setTimeout(scrollToElement, 100);
+                  } else {
+                    // Ako smo već na homepage, samo scroll
+                    const targetElement = document.getElementById(targetId);
+                    if (targetElement) {
+                      targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      setCurrentHash(`#${targetId}`);
+                      window.history.replaceState(null, '', `/#${targetId}`);
+                    }
+                  }
+                };
+                
                 return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={`text-xs lg:text-sm font-semibold font-montserrat tracking-wider uppercase transition-colors relative group px-2 py-1 ${
-                      pathname === '/' && typeof window !== 'undefined' && window.location.hash === item.href.substring(1)
-                        ? 'text-white'
-                        : 'text-gray-300 hover:text-white'
-                    }`}
-                  >
-                    {item.label}
-                    {pathname === '/' && typeof window !== 'undefined' && window.location.hash === item.href.substring(1) && (
-                      <motion.div
-                        className="absolute -bottom-1 left-0 right-0 h-0.5 bg-white"
-                        layoutId="underline"
-                      />
-                    )}
-                  </Link>
+                  <div key={item.href} className="relative">
+                    <Link
+                      href={item.href}
+                      onClick={handleSmoothScroll}
+                      className={`text-xs lg:text-sm font-semibold font-montserrat tracking-wider uppercase transition-colors relative group px-2 py-1 ${
+                        isActive
+                          ? 'text-white'
+                          : 'text-gray-300'
+                      }`}
+                    >
+                      {item.label}
+                    </Link>
+                    {/* PARTNERI ne treba da ima underline */}
+                  </div>
                 );
               }
               
@@ -444,8 +539,8 @@ export default function Navbar() {
             href="/" 
             className={`hidden md:flex absolute left-1/2 transform -translate-x-1/2 items-center justify-center group z-20 transition-all duration-500 ${
               scrolled 
-                ? 'top-1/2 -translate-y-1/2' 
-                : 'bottom-0 -bottom-2 md:-bottom-3 lg:-bottom-4'
+                ? 'top-1/2 -translate-y-1/2 translate-y-1' 
+                : 'bottom-0 -bottom-4 md:-bottom-5 lg:-bottom-6'
             }`}
           >
             {logoUrl && (
@@ -458,6 +553,7 @@ export default function Navbar() {
                   src={logoUrl}
                   alt="KŽK Partizan 1953 Logo"
                   fill
+                  sizes="(max-width: 768px) 64px, (max-width: 1024px) 80px, 128px"
                   className="object-contain transition-transform duration-300 group-hover:scale-110"
                   priority
                   placeholder="blur"
@@ -484,6 +580,7 @@ export default function Navbar() {
                   src={logoUrl}
                   alt="KŽK Partizan 1953 Logo"
                   fill
+                  sizes="(max-width: 640px) 112px, 128px"
                   className="object-contain transition-transform duration-300 group-hover:scale-110"
                   priority
                   placeholder="blur"
@@ -557,9 +654,28 @@ export default function Navbar() {
                           >
                             <Link
                               href="/klub#upravni-odbor"
-                              onClick={() => {
+                              onClick={(e) => {
+                                e.preventDefault();
                                 setIsOpen(false);
                                 setShowMobileKlubDropdown(false);
+                                if (pathname !== '/klub') {
+                                  router.push('/klub#upravni-odbor');
+                                  setTimeout(() => {
+                                    const targetElement = document.getElementById('upravni-odbor');
+                                    if (targetElement) {
+                                      targetElement.scrollIntoView({ behavior: 'smooth' });
+                                      window.history.replaceState(null, '', '/klub#upravni-odbor');
+                                      setCurrentHash('#upravni-odbor');
+                                    }
+                                  }, 100);
+                                } else {
+                                  const targetElement = document.getElementById('upravni-odbor');
+                                  if (targetElement) {
+                                    targetElement.scrollIntoView({ behavior: 'smooth' });
+                                    setCurrentHash('#upravni-odbor');
+                                    window.history.replaceState(null, '', '/klub#upravni-odbor');
+                                  }
+                                }
                               }}
                               className="block text-sm font-montserrat tracking-wider uppercase text-gray-400 hover:text-white transition-colors"
                             >
@@ -567,23 +683,32 @@ export default function Navbar() {
                             </Link>
                             <Link
                               href="/klub#menadzment"
-                              onClick={() => {
+                              onClick={(e) => {
+                                e.preventDefault();
                                 setIsOpen(false);
                                 setShowMobileKlubDropdown(false);
+                                if (pathname !== '/klub') {
+                                  router.push('/klub#menadzment');
+                                  setTimeout(() => {
+                                    const targetElement = document.getElementById('menadzment');
+                                    if (targetElement) {
+                                      targetElement.scrollIntoView({ behavior: 'smooth' });
+                                      window.history.replaceState(null, '', '/klub#menadzment');
+                                      setCurrentHash('#menadzment');
+                                    }
+                                  }, 100);
+                                } else {
+                                  const targetElement = document.getElementById('menadzment');
+                                  if (targetElement) {
+                                    targetElement.scrollIntoView({ behavior: 'smooth' });
+                                    setCurrentHash('#menadzment');
+                                    window.history.replaceState(null, '', '/klub#menadzment');
+                                  }
+                                }
                               }}
                               className="block text-sm font-montserrat tracking-wider uppercase text-gray-400 hover:text-white transition-colors"
                             >
                               Menadžment
-                            </Link>
-                            <Link
-                              href="/klub#rukovodstvo"
-                              onClick={() => {
-                                setIsOpen(false);
-                                setShowMobileKlubDropdown(false);
-                              }}
-                              className="block text-sm font-montserrat tracking-wider uppercase text-gray-400 hover:text-white transition-colors"
-                            >
-                              Rukovodstvo
                             </Link>
                           </motion.div>
                         )}
@@ -833,6 +958,58 @@ export default function Navbar() {
                     </div>
                   );
                 }
+                // Za anchor linkove u mobilnom meniju
+                if (item.href.startsWith('/#')) {
+                  const hash = item.href.substring(2); // Ukloni '/#' da dobijemo samo 'partneri'
+                  const handleMobileSmoothScroll = (e: React.MouseEvent<HTMLAnchorElement>) => {
+                    e.preventDefault();
+                    setIsOpen(false);
+                    const targetId = hash;
+                    
+                    if (pathname !== '/') {
+                      // Ako nismo na homepage, navigiraj na homepage sa hash-om
+                      router.push(`/#${targetId}`);
+                      // Sačekaj da se stranica učita i scroll do sekcije
+                      const scrollToElement = () => {
+                        const targetElement = document.getElementById(targetId);
+                        if (targetElement) {
+                          targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                          window.history.replaceState(null, '', `/#${targetId}`);
+                          setCurrentHash(`#${targetId}`);
+                        } else {
+                          // Retry if element not found yet - pokušaj ponovo nakon kratke pauze
+                          setTimeout(scrollToElement, 100);
+                        }
+                      };
+                      // Počni sa scroll-om nakon što se komponenta učita
+                      setTimeout(scrollToElement, 100);
+                    } else {
+                      // Ako smo već na homepage, samo scroll
+                      const targetElement = document.getElementById(targetId);
+                      if (targetElement) {
+                        targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        setCurrentHash(`#${targetId}`);
+                        window.history.replaceState(null, '', `/#${targetId}`);
+                      }
+                    }
+                  };
+                  
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={handleMobileSmoothScroll}
+                      className={`block text-sm font-bold tracking-wider uppercase transition-colors ${
+                        pathname === '/' && currentHash === `#${hash}`
+                          ? 'text-white border-l-2 border-white pl-4'
+                          : 'text-gray-300 pl-4'
+                      }`}
+                    >
+                      {item.label}
+                    </Link>
+                  );
+                }
+                
                 return (
                 <Link
                   key={item.href}

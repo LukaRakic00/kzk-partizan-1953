@@ -17,8 +17,6 @@ export async function GET() {
 
     console.log('Pokretanje inicijalnog WABA scraping-a...');
     
-    // Proveri ScrapingBee API key status
-    const scrapingBeeApiKey = process.env.SCRAPINGBEE_API_KEY?.trim();
     const isVercel = process.env.VERCEL === '1' || process.env.VERCEL_ENV;
     
     console.log('=== API ROUTE DEBUG ===');
@@ -28,40 +26,27 @@ export async function GET() {
       NODE_ENV: process.env.NODE_ENV,
       isVercel: isVercel,
     });
-    console.log('ScrapingBee API key status:', {
-      exists: !!process.env.SCRAPINGBEE_API_KEY,
-      trimmed: !!scrapingBeeApiKey,
-      length: scrapingBeeApiKey?.length || 0,
-      preview: scrapingBeeApiKey ? `${scrapingBeeApiKey.substring(0, 10)}...${scrapingBeeApiKey.substring(scrapingBeeApiKey.length - 5)}` : 'N/A',
-    });
     console.log('=== END API ROUTE DEBUG ===');
     
-    // Ako postoji ScrapingBee API key, preskoči browser automation inicijalizaciju
-    // ScrapingBee će biti korišćen direktno u scrapeStandings()
+    // Pokušaj da inicijalizujemo browser automation
+    // Ovo je važno jer fetch metoda ne može da vidi JavaScript-renderovane tabele
     let browserInitialized = false;
     
-    if (!scrapingBeeApiKey) {
-      // Pokušaj da inicijalizujemo browser automation samo ako nema ScrapingBee API key
-      // Ovo je važno jer fetch metoda ne može da vidi JavaScript-renderovane tabele
-      try {
-        console.log('Inicijalizacija browser automation-a (ScrapingBee nije dostupan)...');
-        browserInitialized = await scraper.initialize();
-        if (browserInitialized) {
-          console.log('✓ Browser automation uspešno inicijalizovan - koristiće se za scraping');
-        } else {
-          console.error('✗ Browser automation nije uspeo da se inicijalizuje');
-          console.error('Proverite da li su instalirani puppeteer-core i @sparticuz/chromium paketi.');
-          console.error('U Vercel produkciji, ovi paketi su obavezni za JavaScript-renderovane stranice.');
-        }
-      } catch (initError: any) {
-        console.error('✗ Browser automation inicijalizacija neuspešna:', initError.message);
-        console.error('Stack trace:', initError.stack);
-        console.error('NAPOMENA: Fetch metoda neće moći da pronađe tabelu ako stranica koristi JavaScript za renderovanje.');
-        console.error('U produkciji (Vercel), proverite da li su instalirani puppeteer-core i @sparticuz/chromium paketi.');
+    try {
+      console.log('Inicijalizacija browser automation-a...');
+      browserInitialized = await scraper.initialize();
+      if (browserInitialized) {
+        console.log('✓ Browser automation uspešno inicijalizovan - koristiće se za scraping');
+      } else {
+        console.error('✗ Browser automation nije uspeo da se inicijalizuje');
+        console.error('Proverite da li su instalirani puppeteer-core i @sparticuz/chromium paketi.');
+        console.error('U Vercel produkciji, ovi paketi su obavezni za JavaScript-renderovane stranice.');
       }
-    } else {
-      console.log('✓ ScrapingBee API key je dostupan - preskačem browser automation inicijalizaciju');
-      console.log('ScrapingBee će biti korišćen direktno u scrapeStandings()');
+    } catch (initError: any) {
+      console.error('✗ Browser automation inicijalizacija neuspešna:', initError.message);
+      console.error('Stack trace:', initError.stack);
+      console.error('NAPOMENA: Fetch metoda neće moći da pronađe tabelu ako stranica koristi JavaScript za renderovanje.');
+      console.error('U produkciji (Vercel), proverite da li su instalirani puppeteer-core i @sparticuz/chromium paketi.');
     }
     
     let scrapedData: any[] = [];
@@ -141,12 +126,10 @@ export async function GET() {
     let errorMessage = error.message || 'Nepoznata greška';
     let userMessage = 'Greška pri učitavanju podataka';
     
-    if (errorMessage.includes('ScrapingBee API key nije validan')) {
-      userMessage = 'ScrapingBee API key nije validan. Pokušavam browser automation (Puppeteer) kao fallback. Ako se greška nastavi, proverite da li su instalirani puppeteer-core i @sparticuz/chromium paketi u Vercel Environment Variables.';
-    } else if (errorMessage.includes('Browser automation nije dostupan')) {
-      userMessage = 'Browser automation nije dostupan u Vercel produkciji. Proverite da li su instalirani puppeteer-core i @sparticuz/chromium paketi, ili postavite validan SCRAPINGBEE_API_KEY u Vercel Environment Variables.';
+    if (errorMessage.includes('Browser automation nije dostupan')) {
+      userMessage = 'Browser automation nije dostupan u Vercel produkciji. Proverite da li su instalirani puppeteer-core i @sparticuz/chromium paketi.';
     } else if (errorMessage.includes('Tabela nije pronađena')) {
-      userMessage = 'Tabela nije pronađena na stranici. Stranica verovatno koristi JavaScript za renderovanje, što zahteva browser automation (Playwright/Puppeteer) ili ScrapingBee API. U produkciji (Vercel), proverite da li je ScrapingBee API key pravilno postavljen ili da li su instalirani puppeteer-core, @sparticuz/chromium paketi.';
+      userMessage = 'Tabela nije pronađena na stranici. Stranica verovatno koristi JavaScript za renderovanje, što zahteva browser automation (Playwright/Puppeteer). U produkciji (Vercel), proverite da li su instalirani puppeteer-core i @sparticuz/chromium paketi.';
     } else if (errorMessage.includes('Nijedan tim nije pronađen')) {
       userMessage = 'Nijedan tim nije pronađen. Proverite da li je URL ispravan i da li stranica sadrži tabelu sa timovima.';
     } else if (errorMessage.includes('timeout') || errorMessage.includes('Timeout')) {

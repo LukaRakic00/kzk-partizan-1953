@@ -88,7 +88,17 @@ export class ApiClient {
     if (year) params.append('year', year.toString());
     if (category) params.append('category', category);
     const url = params.toString() ? `/api/players?${params.toString()}` : '/api/players';
-    return this.request<any[]>(url);
+    const response = await this.request<any>(url);
+    // Handle both formats: array (backward compatible) or object with pagination
+    if (Array.isArray(response)) {
+      return response;
+    }
+    // If it's an object with players property, return the players array
+    if (response && response.players && Array.isArray(response.players)) {
+      return response.players;
+    }
+    // Fallback to empty array
+    return [];
   }
 
   async createPlayer(data: any) {
@@ -113,7 +123,17 @@ export class ApiClient {
 
   // News
   async getNews() {
-    return this.request<any[]>('/api/news');
+    const response = await this.request<any>('/api/news');
+    // Handle both formats: array (backward compatible) or object with pagination
+    if (Array.isArray(response)) {
+      return response;
+    }
+    // If it's an object with news property, return the news array
+    if (response && response.news && Array.isArray(response.news)) {
+      return response.news;
+    }
+    // Fallback to empty array
+    return [];
   }
 
   async getNewsBySlug(slug: string) {
