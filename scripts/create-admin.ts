@@ -6,7 +6,7 @@ async function createAdmin() {
   try {
     await connectDB();
 
-    const email = process.argv[2] || 'admin@kzkpartizan.rs';
+    const email = process.argv[2] || 'admin@kzkpartizan1953.rs';
     const password = process.argv[3] || 'admin123';
 
     const existingUser = await User.findOne({ email });

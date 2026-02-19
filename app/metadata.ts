@@ -34,7 +34,7 @@ export const defaultMetadata: Metadata = {
     maximumScale: 5,
   },
   alternates: {
-    canonical: 'https://kzkpartizan.rs',
+    canonical: 'https://kzkpartizan1953.rs',
   },
 };
 

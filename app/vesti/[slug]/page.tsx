@@ -23,8 +23,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     };
   }
 
-  const image = news.image || 'https://kzkpartizan.rs/kzk_partizan.png';
-  const url = `https://kzkpartizan.rs/vesti/${news.slug}`;
+  const image = news.image || 'https://kzkpartizan1953.rs/kzk_partizan.png';
+  const url = `https://kzkpartizan1953.rs/vesti/${news.slug}`;
   const publishedTime = news.publishedAt ? new Date(news.publishedAt).toISOString() : undefined;
   const modifiedTime = news.updatedAt ? new Date(news.updatedAt).toISOString() : publishedTime;
 
@@ -53,11 +53,11 @@ export default async function VestiDetailPage({ params }: PageProps) {
   const articleSchema = generateArticleSchema({
     title: news.title,
     description: news.excerpt || news.content.substring(0, 160),
-    image: news.image || 'https://kzkpartizan.rs/kzk_partizan.png',
+    image: news.image || 'https://kzkpartizan1953.rs/kzk_partizan.png',
     publishedTime: news.publishedAt ? new Date(news.publishedAt).toISOString() : undefined,
     modifiedTime: news.updatedAt ? new Date(news.updatedAt).toISOString() : undefined,
     author: news.author,
-    url: `https://kzkpartizan.rs/vesti/${news.slug}`,
+    url: `https://kzkpartizan1953.rs/vesti/${news.slug}`,
   });
 
   return (

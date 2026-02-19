@@ -18,7 +18,7 @@ const playfair = Playfair_Display({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://kzkpartizan.rs'),
+  metadataBase: new URL('https://kzkpartizan1953.rs'),
   title: {
     default: 'KŽK Partizan - Ženski Košarkaški Klub',
     template: '%s | KŽK Partizan',
@@ -52,7 +52,7 @@ export const metadata: Metadata = {
     description: 'Zvanični sajt Ženskog Košarkaškog Kluba Partizan. Tradicija, ponos i uspeh od 1953. godine.',
     type: 'website',
     locale: 'sr_RS',
-    url: 'https://kzkpartizan.rs',
+    url: 'https://kzkpartizan1953.rs',
     siteName: 'KŽK Partizan',
     images: [
       {

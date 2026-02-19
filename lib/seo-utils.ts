@@ -1,7 +1,7 @@
 import { Metadata } from 'next';
 import { defaultMetadata } from '@/app/metadata';
 
-const baseUrl = 'https://kzkpartizan.rs';
+const baseUrl = 'https://kzkpartizan1953.rs';
 
 export interface SEOConfig {
   title?: string;

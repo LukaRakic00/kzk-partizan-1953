@@ -15,7 +15,7 @@ export default function BreadcrumbsSchema() {
         '@type': 'ListItem',
         position: 1,
         name: 'Početna',
-        item: 'https://kzkpartizan.rs',
+        item: 'https://kzkpartizan1953.rs',
       },
     ];
 
@@ -39,7 +39,7 @@ export default function BreadcrumbsSchema() {
         '@type': 'ListItem',
         position: index + 2,
         name: name,
-        item: `https://kzkpartizan.rs${currentPath}`,
+        item: `https://kzkpartizan1953.rs${currentPath}`,
       });
     });
 
@@ -54,10 +54,10 @@ export default function BreadcrumbsSchema() {
       '@context': 'https://schema.org',
       '@type': 'WebSite',
       name: 'KŽK Partizan 1953',
-      url: 'https://kzkpartizan.rs',
+      url: 'https://kzkpartizan1953.rs',
       potentialAction: {
         '@type': 'SearchAction',
-        target: 'https://kzkpartizan.rs/vesti?search={search_term_string}',
+        target: 'https://kzkpartizan1953.rs/vesti?search={search_term_string}',
         'query-input': 'required name=search_term_string',
       },
     };
@@ -68,10 +68,10 @@ export default function BreadcrumbsSchema() {
       '@type': 'SportsOrganization',
       name: 'KŽK Partizan 1953',
       alternateName: 'Košarkaški ženski klub Partizan 1953',
-      url: 'https://kzkpartizan.rs',
+      url: 'https://kzkpartizan1953.rs',
       logo: {
         '@type': 'ImageObject',
-        url: 'https://kzkpartizan.rs/kzk_partizan.png',
+        url: 'https://kzkpartizan1953.rs/kzk_partizan.png',
       },
       description: 'Ženski Košarkaški Klub Partizan 1953 - Tradicija, ponos i uspeh od 1953. godine',
       foundingDate: '1953',

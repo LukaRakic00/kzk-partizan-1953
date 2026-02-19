@@ -55,7 +55,7 @@ Ili kroz API:
 ```bash
 curl -X POST http://localhost:3000/api/seed \
   -H "Content-Type: application/json" \
-  -d '{"email":"admin@kzkpartizan.rs","password":"admin123"}'
+  -d '{"email":"admin@kzkpartizan1953.rs","password":"admin123"}'
 ```
 
 ## Deployment

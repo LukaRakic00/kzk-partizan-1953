@@ -1,0 +1,1 @@
+{"indexes":[{"v":{"$numberInt":"2"},"key":{"_id":{"$numberInt":"1"}},"name":"_id_"}],"uuid":"6605efcdd2ac488d88fd1a08f5d738d1","collectionName":"clubstatuses","type":"collection"}
