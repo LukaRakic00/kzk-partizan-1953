@@ -229,33 +229,29 @@ export default function AdminDashboard() {
     try {
       setWabaUpdating(true);
       setWabaStatus('idle');
-      
-      const response = await fetch('/api/waba/init', {
-        method: 'GET',
-      });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Greška pri ažuriranju WABA lige');
+      const data = await apiClient.request<{
+        success: boolean;
+        standings?: unknown[];
+        message?: string;
+      }>('/api/waba/trigger-update', { method: 'GET' });
+
+      if (!data.success) {
+        throw new Error((data as { message?: string }).message || 'Greška pri ažuriranju WABA lige');
       }
 
-      const data = await response.json();
-      
       setWabaStatus('success');
       setWabaLastUpdate(new Date().toISOString());
-      toast.success(`WABA liga uspešno ažurirana! Učitano ${data.standings?.length || 0} timova.`);
-      
-      setTimeout(() => {
-        setWabaStatus('idle');
-      }, 3000);
+      toast.success(
+        `WABA liga uspešno ažurirana! Učitano ${data.standings?.length ?? 0} timova.`
+      );
+
+      setTimeout(() => setWabaStatus('idle'), 3000);
     } catch (error: any) {
       console.error('Error updating WABA:', error);
       setWabaStatus('error');
       toast.error(error.message || 'Greška pri ažuriranju WABA lige');
-      
-      setTimeout(() => {
-        setWabaStatus('idle');
-      }, 5000);
+      setTimeout(() => setWabaStatus('idle'), 5000);
     } finally {
       setWabaUpdating(false);
     }

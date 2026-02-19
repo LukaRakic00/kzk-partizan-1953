@@ -2,7 +2,7 @@
   "buildCommand": "bun run build",
   "installCommand": "bun install",
   "functions": {
-    "app/api/waba/init/route.ts": {
+    "app/api/waba/trigger-update/route.ts": {
       "maxDuration": 60
     },
     "app/api/waba/standings/update/route.ts": {
