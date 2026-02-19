@@ -21,7 +21,7 @@
     "lucide-react": "^0.303.0",
     "mongodb": "^7.0.0",
     "mongoose": "^8.0.3",
-    "next": "^14.0.4",
+    "next": "14.2.35",
     "next-cloudinary": "^5.11.0",
     "next-seo": "^6.5.0",
     "playwright": "^1.57.0",
