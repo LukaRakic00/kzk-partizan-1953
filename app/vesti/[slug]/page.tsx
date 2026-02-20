@@ -1,8 +1,10 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
+import { cookies } from 'next/headers';
 import connectDB from '@/lib/mongodb';
 import News from '@/models/News';
 import { generateMetadata as generateSEOMetadata, generateArticleSchema } from '@/lib/seo-utils';
+import { verifyToken } from '@/lib/auth';
 import VestiDetailClient from './VestiDetailClient';
 
 interface PageProps {
@@ -11,7 +13,12 @@ interface PageProps {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   await connectDB();
-  const news = await News.findOne({ slug: params.slug, published: true });
+  // Allow admins (preview) to access unpublished news when they have a valid auth cookie
+  const cookieStore = cookies();
+  const token = cookieStore.get('auth-token')?.value || null;
+  const isAdmin = token ? !!verifyToken(token) : false;
+
+  const news = await News.findOne(isAdmin ? { slug: params.slug } : { slug: params.slug, published: true });
 
   if (!news) {
     return {
@@ -44,7 +51,11 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function VestiDetailPage({ params }: PageProps) {
   await connectDB();
-  const news = await News.findOne({ slug: params.slug, published: true });
+  const cookieStore = cookies();
+  const token = cookieStore.get('auth-token')?.value || null;
+  const isAdmin = token ? !!verifyToken(token) : false;
+
+  const news = await News.findOne(isAdmin ? { slug: params.slug } : { slug: params.slug, published: true });
 
   if (!news) {
     notFound();
